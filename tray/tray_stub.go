@@ -1,4 +1,4 @@
-//go:build (darwin && !cgo) || (!windows && !linux && !darwin)
+//go:build android || (darwin && !cgo) || (!windows && !linux && !darwin)
 
 package tray
 

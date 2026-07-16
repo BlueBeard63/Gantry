@@ -1,4 +1,4 @@
-//go:build !windows && (!linux || nogui)
+//go:build !windows && (!linux || android || nogui)
 
 package monitors
 

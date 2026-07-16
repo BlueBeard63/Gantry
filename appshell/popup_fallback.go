@@ -1,4 +1,4 @@
-//go:build nogui || (!windows && !linux)
+//go:build nogui || android || (!windows && !linux)
 
 package appshell
 

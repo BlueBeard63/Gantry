@@ -35,8 +35,8 @@ type appConfig struct {
 	Icons string `json:"icons,omitempty"`
 	// Build configures gantry build.
 	Build struct {
-		// Targets like "windows/amd64", "linux/arm64", "mac/arm64".
-		// Empty = the current machine only.
+		// Targets like "windows/amd64", "linux/arm64", "mac/arm64",
+		// "android" (bare = arm64). Empty = the current machine only.
 		Targets []string `json:"targets,omitempty"`
 		// Console keeps the console window on Windows builds (debug).
 		Console bool `json:"console,omitempty"`
@@ -44,6 +44,61 @@ type appConfig struct {
 		// via Inno Setup on Windows, a .tar.gz on Linux, a .zip on Mac.
 		Installer bool `json:"installer,omitempty"`
 	} `json:"build,omitempty"`
+	// Mobile is required by the android and ios build targets.
+	Mobile *mobileConfig `json:"mobile,omitempty"`
+}
+
+// mobileConfig is gantry.json's "mobile" section: app identity,
+// friendly permissions, home-screen widgets and per-OS options.
+type mobileConfig struct {
+	// ID is the reverse-DNS application id, e.g. "ec.morrison.demo".
+	ID string `json:"id"`
+	// Permissions holds friendly names ("camera", "notifications", ...)
+	// mapped to real platform permissions by permissions.go.
+	Permissions []string       `json:"permissions,omitempty"`
+	Widgets     []mobileWidget `json:"widgets,omitempty"`
+	Android     *androidConfig `json:"android,omitempty"`
+	IOS         *iosConfig     `json:"ios,omitempty"`
+}
+
+// mobileWidget is launcher metadata for one home-screen widget; its
+// content comes from the paired widgets/<name>/<name>.go.
+type mobileWidget struct {
+	Name           string `json:"name"`
+	Label          string `json:"label,omitempty"`
+	MinSize        string `json:"minSize,omitempty"` // grid cells, "CxR"
+	MaxSize        string `json:"maxSize,omitempty"`
+	Resize         string `json:"resize,omitempty"` // "none", "horizontal", "vertical" or "horizontal|vertical"
+	RefreshMinutes int    `json:"refreshMinutes,omitempty"`
+}
+
+type androidConfig struct {
+	MinSdk    int             `json:"minSdk,omitempty"`
+	TargetSdk int             `json:"targetSdk,omitempty"`
+	Keystore  *keystoreConfig `json:"keystore,omitempty"`
+}
+
+// keystoreConfig points at a release signing key; without one the APK
+// is signed with a debug key (installable, not store-ready).
+type keystoreConfig struct {
+	File        string `json:"file"`
+	Alias       string `json:"alias"`
+	PasswordEnv string `json:"passwordEnv"`
+}
+
+type iosConfig struct {
+	BundleID string `json:"bundleId,omitempty"`
+}
+
+// versionCode derives Android's integer version code from the semantic
+// version: major*10000 + minor*100 + patch, so every release bump
+// yields a strictly larger code.
+func (c appConfig) versionCode() (int, error) {
+	p, ok := semverParts(c.Version)
+	if !ok {
+		return 0, fmt.Errorf("version %q is not X.Y.Z semver (needed to derive the Android versionCode)", c.Version)
+	}
+	return p[0]*10000 + p[1]*100 + p[2], nil
 }
 
 // findApp walks up from the working directory to the nearest gantry.json.
@@ -63,6 +118,17 @@ func findApp() (dir string, cfg appConfig, err error) {
 			}
 			if cfg.Version == "" {
 				cfg.Version = "0.1.0"
+			}
+			if cfg.Mobile != nil {
+				if cfg.Mobile.Android == nil {
+					cfg.Mobile.Android = &androidConfig{}
+				}
+				if cfg.Mobile.Android.MinSdk == 0 {
+					cfg.Mobile.Android.MinSdk = 26
+				}
+				if cfg.Mobile.Android.TargetSdk == 0 {
+					cfg.Mobile.Android.TargetSdk = 35
+				}
 			}
 			return dir, cfg, nil
 		}

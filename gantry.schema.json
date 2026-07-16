@@ -78,11 +78,11 @@
       "properties": {
         "targets": {
           "type": "array",
-          "description": "Build targets as os/arch pairs. Empty or absent = the current machine only. Windows and mac targets cross-compile from anywhere; linux targets need a Linux machine (WSL works).",
+          "description": "Build targets as os/arch pairs. Empty or absent = the current machine only. Windows and mac targets cross-compile from anywhere; linux targets need a Linux machine (WSL works). android (bare = arm64) builds an APK when the JDK/SDK/NDK toolchain is present, and is skipped with a warning otherwise; ios is an experimental scaffold.",
           "items": {
             "type": "string",
-            "pattern": "^(windows|linux|mac|darwin)/(amd64|arm64|386)$",
-            "examples": ["windows/amd64", "windows/arm64", "linux/amd64", "linux/arm64", "mac/arm64", "mac/amd64"]
+            "pattern": "^((windows|linux|mac|darwin)/(amd64|arm64|386)|android(/(arm64|amd64))?|ios(/arm64)?)$",
+            "examples": ["windows/amd64", "windows/arm64", "linux/amd64", "linux/arm64", "mac/arm64", "mac/amd64", "android", "android/arm64", "android/amd64", "ios"]
           },
           "uniqueItems": true
         },
@@ -95,6 +95,119 @@
           "type": "boolean",
           "default": false,
           "description": "Also produce install artifacts per target: a Setup.exe via Inno Setup on Windows (the .iss is left ready when Inno Setup is not installed), a .tar.gz on Linux, a .zip on Mac."
+        }
+      }
+    },
+    "mobile": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id"],
+      "description": "Mobile settings, needed by the android and ios build targets: app identity, friendly permissions, home-screen widgets and per-OS options.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[A-Za-z][A-Za-z0-9_]*(\\.[A-Za-z][A-Za-z0-9_]*)+$",
+          "description": "Application id in reverse-DNS form (Android applicationId / iOS bundle id base), e.g. ec.morrison.demo. Changing it after release makes stores treat the app as a different app."
+        },
+        "permissions": {
+          "type": "array",
+          "uniqueItems": true,
+          "description": "Friendly permission names, mapped to the platform's real permissions at build time (Android manifest entries now, iOS usage strings later). INTERNET is always included - the app talks to its own local server.",
+          "items": {
+            "type": "string",
+            "enum": ["camera", "microphone", "location", "location-background", "notifications", "files", "bluetooth", "contacts", "vibrate", "boot", "network-state", "foreground-service"]
+          }
+        },
+        "widgets": {
+          "type": "array",
+          "description": "Android home-screen widgets. Each entry must have a paired widgets/<name>/<name>.go exporting its Widget; the entry holds launcher metadata only.",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["name"],
+            "properties": {
+              "name": {
+                "type": "string",
+                "pattern": "^[a-z][a-z0-9_]*$",
+                "description": "Widget name - pairs with widgets/<name>/<name>.go."
+              },
+              "label": {
+                "type": "string",
+                "description": "Name shown in the launcher's widget picker. Defaults to the widget name."
+              },
+              "minSize": {
+                "type": "string",
+                "pattern": "^\\d+x\\d+$",
+                "default": "2x1",
+                "description": "Minimum size in launcher grid cells as CxR, e.g. 3x1."
+              },
+              "maxSize": {
+                "type": "string",
+                "pattern": "^\\d+x\\d+$",
+                "description": "Maximum size in launcher grid cells as CxR."
+              },
+              "resize": {
+                "type": "string",
+                "enum": ["none", "horizontal", "vertical", "horizontal|vertical"],
+                "default": "horizontal|vertical",
+                "description": "Which axes the user can resize the widget on."
+              },
+              "refreshMinutes": {
+                "type": "integer",
+                "minimum": 15,
+                "default": 30,
+                "description": "Background refresh period in minutes (Android floors periodic work at 15)."
+              }
+            }
+          }
+        },
+        "android": {
+          "type": "object",
+          "additionalProperties": false,
+          "description": "Android build options.",
+          "properties": {
+            "minSdk": {
+              "type": "integer",
+              "default": 26,
+              "description": "Minimum Android SDK level (26 = Android 8.0)."
+            },
+            "targetSdk": {
+              "type": "integer",
+              "default": 35,
+              "description": "Target Android SDK level."
+            },
+            "keystore": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["file", "alias", "passwordEnv"],
+              "description": "Release signing key. Absent = the APK is signed with a debug key (installable, not store-ready).",
+              "properties": {
+                "file": {
+                  "type": "string",
+                  "description": "Path to the .jks/.keystore file, relative to the app root."
+                },
+                "alias": {
+                  "type": "string",
+                  "description": "Key alias inside the keystore."
+                },
+                "passwordEnv": {
+                  "type": "string",
+                  "description": "Name of the environment variable holding the keystore/key password - the password itself never goes in gantry.json."
+                }
+              }
+            }
+          }
+        },
+        "ios": {
+          "type": "object",
+          "additionalProperties": false,
+          "description": "iOS scaffold options (experimental).",
+          "properties": {
+            "bundleId": {
+              "type": "string",
+              "description": "Bundle identifier override; defaults to mobile.id."
+            }
+          }
         }
       }
     }

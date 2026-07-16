@@ -73,9 +73,19 @@ func cmdBuild(args []string) error {
 	makeInstaller := *installer || cfg.Build.Installer
 	useConsole := *console || cfg.Build.Console
 
+	// Android arches build together (one multi-ABI APK), so collect
+	// mobile targets out of the per-target loop.
+	var androidArches, iosArches []string
 	built := 0
 	for _, t := range targets {
-		if t.goos() == "linux" && runtime.GOOS != "linux" {
+		switch {
+		case t.OS == "android":
+			androidArches = appendUnique(androidArches, t.Arch)
+			continue
+		case t.OS == "ios":
+			iosArches = appendUnique(iosArches, t.Arch)
+			continue
+		case t.goos() == "linux" && runtime.GOOS != "linux":
 			warn("skipping %s/%s - Linux builds need a Linux machine (WSL works: run gantry build there)", t.OS, t.Arch)
 			continue
 		}
@@ -83,6 +93,24 @@ func cmdBuild(args []string) error {
 			return err
 		}
 		built++
+	}
+	if len(androidArches) > 0 {
+		ok, err := buildAndroid(appDir, cfg, androidArches)
+		if err != nil {
+			return err
+		}
+		if ok {
+			built++
+		}
+	}
+	if len(iosArches) > 0 {
+		ok, err := buildIOS(appDir, cfg, iosArches)
+		if err != nil {
+			return err
+		}
+		if ok {
+			built++
+		}
 	}
 	if built == 0 {
 		return fmt.Errorf("no targets were built")
@@ -92,7 +120,8 @@ func cmdBuild(args []string) error {
 }
 
 // resolveTargets parses the flag or gantry.json list; empty = the
-// current machine.
+// current machine. Mobile targets: "android" (bare = arm64, or
+// android/arm64, android/amd64) and "ios" (arm64 only).
 func resolveTargets(flagVal string, cfg appConfig) ([]buildTarget, error) {
 	raw := cfg.Build.Targets
 	if flagVal != "" {
@@ -108,19 +137,43 @@ func resolveTargets(flagVal string, cfg appConfig) ([]buildTarget, error) {
 	var out []buildTarget
 	for _, r := range raw {
 		parts := strings.Split(strings.TrimSpace(strings.ToLower(r)), "/")
+		osName := parts[0]
+		if osName == "darwin" {
+			osName = "mac"
+		}
+		if len(parts) == 1 && (osName == "android" || osName == "ios") {
+			out = append(out, buildTarget{OS: osName, Arch: "arm64"})
+			continue
+		}
 		if len(parts) != 2 || parts[0] == "" || parts[1] == "" {
-			return nil, fmt.Errorf("bad target %q (want os/arch, e.g. windows/amd64)", r)
+			return nil, fmt.Errorf("bad target %q (want os/arch, e.g. windows/amd64, or bare android/ios)", r)
 		}
-		os := parts[0]
-		if os == "darwin" {
-			os = "mac"
+		arch := parts[1]
+		switch osName {
+		case "windows", "linux", "mac":
+		case "android":
+			if arch != "arm64" && arch != "amd64" {
+				return nil, fmt.Errorf("unknown android arch %q (arm64 or amd64)", arch)
+			}
+		case "ios":
+			if arch != "arm64" {
+				return nil, fmt.Errorf("unknown ios arch %q (arm64 only)", arch)
+			}
+		default:
+			return nil, fmt.Errorf("unknown target os %q (windows, linux, mac, android or ios)", parts[0])
 		}
-		if os != "windows" && os != "linux" && os != "mac" {
-			return nil, fmt.Errorf("unknown target os %q (windows, linux or mac)", parts[0])
-		}
-		out = append(out, buildTarget{OS: os, Arch: parts[1]})
+		out = append(out, buildTarget{OS: osName, Arch: arch})
 	}
 	return out, nil
+}
+
+func appendUnique(list []string, v string) []string {
+	for _, x := range list {
+		if x == v {
+			return list
+		}
+	}
+	return append(list, v)
 }
 
 func buildOne(appDir string, cfg appConfig, t buildTarget, console, installer bool) error {

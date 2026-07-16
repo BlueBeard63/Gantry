@@ -23,8 +23,10 @@ package gantry
 import (
 	"context"
 	"flag"
+	"fmt"
 	"io/fs"
 	"log"
+	"net"
 	"net/http"
 	"os"
 	"os/signal"
@@ -103,6 +105,9 @@ func Run(cfg Config) {
 		trayOn    = flag.Bool("tray", false, "run with the tray even if the app was configured without one")
 		trayOff   = flag.Bool("no-tray", false, "run without the tray (closing the window exits)")
 		devURL    = flag.String("dev-url", "", "dev: load the frontend from this URL (gantry dev sets it)")
+		token     = flag.String("token", "", "require this token on every request, via the gantry_token cookie or ?gantry_token= (the mobile shell sets it)")
+		announce  = flag.Bool("announce-ready", false, "print GANTRY_READY port=N to stdout once the server listens (works with --port 0)")
+		emitOnly  = flag.Bool("emit-widgets", false, "print the widget snapshot as JSON and exit without serving")
 		shellRole = flag.String("shellrole", "", "internal: run a helper window role instead of the app")
 		roleURL   = flag.String("url", "", "internal: url for the helper window")
 		monitor   = flag.Int("monitor", -1, "internal: monitor index for popups")
@@ -147,12 +152,37 @@ func Run(cfg Config) {
 		return
 	}
 
-	if err := run(cfg, *port, *browser, *noOpen, *devURL); err != nil {
+	if *emitOnly {
+		if err := emitWidgets(os.Stdout); err != nil {
+			log.Fatal(err)
+		}
+		return
+	}
+
+	flags := runFlags{
+		port:          *port,
+		browser:       *browser,
+		noOpen:        *noOpen,
+		devURL:        *devURL,
+		token:         *token,
+		announceReady: *announce,
+	}
+	if err := run(cfg, flags); err != nil {
 		log.Fatal(err)
 	}
 }
 
-func run(cfg Config, port int, browser, noOpen bool, devURL string) error {
+// runFlags is the parsed command line run() acts on.
+type runFlags struct {
+	port          int
+	browser       bool
+	noOpen        bool
+	devURL        string
+	token         string
+	announceReady bool
+}
+
+func run(cfg Config, f runFlags) error {
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer cancel()
 
@@ -165,11 +195,14 @@ func run(cfg Config, port int, browser, noOpen bool, devURL string) error {
 	}
 	mux.Handle("/", appshell.ServeSPA(cfg.Dist))
 
-	ln, err := appshell.Listen(port) // also the single-instance guard
+	ln, err := appshell.Listen(f.port) // also the single-instance guard
 	if err != nil {
 		return err
 	}
-	server := &http.Server{Handler: mux}
+	// --port 0 binds an ephemeral port; everything downstream needs
+	// the real one.
+	port := ln.Addr().(*net.TCPAddr).Port
+	server := &http.Server{Handler: tokenHandler(f.token, mux)}
 	errCh := make(chan error, 1)
 	go func() { errCh <- server.Serve(ln) }()
 	go func() {
@@ -177,13 +210,21 @@ func run(cfg Config, port int, browser, noOpen bool, devURL string) error {
 		_ = server.Close()
 	}()
 
-	url := "http://127.0.0.1:" + strconv.Itoa(port)
-	if devURL != "" {
-		url = devURL // gantry dev: HMR inside the native window
+	if f.announceReady {
+		// The mobile shell scans stdout for this line to learn the port.
+		fmt.Printf("GANTRY_READY port=%d\n", port)
 	}
-	log.Printf("%s serving on %s", cfg.Title, url)
 
-	if noOpen {
+	url := "http://127.0.0.1:" + strconv.Itoa(port)
+	if f.token != "" {
+		url += "/?gantry_token=" + f.token // the first load sets the auth cookie
+	}
+	if f.devURL != "" {
+		url = f.devURL // gantry dev: HMR inside the native window
+	}
+	log.Printf("%s serving on %s", cfg.Title, "http://127.0.0.1:"+strconv.Itoa(port))
+
+	if f.noOpen {
 		return <-errCh
 	}
 
@@ -218,7 +259,7 @@ func run(cfg Config, port int, browser, noOpen bool, devURL string) error {
 
 	shell := &appshell.App{
 		Window:  window,
-		Browser: browser,
+		Browser: f.browser,
 	}
 	if cfg.Tray {
 		shell.Tray = &tray.Options{

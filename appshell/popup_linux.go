@@ -1,4 +1,4 @@
-//go:build linux && !nogui
+//go:build linux && !android && !nogui
 
 package appshell
 
