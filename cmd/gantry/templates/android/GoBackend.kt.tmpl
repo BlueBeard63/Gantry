@@ -25,6 +25,7 @@ class GoBackend(private val context: Context) {
     private val lock = Object()
     private var port = 0
     private val listeners = mutableListOf<(Int) -> Unit>()
+    private val onceListeners = mutableListOf<(Int) -> Unit>()
     @Volatile private var stopped = false
 
     // onReady runs cb (on a backend thread) with the server's port -
@@ -34,6 +35,18 @@ class GoBackend(private val context: Context) {
         synchronized(lock) {
             listeners.add(cb)
             if (port != 0) cb(port)
+        }
+    }
+
+    // onceReady runs cb exactly once - now if the server is up, else on
+    // its next ready announcement (used by fire-and-forget relays).
+    fun onceReady(cb: (Int) -> Unit) {
+        synchronized(lock) {
+            if (port != 0) {
+                cb(port)
+            } else {
+                onceListeners.add(cb)
+            }
         }
     }
 
@@ -76,21 +89,36 @@ class GoBackend(private val context: Context) {
         val p = pb.start()
         BufferedReader(InputStreamReader(p.inputStream)).useLines { lines ->
             for (line in lines) {
-                Log.i(TAG, line)
-                READY.find(line)?.let { m ->
-                    val newPort = m.groupValues[1].toInt()
-                    val toNotify = synchronized(lock) {
-                        port = newPort
-                        listeners.toList()
+                // Control lines let the server drive shell-side Android
+                // APIs it cannot reach itself; everything else is log.
+                when {
+                    line.startsWith("GANTRY_NOTIFY ") ->
+                        Notifier.post(context, line.removePrefix("GANTRY_NOTIFY "))
+                    line.startsWith("GANTRY_NOTIFY_CLEAR ") ->
+                        Notifier.clear(context, line.removePrefix("GANTRY_NOTIFY_CLEAR "))
+                    else -> {
+                        Log.i(TAG, line)
+                        READY.find(line)?.let { m -> announceReady(m.groupValues[1].toInt()) }
                     }
-                    toNotify.forEach { it(newPort) }
-[[if .Widgets]]                    // The server is up anyway: refresh the widgets for free.
-                    Thread { WidgetRefresh.fromServer(context, newPort, token) }.start()
-[[end]]                }
+                }
             }
         }
         p.waitFor()
     }
+
+    // announceReady records the (possibly new) port and wakes everyone
+    // waiting on the server.
+    private fun announceReady(newPort: Int) {
+        val toNotify = synchronized(lock) {
+            port = newPort
+            val once = onceListeners.toList()
+            onceListeners.clear()
+            listeners.toList() + once
+        }
+        toNotify.forEach { it(newPort) }
+[[if .Widgets]]        // The server is up anyway: refresh the widgets for free.
+        Thread { WidgetRefresh.fromServer(context, newPort, token) }.start()
+[[end]]    }
 
     companion object {
         private const val TAG = "gantry-go"

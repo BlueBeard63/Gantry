@@ -254,13 +254,17 @@ func TestWriteAndroidSynth(t *testing.T) {
 			`android:name="android.permission.CAMERA"`,
 			`android:name="android.permission.VIBRATE"`,
 			`android:usesCleartextTraffic="true"`,
+			`android:name=".NotificationActionReceiver"`,
 		},
 		"app/src/main/java/ec/morrison/demo/MainActivity.kt": {
 			"package ec.morrison.demo",
 			`"android.permission.CAMERA",`, // runtime prompt list: camera yes...
 		},
-		"app/src/main/java/ec/morrison/demo/GoBackend.kt":  {"libgantryapp.so", "GANTRY_READY"},
+		"app/src/main/java/ec/morrison/demo/GoBackend.kt":  {"libgantryapp.so", "GANTRY_READY", "GANTRY_NOTIFY "},
 		"app/src/main/java/ec/morrison/demo/GantryApp.kt":  {"class GantryApp"},
+		"app/src/main/java/ec/morrison/demo/Notifications.kt": {
+			"object Notifier", "class NotificationActionReceiver", "/gantry/notify/action",
+		},
 		"app/src/main/res/values/strings.xml":              {"<string name=\"app_name\">Demo</string>"},
 		"gradlew.bat":                                      nil,
 		"gradle/wrapper/gradle-wrapper.jar":                nil,
@@ -495,7 +499,7 @@ func TestWriteAndroidSynthWidgets(t *testing.T) {
 		}
 	}
 	manifest, _ := os.ReadFile(filepath.Join(dir, "app", "src", "main", "AndroidManifest.xml"))
-	if strings.Contains(string(manifest), "Receiver") {
+	if strings.Contains(string(manifest), "StatusWidgetReceiver") {
 		t.Error("manifest should have no widget receivers left")
 	}
 	gradle, _ := os.ReadFile(filepath.Join(dir, "app", "build.gradle.kts"))

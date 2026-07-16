@@ -1,0 +1,105 @@
+// Synthesized by gantry build - regenerated every run, never hand-edited.
+package [[.ID]]
+
+import android.app.Notification
+import android.app.NotificationChannel
+import android.app.NotificationManager
+import android.app.PendingIntent
+import android.content.BroadcastReceiver
+import android.content.Context
+import android.content.Intent
+import android.graphics.drawable.Icon
+import android.util.Log
+import org.json.JSONObject
+import java.net.URL
+import java.net.URLEncoder
+
+// Notifier executes the Go server's notification control lines
+// (GANTRY_NOTIFY / GANTRY_NOTIFY_CLEAR + one-line JSON on stdout - the
+// server has no path of its own to NotificationManager). Notifications
+// are keyed by their string id: reposting updates in place, clear
+// cancels. Android only shows any of this when the app holds
+// POST_NOTIFICATIONS (the "notifications" gantry.json permission).
+object Notifier {
+    private const val TAG = "gantry-go"
+
+    fun post(context: Context, json: String) {
+        runCatching {
+            val n = JSONObject(json)
+            val id = n.optString("id")
+            if (id.isEmpty()) return
+            val channelId = n.optString("channel").ifEmpty { "default" }
+            val channelName = n.optString("channelName").ifEmpty { context.getString(R.string.app_name) }
+            val silent = n.optBoolean("silent")
+
+            val nm = context.getSystemService(NotificationManager::class.java)
+            nm.createNotificationChannel(
+                NotificationChannel(
+                    channelId, channelName,
+                    if (silent) NotificationManager.IMPORTANCE_LOW else NotificationManager.IMPORTANCE_DEFAULT,
+                ),
+            )
+
+            val open = PendingIntent.getActivity(
+                context, 0, Intent(context, MainActivity::class.java),
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+            )
+            val body = n.optString("body")
+            val b = Notification.Builder(context, channelId)
+                .setSmallIcon(R.mipmap.ic_launcher)
+                .setContentTitle(n.optString("title"))
+                .setContentText(body)
+                .setStyle(Notification.BigTextStyle().bigText(body))
+                .setContentIntent(open)
+                .setAutoCancel(true)
+
+            val actions = n.optJSONArray("actions")
+            for (i in 0 until (actions?.length() ?: 0)) {
+                val a = actions!!.getJSONObject(i)
+                val tap = Intent(context, NotificationActionReceiver::class.java)
+                    .setAction("[[.ID]].NOTIFY_ACTION")
+                    .putExtra("notification", id)
+                    .putExtra("action", a.optString("id"))
+                val pi = PendingIntent.getBroadcast(
+                    context, (id + "/" + a.optString("id")).hashCode(), tap,
+                    PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+                )
+                b.addAction(Notification.Action.Builder(null as Icon?, a.optString("label"), pi).build())
+            }
+
+            nm.notify(id, 1, b.build())
+        }.onFailure { Log.w(TAG, "bad notification payload: $json", it) }
+    }
+
+    fun clear(context: Context, json: String) {
+        runCatching {
+            val id = JSONObject(json).optString("id")
+            val nm = context.getSystemService(NotificationManager::class.java)
+            if (id.isEmpty()) nm.cancelAll() else nm.cancel(id, 1)
+        }.onFailure { Log.w(TAG, "bad clear payload: $json", it) }
+    }
+}
+
+// NotificationActionReceiver relays a notification button tap to the
+// app's server as /gantry/notify/action. If the app process was dead,
+// Android just started it to deliver this broadcast - the backend is
+// already booting, so the relay waits for its ready handshake and the
+// tap still reaches the app's OnAction handler.
+class NotificationActionReceiver : BroadcastReceiver() {
+    override fun onReceive(context: Context, intent: Intent) {
+        val nID = intent.getStringExtra("notification") ?: return
+        val aID = intent.getStringExtra("action") ?: return
+        val backend = (context.applicationContext as GantryApp).backend
+        backend.onceReady { port ->
+            Thread {
+                runCatching {
+                    val url = "http://127.0.0.1:$port/gantry/notify/action" +
+                        "?id=" + URLEncoder.encode(nID, "UTF-8") +
+                        "&action=" + URLEncoder.encode(aID, "UTF-8") +
+                        "&gantry_token=" + backend.token
+                    URL(url).openStream().close()
+                }.onFailure { Log.w("gantry-go", "action relay failed", it) }
+            }.start()
+        }
+    }
+}

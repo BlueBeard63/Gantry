@@ -1,5 +1,7 @@
 # Notifications
 
+> On Android, notifications are real system notifications with their own API - see [Mobile > Notifications](../mobile/notifications.md). This page is the desktop popup system.
+
 Gantry notifications are popup windows your app draws itself: frameless, always on top, placed at the top or bottom of a monitor, and unable to steal focus - buttons are clickable but whatever the user was typing in keeps the keyboard. Because they are real app windows rather than shell toasts, Windows Do Not Disturb / Focus Assist cannot suppress them. Use them for things that genuinely must be seen (check-ins, alarms).
 
 ## The pieces

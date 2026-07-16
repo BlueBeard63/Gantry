@@ -81,6 +81,8 @@ An unknown name is a build error listing the whole vocabulary. Web-side `getUser
 - If the server dies it is restarted with backoff; the WebView re-points itself at the new port.
 - Back gesture/button walks WebView history before leaving the app.
 
+Home-screen widgets and system notifications each have their own page: [Widgets](widgets.md), [Notifications](notifications.md).
+
 ## Customizing the Android project
 
 `.gantry/android/` is regenerated every build - never edit it. Instead, create `mobile/android/` in your app root: after synthesis its contents are copied over the generated tree, path for path. `mobile/android/app/src/main/res/values/strings.xml` replaces the generated one, extra Kotlin files land in the source set, and so on.

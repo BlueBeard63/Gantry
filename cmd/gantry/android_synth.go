@@ -157,6 +157,7 @@ func writeAndroidSynth(appDir string, cfg appConfig) (string, error) {
 		"MainActivity.kt.tmpl":      "app/src/main/java/" + pkgDir + "/MainActivity.kt",
 		"GoBackend.kt.tmpl":         "app/src/main/java/" + pkgDir + "/GoBackend.kt",
 		"GantryApp.kt.tmpl":         "app/src/main/java/" + pkgDir + "/GantryApp.kt",
+		"Notifications.kt.tmpl":     "app/src/main/java/" + pkgDir + "/Notifications.kt",
 		"strings.xml.tmpl":          "app/src/main/res/values/strings.xml",
 		"themes.xml.tmpl":           "app/src/main/res/values/themes.xml",
 	}

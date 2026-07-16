@@ -12,6 +12,7 @@ import (
 	"io"
 	"net/http"
 
+	"github.com/B-Commissions/Gantry/notification"
 	"github.com/B-Commissions/Gantry/widget"
 )
 
@@ -60,6 +61,17 @@ func widgetsHandler() http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		_ = json.NewEncoder(w).Encode(widgetEnvelope())
+	})
+}
+
+// notifyActionHandler receives notification button taps from the
+// shell (which Android delivers even when the tap has to start the app
+// process first) and routes them to the app's OnAction handler.
+func notifyActionHandler() http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		q := r.URL.Query()
+		notification.Dispatch(q.Get("id"), q.Get("action"))
+		w.WriteHeader(http.StatusNoContent)
 	})
 }
 

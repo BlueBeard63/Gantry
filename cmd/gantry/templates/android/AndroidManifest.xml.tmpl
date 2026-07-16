@@ -24,6 +24,11 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <!-- Relays notification button taps back to the Go server. -->
+        <receiver
+            android:name=".NotificationActionReceiver"
+            android:exported="false" />
 [[range .Widgets]]
         <receiver
             android:name=".[[.ClassName]]Receiver"
