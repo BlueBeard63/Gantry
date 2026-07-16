@@ -134,10 +134,14 @@ Inside the browser:
 
 ## gantry.json
 
-The file that makes a folder an app in the CLI's eyes:
+The file that makes a folder an app in the CLI's eyes. It carries a
+$schema reference (added by gantry new) so editors validate it as you
+type - unknown keys are flagged and every field shows its docs on
+hover:
 
 ```json
 {
+  "$schema": "https://raw.githubusercontent.com/B-Commissions/Gantry/main/gantry.schema.json",
   "name": "myapp",           // exe and module name
   "title": "Myapp",          // window title
   "version": "0.1.0",        // shown by installers

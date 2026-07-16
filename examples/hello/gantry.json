@@ -1,6 +1,8 @@
 {
+  "$schema": "https://raw.githubusercontent.com/B-Commissions/Gantry/main/gantry.schema.json",
   "name": "hello",
   "title": "Hello",
+  "version": "0.1.0",
   "port": 8330,
   "mode": "single",
   "style": "plain",

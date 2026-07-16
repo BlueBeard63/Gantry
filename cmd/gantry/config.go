@@ -8,9 +8,14 @@ import (
 	"path/filepath"
 )
 
+// schemaURL points editors at the gantry.json schema for validation
+// and hover docs (fetched from GitHub by VS Code's JSON service).
+const schemaURL = "https://raw.githubusercontent.com/B-Commissions/Gantry/main/gantry.schema.json"
+
 // appConfig is gantry.json at the app root - written by gantry new,
 // edited by the developer, read by dev/build.
 type appConfig struct {
+	Schema  string `json:"$schema,omitempty"`
 	Name    string `json:"name"`
 	Title   string `json:"title"`
 	Version string `json:"version,omitempty"` // shown in installers; default 0.1.0
@@ -70,6 +75,9 @@ func findApp() (dir string, cfg appConfig, err error) {
 }
 
 func writeConfig(dir string, cfg appConfig) error {
+	if cfg.Schema == "" {
+		cfg.Schema = schemaURL
+	}
 	data, err := json.MarshalIndent(cfg, "", "  ")
 	if err != nil {
 		return err

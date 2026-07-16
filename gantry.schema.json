@@ -1,0 +1,102 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://raw.githubusercontent.com/B-Commissions/Gantry/main/gantry.schema.json",
+  "title": "gantry.json",
+  "description": "Configuration for a Gantry desktop app - read by the gantry CLI (dev, build, gen).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["name", "title", "port"],
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "description": "Reference to this schema, enabling editor validation and hover docs."
+    },
+    "name": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9._-]*$",
+      "description": "The app's identity: exe name, Go module name, WebView2 data folder and log namespace. Lowercase, path-safe."
+    },
+    "title": {
+      "type": "string",
+      "description": "Human-facing name: the window title, tray tooltip and installer display name."
+    },
+    "version": {
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+\\.\\d+.*$",
+      "default": "0.1.0",
+      "description": "App version, shown by installers (Setup.exe's AppVersion)."
+    },
+    "port": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 65535,
+      "default": 8330,
+      "description": "Local server port the app binds on 127.0.0.1 - also the single-instance guard. The dev proxy forwards /api and /gantry/ws here."
+    },
+    "mode": {
+      "type": "string",
+      "enum": ["single", "multi"],
+      "description": "Informational: whether the app was scaffolded single-page (pages/index only) or multi-page. Adding page folders is what actually changes routing."
+    },
+    "style": {
+      "type": "string",
+      "enum": ["tea", "plain"],
+      "description": "Informational: the page style the scaffold generated - Tea (UI logic in Go) or plain React with paired handlers."
+    },
+    "tray": {
+      "type": "boolean",
+      "description": "Informational: whether the scaffold wired a system tray. The live switch is gantry.Config.Tray in main.go, and any built app can be launched with --tray or --no-tray."
+    },
+    "buttons": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Informational: which window buttons the scaffold enabled. The live switches are the WindowOptions fields in main.go.",
+      "properties": {
+        "minimize": {
+          "type": "boolean",
+          "description": "Whether the scaffold enabled the minimize button."
+        },
+        "maximize": {
+          "type": "boolean",
+          "description": "Whether the scaffold enabled the maximize button."
+        },
+        "close": {
+          "type": "boolean",
+          "description": "Whether the scaffold enabled the close button."
+        }
+      }
+    },
+    "icons": {
+      "type": "string",
+      "default": "icons",
+      "description": "Directory (relative to the app root) holding the default icon files: icon.ico (Windows exe + tray) and icon.png (window, Linux tray). gantry build bakes icon.ico into the exe; gantry gen embeds both as runtime defaults. Code-level Icon settings override them."
+    },
+    "build": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Settings for gantry build.",
+      "properties": {
+        "targets": {
+          "type": "array",
+          "description": "Build targets as os/arch pairs. Empty or absent = the current machine only. Windows and mac targets cross-compile from anywhere; linux targets need a Linux machine (WSL works).",
+          "items": {
+            "type": "string",
+            "pattern": "^(windows|linux|mac|darwin)/(amd64|arm64|386)$",
+            "examples": ["windows/amd64", "windows/arm64", "linux/amd64", "linux/arm64", "mac/arm64", "mac/amd64"]
+          },
+          "uniqueItems": true
+        },
+        "console": {
+          "type": "boolean",
+          "default": false,
+          "description": "Keep the console window on Windows builds (debug builds; release builds are windowed apps)."
+        },
+        "installer": {
+          "type": "boolean",
+          "default": false,
+          "description": "Also produce install artifacts per target: a Setup.exe via Inno Setup on Windows (the .iss is left ready when Inno Setup is not installed), a .tar.gz on Linux, a .zip on Mac."
+        }
+      }
+    }
+  }
+}
