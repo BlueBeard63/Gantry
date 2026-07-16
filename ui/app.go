@@ -53,7 +53,10 @@ type Component struct {
 	Call Calls
 }
 
-// route derives the URL path for a page key.
+// route derives the URL path for a page key. Nested keys route by
+// their path, and an "index" leaf maps to the parent:
+// pages/index -> "/", pages/account/settings -> "/account/settings",
+// pages/account/index -> "/account".
 func (p Page) route() string {
 	if p.Route != "" {
 		return p.Route
@@ -62,6 +65,7 @@ func (p Page) route() string {
 	if name == "index" {
 		return "/"
 	}
+	name = strings.TrimSuffix(name, "/index")
 	return "/" + name
 }
 

@@ -28,23 +28,33 @@ export function gantry(opts = {}) {
   let appRoot = "";
   let goPort = opts.goPort ?? 0;
 
+  // Pairs nest to any depth: pages/account/settings/settings.tsx is
+  // the pair "pages/account/settings" and serves /account/settings. A
+  // folder both IS a pair and CONTAINS pairs when it wants to
+  // (pages/account/account.tsx + pages/account/settings/...).
   function scanKind(kind) {
-    const dir = path.join(appRoot, kind);
+    const root = path.join(appRoot, kind);
     const out = [];
-    if (!fs.existsSync(dir)) return out;
-    for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
-      if (!entry.isDirectory()) continue;
-      const name = entry.name;
-      const tsx = path.join(dir, name, name + ".tsx");
-      if (!fs.existsSync(tsx)) continue;
-      const css = path.join(dir, name, name + ".css");
-      out.push({
-        key: kind + "/" + name,
-        name,
-        tsx: tsx.split(path.sep).join("/"),
-        css: fs.existsSync(css) ? css.split(path.sep).join("/") : null,
-      });
-    }
+    if (!fs.existsSync(root)) return out;
+    const walk = (dir) => {
+      for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+        if (!entry.isDirectory()) continue;
+        const sub = path.join(dir, entry.name);
+        const tsx = path.join(sub, entry.name + ".tsx");
+        if (fs.existsSync(tsx)) {
+          const rel = path.relative(root, sub).split(path.sep).join("/");
+          const css = path.join(sub, entry.name + ".css");
+          out.push({
+            key: kind + "/" + rel,
+            name: rel,
+            tsx: tsx.split(path.sep).join("/"),
+            css: fs.existsSync(css) ? css.split(path.sep).join("/") : null,
+          });
+        }
+        walk(sub);
+      }
+    };
+    walk(root);
     out.sort((a, b) => a.key.localeCompare(b.key));
     return out;
   }
@@ -90,8 +100,18 @@ export function gantry(opts = {}) {
       // The derived route only; an optional "export const route" on the
       // page module overrides it at runtime (createApp checks mod.route
       // there - referencing it here would make rollup warn on every
-      // page that does not export it).
-      const route = p.name === "index" ? "/" : "/" + p.name;
+      // page that does not export it). Nested pages route by their
+      // path; an "index" leaf maps to the parent:
+      //   pages/index -> /, pages/account/settings -> /account/settings,
+      //   pages/account/index -> /account
+      let route;
+      if (p.name === "index") {
+        route = "/";
+      } else if (p.name.endsWith("/index")) {
+        route = "/" + p.name.slice(0, -"/index".length);
+      } else {
+        route = "/" + p.name;
+      }
       return `{ key: ${JSON.stringify(p.key)}, route: ${JSON.stringify(route)}, mod: p${i} }`;
     });
     lines.push(`export const pages = [${pageEntries.join(", ")}];`);
@@ -113,8 +133,10 @@ export function gantry(opts = {}) {
     const root = appRoot.split(path.sep).join("/");
     if (!file.startsWith(root + "/")) return null;
     const rel = file.slice(root.length + 1);
-    const m = rel.match(/^(pages|components|layouts)\/([^/]+)\/([^/]+)\.tsx$/);
-    if (!m || m[2] !== m[3]) return null;
+    const m = rel.match(/^(pages|components|layouts)\/(.+)\/([^/]+)\.tsx$/);
+    if (!m) return null;
+    const segs = m[2].split("/");
+    if (segs[segs.length - 1] !== m[3]) return null;
     return m[1] + "/" + m[2];
   }
 
@@ -184,7 +206,7 @@ export function gantry(opts = {}) {
         const root = appRoot.split(path.sep).join("/");
         if (!f.startsWith(root)) return;
         if (
-          !/\/(pages|components|layouts)\/[^/]+\/[^/]+\.(tsx|css)$/.test(f) &&
+          !/\/(pages|components|layouts)\/.+\.(tsx|css)$/.test(f) &&
           !f.endsWith("/index.css") &&
           !f.endsWith("/app.tsx")
         ) {

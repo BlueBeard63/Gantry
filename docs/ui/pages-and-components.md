@@ -39,7 +39,26 @@ var Page = ui.Page{
 }
 ```
 
-- Route derivation: pages/index -> "/", pages/anything -> "/anything".
+- Route derivation: pages/index -> "/", pages/anything -> "/anything",
+  and pairs nest to any depth: pages/account/settings ->
+  "/account/settings". An "index" leaf maps to its parent
+  (pages/account/index -> "/account"), and a folder can both BE a page
+  and CONTAIN pages:
+
+```
+pages/
+  account/
+    settings/
+      settings.tsx, settings.go, settings.css   -> /account/settings
+      profile/
+        profile.tsx, profile.go                 -> /account/settings/profile
+```
+
+  The key is always the folder path ("pages/account/settings/profile"),
+  the css scope class follows it (gantry-pages-account-settings-profile),
+  and registration stays automatic - gantry gen walks the whole tree.
+  Components and layouts nest the same way (a nested layout's name is
+  its path, e.g. layout = "admin/main").
 - Model gives the page a Go state machine rendered with <TeaView /> -
   see [The Tea model](tea.md). A page can have a Model, handlers, both,
   or neither (a purely static page needs no .go at all... though the

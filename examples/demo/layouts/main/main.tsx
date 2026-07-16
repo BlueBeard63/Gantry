@@ -11,6 +11,7 @@ export default function Main({ children }: { children?: ReactNode }) {
       <nav className="app-nav">
         <Link to="/">Home</Link>
         <Link to="/settings">Settings</Link>
+        <Link to="/account/profile">Profile</Link>
       </nav>
       <main className="app-main">{children}</main>
     </div>
