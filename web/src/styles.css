@@ -63,7 +63,10 @@
   justify-content: center;
   min-width: var(--gantry-tbbtn-w, 40px);
   height: 100%;
+  padding: 0;
   border: none;
+  border-radius: 0;
+  outline: none;
   background: var(--gantry-tbbtn-bg, transparent);
   color: var(--gantry-tbbtn-fg, var(--gantry-titlebar-fg));
   cursor: default;
@@ -109,7 +112,10 @@
   justify-content: center;
   width: 46px;
   height: 100%; /* follows the bar's height, thin or tall */
+  padding: 0;
   border: none;
+  border-radius: 0;
+  outline: none;
   background: transparent;
   color: var(--gantry-titlebar-fg);
   cursor: default;
@@ -260,7 +266,7 @@
   border-color: var(--gantry-accent);
 }
 
-.gantry-app button:not(.gantry-winbtn) {
+.gantry-app button:not(.gantry-winbtn):not(.gantry-tbbtn) {
   font-family: var(--gantry-font);
   font-size: 13px;
   color: var(--gantry-fg);
@@ -270,7 +276,7 @@
   padding: 6px 14px;
 }
 
-.gantry-app button:not(.gantry-winbtn):hover {
+.gantry-app button:not(.gantry-winbtn):not(.gantry-tbbtn):hover {
   border-color: var(--gantry-accent);
 }
 
