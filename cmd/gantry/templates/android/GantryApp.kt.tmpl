@@ -1,0 +1,18 @@
+// Synthesized by gantry build - regenerated every run, never hand-edited.
+package [[.ID]]
+
+import android.app.Application
+
+// GantryApp owns the Go backend so it outlives activity recreation
+// (rotation, theme change): the server keeps running, only the WebView
+// is rebuilt.
+class GantryApp : Application() {
+    lateinit var backend: GoBackend
+        private set
+
+    override fun onCreate() {
+        super.onCreate()
+        backend = GoBackend(this)
+        backend.start()
+    }
+}

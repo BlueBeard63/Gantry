@@ -1,0 +1,51 @@
+// Synthesized by gantry build - regenerated every run, never hand-edited.
+plugins {
+    id("com.android.application")
+    id("org.jetbrains.kotlin.android")
+}
+
+android {
+    namespace = "[[.ID]]"
+    compileSdk = [[.TargetSdk]]
+
+    defaultConfig {
+        applicationId = "[[.ID]]"
+        minSdk = [[.MinSdk]]
+        targetSdk = [[.TargetSdk]]
+        versionCode = [[.VersionCode]]
+        versionName = "[[.Version]]"
+    }
+
+[[if .Keystore]]    signingConfigs {
+        create("release") {
+            storeFile = file("[[.Keystore.File]]")
+            keyAlias = "[[.Keystore.Alias]]"
+            storePassword = System.getenv("[[.Keystore.PasswordEnv]]") ?: ""
+            keyPassword = System.getenv("[[.Keystore.PasswordEnv]]") ?: ""
+        }
+    }
+[[end]]    buildTypes {
+        release {
+            isMinifyEnabled = false
+            signingConfig = signingConfigs.getByName([[if .Keystore]]"release"[[else]]"debug"[[end]])
+        }
+    }
+    packaging {
+        jniLibs {
+            // The Go server is packed as libgantryapp.so; legacy packaging
+            // extracts it to nativeLibraryDir where it lands executable,
+            // so the shell can spawn it as a child process.
+            useLegacyPackaging = true
+        }
+    }
+    compileOptions {
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
+    }
+    kotlinOptions {
+        jvmTarget = "17"
+    }
+    lint {
+        checkReleaseBuilds = false
+    }
+}

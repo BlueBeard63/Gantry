@@ -11,5 +11,8 @@
     "minimize": true,
     "maximize": true,
     "close": true
+  },
+  "mobile": {
+    "id": "ec.morrison.demo"
   }
 }

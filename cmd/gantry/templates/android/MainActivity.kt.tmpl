@@ -1,0 +1,82 @@
+// Synthesized by gantry build - regenerated every run, never hand-edited.
+package [[.ID]]
+
+import android.annotation.SuppressLint
+import android.app.Activity
+import android.content.pm.PackageManager
+import android.os.Bundle
+import android.webkit.PermissionRequest
+import android.webkit.WebChromeClient
+import android.webkit.WebView
+import android.webkit.WebViewClient
+
+// MainActivity is a full-screen WebView pointed at the Go server on
+// 127.0.0.1. All app UI lives in the web frontend; this shell only
+// bridges Android concerns (permissions, back navigation).
+class MainActivity : Activity() {
+    private lateinit var web: WebView
+
+    @SuppressLint("SetJavaScriptEnabled")
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        web = WebView(this)
+        web.settings.javaScriptEnabled = true
+        web.settings.domStorageEnabled = true
+        web.settings.mediaPlaybackRequiresUserGesture = false
+        web.webViewClient = WebViewClient()
+        web.webChromeClient = object : WebChromeClient() {
+            // The page is the app itself: pass web media requests through
+            // to whatever Android permissions the app already holds.
+            override fun onPermissionRequest(request: PermissionRequest) {
+                val granted = request.resources.filter { res ->
+                    val perm = when (res) {
+                        PermissionRequest.RESOURCE_VIDEO_CAPTURE -> android.Manifest.permission.CAMERA
+                        PermissionRequest.RESOURCE_AUDIO_CAPTURE -> android.Manifest.permission.RECORD_AUDIO
+                        else -> null
+                    }
+                    perm != null && checkSelfPermission(perm) == PackageManager.PERMISSION_GRANTED
+                }
+                if (granted.isEmpty()) request.deny() else request.grant(granted.toTypedArray())
+            }
+        }
+        setContentView(web)
+
+        askPermissionsOnce()
+
+        val backend = (application as GantryApp).backend
+        backend.onReady { port ->
+            runOnUiThread {
+                // The first load carries the token; the server sets it as
+                // a cookie so in-app navigation stays clean.
+                web.loadUrl("http://127.0.0.1:$port/?gantry_token=${backend.token}")
+            }
+        }
+    }
+
+    // The "dangerous" permissions declared in gantry.json, prompted once
+    // on first launch; Android remembers the answer from then on.
+    private val runtimePermissions: Array<String> = arrayOf(
+[[range .RuntimePermissions]]        "[[.]]",
+[[end]]    )
+
+    private fun askPermissionsOnce() {
+        if (runtimePermissions.isEmpty()) return
+        val prefs = getSharedPreferences("gantry", MODE_PRIVATE)
+        if (prefs.getBoolean("permissions-asked", false)) return
+        val pending = runtimePermissions.filter {
+            checkSelfPermission(it) != PackageManager.PERMISSION_GRANTED
+        }
+        if (pending.isNotEmpty()) requestPermissions(pending.toTypedArray(), 1)
+        prefs.edit().putBoolean("permissions-asked", true).apply()
+    }
+
+    @Deprecated("Deprecated in Java")
+    override fun onBackPressed() {
+        if (web.canGoBack()) web.goBack() else super.onBackPressed()
+    }
+
+    override fun onDestroy() {
+        web.destroy()
+        super.onDestroy()
+    }
+}

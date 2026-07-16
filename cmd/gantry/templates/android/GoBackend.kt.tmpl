@@ -1,0 +1,97 @@
+// Synthesized by gantry build - regenerated every run, never hand-edited.
+package [[.ID]]
+
+import android.content.Context
+import android.util.Log
+import java.io.BufferedReader
+import java.io.File
+import java.io.InputStreamReader
+import java.security.SecureRandom
+
+// GoBackend runs the app's Go server - packed into the APK as
+// jniLibs/<abi>/libgantryapp.so so Android extracts it executable into
+// nativeLibraryDir - as a child process, and restarts it with backoff
+// if it dies. The server binds an ephemeral port (--port 0) and
+// announces it on stdout; every stdout line is relayed to logcat under
+// the "gantry-go" tag.
+class GoBackend(private val context: Context) {
+    // token guards the loopback server: only pages opened by this shell
+    // (which appends ?gantry_token= on the first load) can talk to it.
+    val token: String = ByteArray(16).let { b ->
+        SecureRandom().nextBytes(b)
+        b.joinToString("") { "%02x".format(it) }
+    }
+
+    private val lock = Object()
+    private var port = 0
+    private val listeners = mutableListOf<(Int) -> Unit>()
+    @Volatile private var stopped = false
+
+    // onReady runs cb (on a backend thread) with the server's port -
+    // immediately if it is already up, and again with the new port after
+    // every restart, so callers can re-point the WebView.
+    fun onReady(cb: (Int) -> Unit) {
+        synchronized(lock) {
+            listeners.add(cb)
+            if (port != 0) cb(port)
+        }
+    }
+
+    fun start() {
+        Thread(::runLoop, "gantry-backend").apply { isDaemon = true }.start()
+    }
+
+    private fun runLoop() {
+        var backoffMs = 500L
+        while (!stopped) {
+            val startedAt = System.currentTimeMillis()
+            try {
+                runOnce()
+            } catch (e: Exception) {
+                Log.e(TAG, "backend failed", e)
+            }
+            if (stopped) return
+            // A run that survived a while was healthy: reset the backoff.
+            if (System.currentTimeMillis() - startedAt > 30_000) backoffMs = 500L
+            Log.w(TAG, "backend exited, restarting in ${backoffMs}ms")
+            try {
+                Thread.sleep(backoffMs)
+            } catch (e: InterruptedException) {
+                return
+            }
+            backoffMs = (backoffMs * 2).coerceAtMost(15_000L)
+        }
+    }
+
+    private fun runOnce() {
+        val exe = File(context.applicationInfo.nativeLibraryDir, "libgantryapp.so")
+        val pb = ProcessBuilder(
+            exe.absolutePath,
+            "--port", "0", "--no-open", "--announce-ready",
+            "--token", token,
+        )
+        pb.environment()["HOME"] = context.filesDir.absolutePath
+        pb.environment()["TMPDIR"] = context.cacheDir.absolutePath
+        pb.redirectErrorStream(true)
+        val p = pb.start()
+        BufferedReader(InputStreamReader(p.inputStream)).useLines { lines ->
+            for (line in lines) {
+                Log.i(TAG, line)
+                READY.find(line)?.let { m ->
+                    val newPort = m.groupValues[1].toInt()
+                    val toNotify = synchronized(lock) {
+                        port = newPort
+                        listeners.toList()
+                    }
+                    toNotify.forEach { it(newPort) }
+                }
+            }
+        }
+        p.waitFor()
+    }
+
+    companion object {
+        private const val TAG = "gantry-go"
+        private val READY = Regex("""^GANTRY_READY port=(\d+)$""")
+    }
+}

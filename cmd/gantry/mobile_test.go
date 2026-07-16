@@ -211,3 +211,126 @@ func TestNDKClangPath(t *testing.T) {
 		t.Errorf("clang path should live under toolchains/llvm/prebuilt: %q", p)
 	}
 }
+
+// synthConfig is a ready-to-synth appConfig with the findApp defaults
+// already applied (writeAndroidSynth assumes them).
+func synthConfig() appConfig {
+	return appConfig{
+		Name:    "demo",
+		Title:   "Demo",
+		Version: "1.2.3",
+		Mobile: &mobileConfig{
+			ID:          "ec.morrison.demo",
+			Permissions: []string{"camera", "vibrate"},
+			Android:     &androidConfig{MinSdk: 26, TargetSdk: 35},
+		},
+	}
+}
+
+func TestWriteAndroidSynth(t *testing.T) {
+	appDir := t.TempDir()
+	dir, err := writeAndroidSynth(appDir, synthConfig())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := filepath.Join(appDir, ".gantry", "android"); dir != want {
+		t.Fatalf("synth dir = %q, want %q", dir, want)
+	}
+
+	checks := map[string][]string{
+		"settings.gradle.kts": {`rootProject.name = "demo"`, `include(":app")`},
+		"build.gradle.kts":    {`id("com.android.application") version`},
+		"app/build.gradle.kts": {
+			`applicationId = "ec.morrison.demo"`,
+			"versionCode = 10203",
+			`versionName = "1.2.3"`,
+			"minSdk = 26",
+			"targetSdk = 35",
+			"useLegacyPackaging = true",
+			`signingConfig = signingConfigs.getByName("debug")`,
+		},
+		"app/src/main/AndroidManifest.xml": {
+			`android:name="android.permission.INTERNET"`,
+			`android:name="android.permission.CAMERA"`,
+			`android:name="android.permission.VIBRATE"`,
+			`android:usesCleartextTraffic="true"`,
+		},
+		"app/src/main/java/ec/morrison/demo/MainActivity.kt": {
+			"package ec.morrison.demo",
+			`"android.permission.CAMERA",`, // runtime prompt list: camera yes...
+		},
+		"app/src/main/java/ec/morrison/demo/GoBackend.kt":  {"libgantryapp.so", "GANTRY_READY"},
+		"app/src/main/java/ec/morrison/demo/GantryApp.kt":  {"class GantryApp"},
+		"app/src/main/res/values/strings.xml":              {"<string name=\"app_name\">Demo</string>"},
+		"gradlew.bat":                                      nil,
+		"gradle/wrapper/gradle-wrapper.jar":                nil,
+		"gradle/wrapper/gradle-wrapper.properties":         {"gradle-8.11.1-bin.zip"},
+	}
+	for rel, frags := range checks {
+		data, err := os.ReadFile(filepath.Join(dir, filepath.FromSlash(rel)))
+		if err != nil {
+			t.Errorf("missing synth file %s: %v", rel, err)
+			continue
+		}
+		for _, frag := range frags {
+			if !strings.Contains(string(data), frag) {
+				t.Errorf("%s should contain %q", rel, frag)
+			}
+		}
+	}
+
+	// ...but VIBRATE is a normal permission: declared, never prompted.
+	main, _ := os.ReadFile(filepath.Join(dir, filepath.FromSlash("app/src/main/java/ec/morrison/demo/MainActivity.kt")))
+	if strings.Contains(string(main), `"android.permission.VIBRATE",`) {
+		t.Error("MainActivity should not runtime-prompt for VIBRATE")
+	}
+}
+
+func TestWriteAndroidSynthKeystore(t *testing.T) {
+	appDir := t.TempDir()
+	cfg := synthConfig()
+	cfg.Mobile.Android.Keystore = &keystoreConfig{File: "release.jks", Alias: "app", PasswordEnv: "DEMO_KEY_PASS"}
+	dir, err := writeAndroidSynth(appDir, cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	data, err := os.ReadFile(filepath.Join(dir, "app", "build.gradle.kts"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	gradle := string(data)
+	for _, frag := range []string{
+		`file("` + filepath.ToSlash(filepath.Join(appDir, "release.jks")) + `")`,
+		`keyAlias = "app"`,
+		`System.getenv("DEMO_KEY_PASS")`,
+		`signingConfig = signingConfigs.getByName("release")`,
+	} {
+		if !strings.Contains(gradle, frag) {
+			t.Errorf("app/build.gradle.kts should contain %q", frag)
+		}
+	}
+}
+
+func TestWriteAndroidSynthOverlay(t *testing.T) {
+	appDir := t.TempDir()
+	overlay := filepath.Join(appDir, "mobile", "android", "app", "src", "main", "res", "values")
+	if err := os.MkdirAll(overlay, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	custom := "<resources><string name=\"app_name\">Custom</string></resources>\n"
+	if err := os.WriteFile(filepath.Join(overlay, "strings.xml"), []byte(custom), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	dir, err := writeAndroidSynth(appDir, synthConfig())
+	if err != nil {
+		t.Fatal(err)
+	}
+	data, err := os.ReadFile(filepath.Join(dir, "app", "src", "main", "res", "values", "strings.xml"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(data) != custom {
+		t.Errorf("overlay should win over the synthesized strings.xml, got %q", data)
+	}
+}
