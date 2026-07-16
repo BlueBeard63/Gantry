@@ -1,0 +1,95 @@
+/* Styles for the index page only. The page renders inside an element
+   with the class gantry-pages-index, so scope everything under it. */
+
+.gantry-pages-index .index-page {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 3rem 2rem;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.gantry-pages-index .logo-row {
+  display: flex;
+  gap: 2rem;
+  justify-content: center;
+  padding: 1.5rem 0;
+}
+
+.gantry-pages-index .logo {
+  padding: 0.5em;
+  transition: filter 300ms;
+  will-change: filter;
+}
+
+.gantry-pages-index .logo.gantry {
+  color: var(--gantry-accent);
+}
+
+.gantry-pages-index .logo.gantry:hover {
+  filter: drop-shadow(0 0 2em rgba(110, 168, 254, 0.67));
+}
+
+.gantry-pages-index .logo.react {
+  color: #61dafb;
+  animation: gantry-logo-spin infinite 20s linear;
+}
+
+.gantry-pages-index .logo.react:hover {
+  filter: drop-shadow(0 0 2em rgba(97, 218, 251, 0.67));
+}
+
+@keyframes gantry-logo-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.gantry-pages-index h1 {
+  font-size: 3.2em;
+  line-height: 1.1;
+  margin: 0.4em 0;
+}
+
+.gantry-pages-index .card {
+  padding: 2em;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.gantry-pages-index .card button,
+.gantry-pages-index .counter .gantry-tea-button {
+  border-radius: 8px;
+  border: 1px solid transparent;
+  padding: 0.6em 1.2em;
+  font-size: 1em;
+  font-weight: 500;
+  font-family: inherit;
+  background-color: var(--gantry-control-bg);
+  color: var(--gantry-fg);
+  cursor: pointer;
+  transition: border-color 0.25s;
+}
+
+.gantry-pages-index .card button:hover,
+.gantry-pages-index .counter .gantry-tea-button:hover {
+  border-color: var(--gantry-accent);
+}
+
+.gantry-pages-index code {
+  background: var(--gantry-control-bg);
+  border-radius: 4px;
+  padding: 0.15em 0.4em;
+  font-size: 0.95em;
+}
+
+.gantry-pages-index .read-the-docs {
+  color: var(--gantry-fg-dim);
+}

@@ -1,0 +1,13 @@
+{
+  "name": "demo",
+  "title": "Demo",
+  "port": 8330,
+  "mode": "multi",
+  "style": "tea",
+  "tray": true,
+  "buttons": {
+    "minimize": true,
+    "maximize": true,
+    "close": true
+  }
+}

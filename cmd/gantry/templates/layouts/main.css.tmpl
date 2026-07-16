@@ -1,0 +1,41 @@
+/* Styles for the main layout (auto-imported from layouts/main/). */
+
+.layout-main {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+
+.app-nav {
+  display: flex;
+  gap: 4px;
+  padding: 6px 12px;
+  border-bottom: 1px solid var(--gantry-border);
+  flex: none;
+}
+
+.app-nav a {
+  color: var(--gantry-fg-dim);
+  text-decoration: none;
+  font-size: 13px;
+  padding: 5px 12px;
+  border-radius: var(--gantry-radius);
+}
+
+.app-nav a:hover {
+  color: var(--gantry-fg);
+  background: var(--gantry-btn-hover);
+}
+
+/* Link sets data-active on the current page's entry. */
+.app-nav a[data-active="true"] {
+  color: var(--gantry-fg);
+  background: var(--gantry-control-bg);
+}
+
+.app-main {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+}
