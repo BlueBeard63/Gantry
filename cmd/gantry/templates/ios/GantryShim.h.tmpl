@@ -1,0 +1,22 @@
+// Synthesized by gantry build - regenerated every run, never hand-edited.
+//
+// GantryShim is the seam where the Go server attaches. On Android the
+// server ships as an executable and runs as a child process; iOS
+// forbids spawning processes, so here the app's Go module must be
+// compiled into the app itself:
+//
+//   GOOS=ios GOARCH=arm64 CGO_ENABLED=1 go build -buildmode=c-archive \
+//     -o libgantryapp.a .
+//
+// with a small cgo export that starts the server on an ephemeral port
+// and returns it. That linking step is deferred (see the README);
+// until it lands the stub in GantryShim.c returns -1 and the shell
+// shows a placeholder page.
+#ifndef GANTRY_SHIM_H
+#define GANTRY_SHIM_H
+
+// gantry_start launches the embedded Go server and returns the
+// 127.0.0.1 port it listens on, or -1 when no server is linked in.
+int gantry_start(void);
+
+#endif

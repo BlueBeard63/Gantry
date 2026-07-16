@@ -1,0 +1,22 @@
+# [[.Title]] - iOS scaffold (experimental)
+
+Synthesized by `gantry build --targets ios` - regenerated every run, never hand-edited. Put custom Swift or resources in `mobile/ios/` at the app root; they are overlay-copied on top of this directory after every synthesis.
+
+## Building it (needs a Mac)
+
+1. Install Xcode from the App Store, then `xcode-select --install`.
+2. Install [XcodeGen](https://github.com/yonaskolb/XcodeGen): `brew install xcodegen`.
+3. In this directory: `xcodegen generate` - produces `[[.Name]].xcodeproj` from `project.yml`.
+4. `xed .` (or open the project in Xcode), pick a simulator or device, run.
+
+What you get today is the shell only: a full-screen WKWebView with the app's permission usage strings declared in `Info.plist`. The Go server is **not** linked in yet, so the shell shows a placeholder page.
+
+## Why the Go server is missing (and the plan)
+
+On Android the Go server ships inside the APK as an executable and runs as a child process. iOS forbids spawning processes, so the server has to live *inside* the app binary:
+
+1. compile the app's Go module with `GOOS=ios GOARCH=arm64 CGO_ENABLED=1 go build -buildmode=c-archive -o libgantryapp.a .`, exporting a cgo function that starts the server on an ephemeral 127.0.0.1 port and returns it,
+2. link the archive into this Xcode project and call it from `gantry_start()` in `Sources/GantryShim.c` (the seam is already there - today it returns -1),
+3. embed the built frontend the same way the desktop builds do.
+
+That linking step is deferred; the scaffold exists so the shell, permissions and project wiring are ready when it lands.

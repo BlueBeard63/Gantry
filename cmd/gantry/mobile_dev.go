@@ -105,16 +105,24 @@ func mobileDevAndroid() error {
 	return cat.Run()
 }
 
-// mobileDevIOS only checks the ground the ios scaffold needs; the real
-// dev loop lands with the (experimental) ios target.
+// mobileDevIOS checks the ground the ios scaffold needs, generates it
+// and hands off to Xcode - running on a device stays manual while the
+// ios target is an experimental scaffold.
 func mobileDevIOS() error {
 	if runtime.GOOS != "darwin" {
 		return fmt.Errorf("gantry mobile dev ios needs a mac with Xcode (this machine is %s)", runtime.GOOS)
 	}
-	if _, err := exec.LookPath("xcodebuild"); err != nil {
+	if !haveXcodebuild() {
 		return fmt.Errorf("xcodebuild not found - install Xcode from the App Store, then run xcode-select --install")
 	}
-	warn("the ios target is an experimental scaffold; the ios dev loop lands with it")
+	appDir, cfg, err := findApp()
+	if err != nil {
+		return err
+	}
+	if _, err := buildIOS(appDir, cfg, nil); err != nil {
+		return err
+	}
+	info("run it from Xcode: cd %s && xcodegen generate && xed .", filepath.Join(appDir, ".gantry", "ios"))
 	return nil
 }
 

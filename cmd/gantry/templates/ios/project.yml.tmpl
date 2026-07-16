@@ -1,0 +1,28 @@
+# Synthesized by gantry build - regenerated every run, never hand-edited.
+# Put custom Swift/resources in mobile/ios/ instead (overlay-copied on
+# top of this scaffold).
+#
+# Turn this spec into an Xcode project with XcodeGen
+# (https://github.com/yonaskolb/XcodeGen):
+#
+#   xcodegen generate
+#   xed .
+name: [[.Name]]
+options:
+  deploymentTarget:
+    iOS: "15.0"
+targets:
+  [[.Name]]:
+    type: application
+    platform: iOS
+    sources:
+      - Sources
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: [[.BundleID]]
+        MARKETING_VERSION: [[.Version]]
+        CURRENT_PROJECT_VERSION: [[.VersionCode]]
+        GENERATE_INFOPLIST_FILE: false
+        INFOPLIST_FILE: Info.plist
+        SWIFT_OBJC_BRIDGING_HEADER: Sources/GantryShim.h
+        TARGETED_DEVICE_FAMILY: "1,2"

@@ -58,6 +58,25 @@ func TestAndroidRuntimePermissions(t *testing.T) {
 	}
 }
 
+func TestIOSUsageStrings(t *testing.T) {
+	got, err := iosUsageStrings([]string{"camera", "location", "notifications", "vibrate"}, "Demo")
+	if err != nil {
+		t.Fatal(err)
+	}
+	// notifications and vibrate have no Info.plist key: nothing emitted.
+	want := []iosUsage{
+		{"NSCameraUsageDescription", "Demo uses the camera."},
+		{"NSLocationWhenInUseUsageDescription", "Demo uses your location while it is open."},
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("got %v, want %v", got, want)
+	}
+
+	if _, err := iosUsageStrings([]string{"telepathy"}, "Demo"); err == nil || !strings.Contains(err.Error(), "telepathy") {
+		t.Errorf("want unknown-permission error, got %v", err)
+	}
+}
+
 func TestVersionCode(t *testing.T) {
 	for _, tc := range []struct {
 		version string
@@ -336,6 +355,71 @@ func TestWriteAndroidSynthOverlay(t *testing.T) {
 	}
 	if string(data) != custom {
 		t.Errorf("overlay should win over the synthesized strings.xml, got %q", data)
+	}
+}
+
+func TestWriteIOSSynth(t *testing.T) {
+	appDir := t.TempDir()
+	dir, err := writeIOSSynth(appDir, synthConfig())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := filepath.Join(appDir, ".gantry", "ios"); dir != want {
+		t.Fatalf("synth dir = %q, want %q", dir, want)
+	}
+
+	checks := map[string][]string{
+		"project.yml": {
+			"name: demo",
+			"PRODUCT_BUNDLE_IDENTIFIER: ec.morrison.demo",
+			"MARKETING_VERSION: 1.2.3",
+			"CURRENT_PROJECT_VERSION: 10203",
+			"SWIFT_OBJC_BRIDGING_HEADER: Sources/GantryShim.h",
+		},
+		"Info.plist": {
+			"<string>Demo</string>",
+			"NSAllowsLocalNetworking",
+			"NSCameraUsageDescription",
+			"<string>Demo uses the camera.</string>",
+		},
+		"Sources/AppDelegate.swift": {"WKWebView", "gantry_start()"},
+		"Sources/GantryShim.h":      {"int gantry_start(void);"},
+		"Sources/GantryShim.c":      {"return -1;"},
+		"README.md":                 {"experimental", "xcodegen generate"},
+	}
+	for rel, frags := range checks {
+		data, err := os.ReadFile(filepath.Join(dir, filepath.FromSlash(rel)))
+		if err != nil {
+			t.Errorf("missing synth file %s: %v", rel, err)
+			continue
+		}
+		for _, frag := range frags {
+			if !strings.Contains(string(data), frag) {
+				t.Errorf("%s should contain %q", rel, frag)
+			}
+		}
+	}
+
+	// vibrate has no iOS mapping: no stray usage keys.
+	plist, _ := os.ReadFile(filepath.Join(dir, "Info.plist"))
+	if strings.Contains(string(plist), "Vibrate") {
+		t.Error("vibrate should not produce an Info.plist entry")
+	}
+}
+
+func TestWriteIOSSynthBundleIDOverride(t *testing.T) {
+	cfg := synthConfig()
+	cfg.Mobile.IOS = &iosConfig{BundleID: "com.other.demo"}
+	dir, err := writeIOSSynth(t.TempDir(), cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	data, err := os.ReadFile(filepath.Join(dir, "project.yml"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(data), "PRODUCT_BUNDLE_IDENTIFIER: com.other.demo") {
+		t.Errorf("mobile.ios.bundleId should override mobile.id, got:\n%s", data)
 	}
 }
 

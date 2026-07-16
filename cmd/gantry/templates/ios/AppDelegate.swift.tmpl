@@ -1,0 +1,52 @@
+// Synthesized by gantry build - regenerated every run, never hand-edited.
+// Put custom Swift/resources in mobile/ios/ instead (overlay-copied on
+// top of this scaffold).
+import UIKit
+import WebKit
+
+// The whole shell: a full-screen WKWebView pointed at the app's own Go
+// server on 127.0.0.1. gantry_start() (GantryShim.h) is where the Go
+// server attaches; until the c-archive linking step lands it returns -1
+// and the shell shows a placeholder page instead.
+@main
+class AppDelegate: UIResponder, UIApplicationDelegate {
+    var window: UIWindow?
+
+    func application(_ application: UIApplication,
+                     didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
+        let window = UIWindow(frame: UIScreen.main.bounds)
+        window.rootViewController = ShellViewController()
+        window.makeKeyAndVisible()
+        self.window = window
+        return true
+    }
+}
+
+class ShellViewController: UIViewController {
+    override func viewDidLoad() {
+        super.viewDidLoad()
+
+        let config = WKWebViewConfiguration()
+        config.allowsInlineMediaPlayback = true
+        let webView = WKWebView(frame: view.bounds, configuration: config)
+        webView.autoresizingMask = [.flexibleWidth, .flexibleHeight]
+        webView.scrollView.contentInsetAdjustmentBehavior = .never
+        view.addSubview(webView)
+
+        let port = gantry_start()
+        if port > 0 {
+            webView.load(URLRequest(url: URL(string: "http://127.0.0.1:\(port)/")!))
+        } else {
+            webView.loadHTMLString(Self.placeholder, baseURL: nil)
+        }
+    }
+
+    // Shown while no Go server is linked in - see the scaffold README.
+    static let placeholder = """
+    <!doctype html><meta name="viewport" content="width=device-width, initial-scale=1">
+    <body style="font-family:-apple-system;display:grid;place-items:center;height:100vh;margin:0;background:#1a1a2e;color:#eee;text-align:center">
+    <div><h1 style="font-weight:600">[[.Title]]</h1>
+    <p style="color:#9aa">This is the experimental gantry iOS scaffold.<br>
+    The Go server is not linked in yet - see README.md<br>in the generated project for the plan.</p></div>
+    """
+}
