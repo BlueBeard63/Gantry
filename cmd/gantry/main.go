@@ -33,10 +33,13 @@ func main() {
 	var err error
 	switch os.Args[1] {
 	case "new":
+		checkForUpdate()
 		err = cmdNew(os.Args[2:])
 	case "dev":
+		checkForUpdate()
 		err = cmdDev(os.Args[2:])
 	case "build":
+		checkForUpdate()
 		err = cmdBuild(os.Args[2:])
 	case "add":
 		err = cmdAdd(os.Args[2:])

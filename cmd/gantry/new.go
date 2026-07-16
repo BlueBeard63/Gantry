@@ -43,7 +43,7 @@ func cmdNew(args []string) error {
 	plain := fs.Bool("plain", false, "plain React page with paired handlers (skips the prompt)")
 	port := fs.Int("port", 8330, "local server port")
 	gantryDir := fs.String("gantry-dir", "", "path to the local Gantry checkout (default: $GANTRY_DIR or auto-detect)")
-	noReplace := fs.Bool("no-replace", false, "no local replace directive; use the published module (needs GOPRIVATE)")
+	noReplace := fs.Bool("no-replace", false, "force the published module even when a local Gantry checkout is detected")
 	noInstall := fs.Bool("no-install", false, "skip npm install")
 	// Accept "gantry new myapp --flags" as well as "gantry new --flags
 	// myapp": the flag package stops at the first non-flag argument, so
@@ -114,13 +114,15 @@ func cmdNew(args []string) error {
 		s.Tea = askYesNo(in, "Tea-style pages (UI logic in Go)?", true)
 	}
 
-	// Local Gantry checkout for the replace directive + file: dependency.
+	// Default: depend on the PUBLISHED module and npm package (latest).
+	// A local checkout is used only when explicitly given (--gantry-dir
+	// or GANTRY_DIR) or silently detected by walking up from here -
+	// the framework-development workflow.
 	if !*noReplace {
-		g, err := resolveGantryDir(*gantryDir, in)
-		if err != nil {
-			return err
+		if g := resolveGantryDir(*gantryDir); g != "" {
+			s.GantryDir = filepath.ToSlash(g)
+			fmt.Printf("gantry: using local checkout %s (pass --no-replace for the published module)\n", g)
 		}
-		s.GantryDir = filepath.ToSlash(g)
 	}
 
 	parent := *dir
@@ -252,22 +254,27 @@ func render(appDir string, s scaffold) error {
 	return nil
 }
 
-// resolveGantryDir finds the local Gantry checkout: flag, env, walking
-// up from the working directory, then asking.
-func resolveGantryDir(flagVal string, in *bufio.Reader) (string, error) {
+// resolveGantryDir finds a local Gantry checkout: flag, env, then a
+// silent walk up from the working directory. Empty means none - the
+// scaffold then depends on the published module (the normal case).
+func resolveGantryDir(flagVal string) string {
 	if flagVal != "" {
-		return verifyGantryDir(flagVal)
+		if dir, err := verifyGantryDir(flagVal); err == nil {
+			return dir
+		}
+		fmt.Fprintf(os.Stderr, "gantry: --gantry-dir %s is not a Gantry checkout; using the published module\n", flagVal)
+		return ""
 	}
 	if env := os.Getenv("GANTRY_DIR"); env != "" {
-		return verifyGantryDir(env)
+		if dir, err := verifyGantryDir(env); err == nil {
+			return dir
+		}
+		return ""
 	}
 	if wd, err := os.Getwd(); err == nil {
 		for dir := wd; ; {
-			if _, err := verifyGantryDir(dir); err == nil {
-				return dir, nil
-			}
-			if _, err := verifyGantryDir(filepath.Join(dir, "Gantry")); err == nil {
-				return filepath.Join(dir, "Gantry"), nil
+			if abs, err := verifyGantryDir(dir); err == nil {
+				return abs
 			}
 			parent := filepath.Dir(dir)
 			if parent == dir {
@@ -276,13 +283,7 @@ func resolveGantryDir(flagVal string, in *bufio.Reader) (string, error) {
 			dir = parent
 		}
 	}
-	fmt.Print("Path to the local Gantry checkout (its folder contains go.mod): ")
-	line, _ := in.ReadString('\n')
-	line = strings.TrimSpace(line)
-	if line == "" {
-		return "", fmt.Errorf("no Gantry checkout given (set GANTRY_DIR or pass --gantry-dir; use --no-replace to depend on the published module instead)")
-	}
-	return verifyGantryDir(line)
+	return ""
 }
 
 func verifyGantryDir(dir string) (string, error) {

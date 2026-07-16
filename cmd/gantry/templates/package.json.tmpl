@@ -3,7 +3,7 @@
   "private": true,
   "type": "module",
   "dependencies": {
-    "gantry-web": "file:[[.GantryWeb]]",
+    "gantry-web": "[[if .GantryDir]]file:[[.GantryWeb]][[else]]latest[[end]]",
     "lucide-react": "^0.475.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"

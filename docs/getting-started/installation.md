@@ -69,7 +69,15 @@ direction.
 The CLI is the tool you will actually type: it scaffolds apps, runs
 them with live reload, and builds the final exe.
 
-From a local checkout of the Gantry repo:
+Straight from the module (once the repo is public, or with GOPRIVATE
+set for private access):
+
+```
+go install github.com/B-Commissions/Gantry/cmd/gantry@latest
+```
+
+Or from a local checkout (the way to go when developing Gantry
+itself):
 
 ```
 git clone https://github.com/B-Commissions/Gantry
@@ -89,22 +97,28 @@ gantry help
 
 ## How apps find Gantry
 
-A Gantry app depends on the framework's Go module and its npm package.
-gantry new wires both up for you, pointing at your local checkout:
+A Gantry app depends on the framework's Go module and its npm package
+(gantry-web). gantry new wires both up in one of two modes:
 
-- go.mod gets a replace directive pointing at the checkout folder
-- package.json gets "gantry-web": "file:<checkout>/web"
+Published mode (the default): go.mod depends on the module normally
+(go mod tidy resolves the latest tag) and package.json depends on the
+gantry-web package from the npm registry. Nothing to set up.
 
-gantry new finds the checkout from the GANTRY_DIR environment variable,
-by walking up from your current folder, or by asking. Setting the env
-var once saves the prompt:
+Local-checkout mode (for developing Gantry itself): go.mod gets a
+replace directive pointing at the checkout folder and package.json
+gets "gantry-web": "file:<checkout>/web" - every edit to the framework
+shows up in the app immediately. It activates when you pass
+--gantry-dir, set the GANTRY_DIR environment variable, or scaffold
+from inside a checkout (detected silently); --no-replace forces
+published mode even then.
 
-```
-setx GANTRY_DIR "D:\New Source\B_Commissions\Gantry"
-```
+Private repos need GOPRIVATE=github.com/B-Commissions for the
+published mode's go side.
 
-If the module is reachable on GitHub instead (private repos need
-GOPRIVATE=github.com/B-Commissions), scaffold with gantry new --no-replace.
+The CLI also checks for new Gantry releases once a day (a 1.5 second
+query to the Go module proxy before new/dev/build) and prints a
+one-line notice when you are behind. Set GANTRY_NO_UPDATE_CHECK=1 to
+turn it off; local (devel) builds never check.
 
 Next: [Your first app](first-app.md), or if Go or React are new to you,
 read the [Go primer](go-primer.md) and [TSX primer](tsx-primer.md) first.

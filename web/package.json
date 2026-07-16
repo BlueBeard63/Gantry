@@ -2,6 +2,21 @@
   "name": "gantry-web",
   "version": "0.1.0",
   "description": "Frontend half of the Gantry desktop app framework: window chrome, native bridge, Tea runtime, Vite plugin",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/B-Commissions/Gantry.git",
+    "directory": "web"
+  },
+  "homepage": "https://github.com/B-Commissions/Gantry",
+  "keywords": [
+    "gantry",
+    "desktop",
+    "webview",
+    "go",
+    "react",
+    "vite-plugin"
+  ],
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
