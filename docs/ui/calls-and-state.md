@@ -1,14 +1,10 @@
 # Calls, services and shared state
 
-Three ways React talks to Go beyond fire-and-forget events: awaited
-calls on a pair, app-level services (the machinery behind hooks like
-useAuth), and useGoState - a useState whose value lives in Go and syncs
-both ways instantly.
+Three ways React talks to Go beyond fire-and-forget events: awaited calls on a pair, app-level services (the machinery behind hooks like useAuth), and useGoState - a useState whose value lives in Go and syncs both ways instantly.
 
 ## Awaited calls on a pair
 
-Handlers (ui.Handlers) are one-way. When the tsx needs an ANSWER, give
-the pair Calls:
+Handlers (ui.Handlers) are one-way. When the tsx needs an ANSWER, give the pair Calls:
 
 ```go
 // pages/files/files.go
@@ -32,14 +28,11 @@ const { call } = usePaired();
 const files = await call<string[]>("list");
 ```
 
-Calls run on their own goroutine (slow work is fine), errors reject the
-promise, and an unanswered call times out after 30 seconds instead of
-hanging forever.
+Calls run on their own goroutine (slow work is fine), errors reject the promise, and an unanswered call times out after 30 seconds instead of hanging forever.
 
 ## Services: app-level call groups
 
-Some functionality belongs to the whole app, not one page - auth,
-settings, file dialogs. Register it as a service in main.go:
+Some functionality belongs to the whole app, not one page - auth, settings, file dialogs. Register it as a service in main.go:
 
 ```go
 app.Service("auth", ui.Calls{
@@ -56,16 +49,14 @@ app.Service("auth", ui.Calls{
 })
 ```
 
-Reach it from any component with useService, or non-hook code with
-service():
+Reach it from any component with useService, or non-hook code with service():
 
 ```tsx
 const auth = useService("auth");
 await auth.call("login", { user, pass });
 ```
 
-For read paths, useCall wraps the fetch-shaped boilerplate - it runs on
-mount, tracks loading/error, and re-runs when inputs change:
+For read paths, useCall wraps the fetch-shaped boilerplate - it runs on mount, tracks loading/error, and re-runs when inputs change:
 
 ```tsx
 const { data: me, loading, error, reload } = useCall<User>("auth", "me");
@@ -88,8 +79,7 @@ export function useAuth() {
 
 ## useGoState: state that lives in Go
 
-For values both sides read and write - volume, active session, feature
-toggles - declare a shared state variable in Go:
+For values both sides read and write - volume, active session, feature toggles - declare a shared state variable in Go:
 
 ```go
 volume := ui.NewState(app, "volume", 0.5)
@@ -110,22 +100,15 @@ const [volume, setVolume] = useGoState("volume", 0.5);
 
 Semantics worth knowing:
 
-- Every component using the same key shares one value; a set anywhere
-  re-renders them all.
-- Frontend sets apply locally at once (no round-trip lag) and write
-  through to Go; Go's OnChange observers fire.
-- Go-side Set() pushes to the frontend immediately - "instant updates"
-  from timers, watchers, background work.
-- A fresh or reconnected client receives every declared state before
-  anything else, so useGoState is correct from the first render (the
-  fallback argument only covers the moment before the socket connects).
-- Declare states at startup with ui.NewState BEFORE the window opens;
-  writes to undeclared keys are logged and dropped.
+- Every component using the same key shares one value; a set anywhere re-renders them all.
+- Frontend sets apply locally at once (no round-trip lag) and write through to Go; Go's OnChange observers fire.
+- Go-side Set() pushes to the frontend immediately - "instant updates" from timers, watchers, background work.
+- A fresh or reconnected client receives every declared state before anything else, so useGoState is correct from the first render (the fallback argument only covers the moment before the socket connects).
+- Declare states at startup with ui.NewState BEFORE the window opens; writes to undeclared keys are logged and dropped.
 
 ## Picking between them
 
 - One-way notification ("this happened"): usePaired().send + Handlers.
-- Question with an answer ("give me X", "do this and tell me how it
-  went"): call / useService / useCall + Calls.
+- Question with an answer ("give me X", "do this and tell me how it went"): call / useService / useCall + Calls.
 - A live value both sides own: useGoState + ui.NewState.
 - Continuous Go-driven UI: a Tea Model ([The Tea model](tea.md)).

@@ -1,9 +1,6 @@
 # The system tray
 
-The tray package puts your app in the notification area: an icon, a
-tooltip, a left-click action, and a right-click menu you define. With a
-tray, "close" can mean "keep running" - see
-[Close behavior](close-and-lifecycle.md).
+The tray package puts your app in the notification area: an icon, a tooltip, a left-click action, and a right-click menu you define. With a tray, "close" can mean "keep running" - see [Close behavior](close-and-lifecycle.md).
 
 ## Basic tray
 
@@ -19,8 +16,7 @@ shell := &appshell.App{
 }
 ```
 
-App.Run adds "Open <Title>" at the top and "Quit" at the bottom for
-you. Everything you put in Menu appears between them.
+App.Run adds "Open <Title>" at the top and "Quit" at the bottom for you. Everything you put in Menu appears between them.
 
 ## Menu items
 
@@ -50,13 +46,9 @@ Tray: &tray.Options{
 Item features:
 
 - Separator: true renders a divider (top-level menus only).
-- Checkable items show a checkmark and toggle automatically on click;
-  read the new state inside OnClick with item.Checked(), or set it
-  yourself with item.SetChecked(v).
-- Disabled items are visible but greyed out; flip at runtime with
-  item.SetDisabled(v).
-- Children turns an item into a submenu (parents of submenus do not
-  fire clicks themselves).
+- Checkable items show a checkmark and toggle automatically on click; read the new state inside OnClick with item.Checked(), or set it yourself with item.SetChecked(v).
+- Disabled items are visible but greyed out; flip at runtime with item.SetDisabled(v).
+- Children turns an item into a submenu (parents of submenus do not fire clicks themselves).
 - item.SetLabel(s) renames an item live ("Pause" -> "Resume").
 
 ## Runtime changes
@@ -75,9 +67,7 @@ Tray: &tray.Options{
 
 ## Toggling the tray without a rebuild
 
-gantry.Run gives every app --tray and --no-tray runtime flags that
-override Config.Tray, so the tray is a launch decision, not a compile
-decision:
+`gantry.Run` gives every app --tray and --no-tray runtime flags that override Config.Tray, so the tray is a launch decision, not a compile decision:
 
 ```
 myapp.exe --no-tray        (closing the window exits)
@@ -86,9 +76,7 @@ gantry dev -- --tray       (dev run with the tray on)
 
 ## Tray-only apps
 
-Set TrayOnly on appshell.App and skip the main window entirely: the
-app is its tray icon, menu actions, widgets and popups. Useful for
-background utilities.
+Set `TrayOnly` on `appshell.App` and skip the main window entirely: the app is its tray icon, menu actions, widgets and popups. Useful for background utilities.
 
 ```go
 shell := &appshell.App{
@@ -98,20 +86,12 @@ shell := &appshell.App{
 }
 ```
 
-(The Window options still matter for AppName and URL - widgets and the
-browser fallback use them.)
+(The Window options still matter for AppName and URL - widgets and the browser fallback use them.)
 
 ## Using tray directly
 
-Without App.Run, call tray.Run(options) yourself - it blocks, so start
-it on its own goroutine, and call tray.Quit() to tear it down.
-Options.OnExit runs after teardown; that is where App.Run hooks "Quit
-means cancel the app context".
+Without App.Run, call tray.Run(options) yourself - it blocks, so start it on its own goroutine, and call tray.Quit() to tear it down. Options.OnExit runs after teardown; that is where App.Run hooks "Quit means cancel the app context".
 
 ## Icons
 
-Windows trays want ICO bytes (Options.Icon); Linux and Mac trays want
-PNG (Options.IconPNG). Set both - tray.Run picks the right one per
-platform - or use the appicon package for both formats at once; see
-[Monitors and icons](monitors-and-icons.md). gantry.Run sets both
-automatically.
+Windows trays want ICO bytes (Options.Icon); Linux and Mac trays want PNG (Options.IconPNG). Set both - tray.Run picks the right one per platform - or use the appicon package for both formats at once; see [Monitors and icons](monitors-and-icons.md). gantry.Run sets both automatically.

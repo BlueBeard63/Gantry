@@ -1,11 +1,8 @@
 # Gantry documentation
 
-Gantry is a Go framework for building native desktop apps whose
-interface is React. This documentation assumes nothing: if you have
-never written Go or React before, start at the top and read down.
+Gantry is a Go framework for building native desktop apps whose interface is React. This documentation assumes nothing: if you have never written Go or React before, start at the top and read down.
 
-Run `gantry docs` in a terminal to browse these pages offline with
-search, or read them on GitHub.
+Run `gantry docs` in a terminal to browse these pages offline with search, or read them on GitHub.
 
 ## Reading order
 
