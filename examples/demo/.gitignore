@@ -1,5 +1,7 @@
 node_modules/
+webdist/
 dist/
 .gantry/
+*.syso
 *.exe
 *.log

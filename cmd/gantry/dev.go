@@ -30,6 +30,9 @@ func cmdDev(args []string) error {
 	if err := writeRegistry(appDir); err != nil {
 		return err
 	}
+	if err := writeIcons(appDir, cfg); err != nil {
+		return err
+	}
 
 	// Ctrl+C tears both children down.
 	stop := make(chan os.Signal, 1)
@@ -44,7 +47,10 @@ func cmdDev(args []string) error {
 	}
 
 	devURL := fmt.Sprintf("http://localhost:%d", *vitePort)
-	app := exec.Command("go", "run", ".", "--dev-url", devURL, "--port", strconv.Itoa(cfg.Port))
+	// Everything after "--" goes to the app itself, e.g.
+	// gantry dev -- --no-tray
+	appArgs := append([]string{"run", ".", "--dev-url", devURL, "--port", strconv.Itoa(cfg.Port)}, fs.Args()...)
+	app := exec.Command("go", appArgs...)
 	app.Dir = appDir
 	app.Stdout = os.Stdout
 	app.Stderr = os.Stderr

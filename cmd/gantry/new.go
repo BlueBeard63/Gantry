@@ -5,11 +5,14 @@ import (
 	"embed"
 	"flag"
 	"fmt"
+	"image"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
 	"text/template"
+
+	"github.com/B-Commissions/Gantry/appicon"
 )
 
 //go:embed templates
@@ -141,13 +144,35 @@ func cmdNew(args []string) error {
 		return err
 	}
 
-	cfg := appConfig{Name: s.Name, Title: s.Title, Port: s.Port, Tray: s.Tray}
+	cfg := appConfig{Name: s.Name, Title: s.Title, Version: "0.1.0", Port: s.Port, Tray: s.Tray}
 	cfg.Mode = map[bool]string{true: "multi", false: "single"}[s.Multi]
 	cfg.Style = map[bool]string{true: "tea", false: "plain"}[s.Tea]
 	cfg.Buttons.Minimize = s.BtnMin
 	cfg.Buttons.Maximize = s.BtnMax
 	cfg.Buttons.Close = s.BtnClose
+	cfg.Icons = "icons"
 	if err := writeConfig(appDir, cfg); err != nil {
+		return err
+	}
+
+	// Real icon files, drawn from the placeholder glyph: replace them
+	// with your art and every surface (exe, window, tray, installer)
+	// follows. gantry_icons.go embeds them into the binary.
+	iconDir := filepath.Join(appDir, "icons")
+	if err := os.MkdirAll(iconDir, 0o755); err != nil {
+		return err
+	}
+	glyph := appicon.Render(256, appicon.DefaultPalette())
+	if err := os.WriteFile(filepath.Join(iconDir, "icon.png"), appicon.PNG(glyph), 0o644); err != nil {
+		return err
+	}
+	ico := appicon.MultiICO(func(sz int) *image.NRGBA {
+		return appicon.Render(sz, appicon.DefaultPalette())
+	})
+	if err := os.WriteFile(filepath.Join(iconDir, "icon.ico"), ico, 0o644); err != nil {
+		return err
+	}
+	if err := writeIcons(appDir, cfg); err != nil {
 		return err
 	}
 
@@ -208,7 +233,7 @@ func render(appDir string, s scaffold) error {
 		{"gitignore.tmpl", ".gitignore", true},
 		{"README.md.tmpl", "README.md", true},
 		{"index.css.tmpl", "index.css", true},
-		{"dist-placeholder.html.tmpl", "dist/index.html", true},
+		{"dist-placeholder.html.tmpl", "webdist/index.html", true},
 		{"vscode-settings.json.tmpl", ".vscode/settings.json", true},
 		{"vscode-extensions.json.tmpl", ".vscode/extensions.json", true},
 		{"pages/index-" + pageStyle + ".go.tmpl", "pages/index/index.go", true},

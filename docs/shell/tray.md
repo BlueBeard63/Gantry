@@ -73,6 +73,17 @@ Tray: &tray.Options{
 },
 ```
 
+## Toggling the tray without a rebuild
+
+gantry.Run gives every app --tray and --no-tray runtime flags that
+override Config.Tray, so the tray is a launch decision, not a compile
+decision:
+
+```
+myapp.exe --no-tray        (closing the window exits)
+gantry dev -- --tray       (dev run with the tray on)
+```
+
 ## Tray-only apps
 
 Set TrayOnly on appshell.App and skip the main window entirely: the

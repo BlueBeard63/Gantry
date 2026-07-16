@@ -49,21 +49,46 @@ restart (Ctrl+C, gantry dev again). Flags: --vite-port N (default 5173).
 
 ## gantry build
 
-Produces the distributable exe:
+Builds every configured target into a per-OS release tree:
 
-1. regenerates .gantry/
-2. vite build -> dist/
-3. go build with dist/ embedded
+```
+dist/
+  windows/amd64/myapp.exe          (windowed app, icon embedded)
+  windows/amd64/myapp-setup.exe    (with installers on + Inno Setup installed)
+  linux/amd64/myapp                (+ myapp-linux-amd64.tar.gz)
+  mac/arm64/myapp                  (+ myapp-mac-arm64.zip)
+```
 
-The exe is a windowed app by default - launching it shows no console,
-just the window (gantry dev is where logs stream during development).
+The pipeline: regenerate .gantry/ and the generated Go files, one vite
+build into webdist/ (the embedded frontend), then a go build per
+target. Targets come from gantry.json build.targets (see below) or the
+--targets flag; with neither, the current machine's os/arch builds.
+
+Cross-compilation: windows and mac targets build from any machine
+(mac runs in browser-fallback mode, so it is pure Go). linux targets
+need a Linux machine - on Windows, run gantry build inside WSL; other
+targets are skipped there with a notice, never failed.
+
+Windows exes get icons/icon.ico embedded as the executable icon
+(Explorer, taskbar, shortcuts) automatically when the icons directory
+exists.
+
+Installers (build.installer or --installer):
+
+- windows: an Inno Setup script is generated next to the exe and
+  compiled to <name>-setup.exe when Inno Setup 6 is installed
+  (https://jrsoftware.org/isinfo.php); without it the .iss is left
+  ready to compile.
+- linux: a .tar.gz of the binary.
+- mac: a .zip of the binary.
 
 Flags:
 
-- --console - keep the console window, for when you need main-process
-  logs from a built exe (child roles always log to
-  %LocalAppData%\<app>\<role>.log regardless).
-- -o path - output name (default <name>.exe)
+- --targets windows/amd64,linux/arm64 - override gantry.json
+- --installer - produce install artifacts (overrides gantry.json)
+- --console - keep the console window on Windows builds, for when you
+  need main-process logs from a built exe (child roles always log to
+  %LocalAppData%\<app>\<role>.log regardless)
 
 ## gantry gen
 
@@ -115,16 +140,31 @@ The file that makes a folder an app in the CLI's eyes:
 {
   "name": "myapp",           // exe and module name
   "title": "Myapp",          // window title
+  "version": "0.1.0",        // shown by installers
   "port": 8330,              // local server + single-instance port
   "mode": "single",          // or "multi" - informational
   "style": "tea",            // or "plain" - informational
-  "tray": true,              // informational
+  "tray": true,              // informational (runtime: --tray/--no-tray)
   "buttons": {               // informational
     "minimize": true, "maximize": false, "close": true
+  },
+  "icons": "icons",          // directory with icon.ico + icon.png defaults
+  "build": {
+    "targets": ["windows/amd64", "linux/amd64", "mac/arm64"],
+    "console": false,        // keep the console on Windows builds
+    "installer": true        // produce Setup.exe / tar.gz / zip
   }
 }
 ```
 
-name, title and port feed dev/build (the synthesized index.html title,
-the proxy target). The rest records scaffold choices - the live
-switches are in your main.go.
+name, title, port, version, icons and build feed dev/build; mode,
+style, tray and buttons record scaffold choices - those live switches
+are in your main.go (and the tray can be flipped at RUN time with the
+app's own --tray/--no-tray flags, no rebuild: gantry dev -- --no-tray,
+or myapp.exe --no-tray).
+
+The icons directory holds the app's default iconography: icon.ico
+(Windows exe + tray) and icon.png (window, Linux tray). gantry new
+seeds it with the placeholder glyph - swap the files for your art and
+every surface follows on the next build. Code-level Icon settings
+override them.

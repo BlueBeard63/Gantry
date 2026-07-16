@@ -45,6 +45,22 @@ type RoleArgs struct {
 	Position string
 }
 
+// Default icons, registered by the generated gantry_icons.go when the
+// app has an icons/ directory. Code-level settings override them.
+var (
+	defaultIconPNG []byte
+	defaultIconICO []byte
+)
+
+// SetDefaultIcons registers the app's default icon bytes (PNG for
+// windows and Linux trays, ICO for the Windows tray). gantry gen
+// writes a file calling this when the icons directory exists; calling
+// it by hand works too.
+func SetDefaultIcons(png, ico []byte) {
+	defaultIconPNG = png
+	defaultIconICO = ico
+}
+
 // Config describes the app. Only Name, Title, Port, Dist and Pairs are
 // required; everything else has sensible defaults.
 type Config struct {
@@ -84,6 +100,8 @@ func Run(cfg Config) {
 		port      = flag.Int("port", cfg.Port, "local server port")
 		browser   = flag.Bool("browser", false, "open in the default browser instead of a native window")
 		noOpen    = flag.Bool("no-open", false, "headless: serve only, no window")
+		trayOn    = flag.Bool("tray", false, "run with the tray even if the app was configured without one")
+		trayOff   = flag.Bool("no-tray", false, "run without the tray (closing the window exits)")
 		devURL    = flag.String("dev-url", "", "dev: load the frontend from this URL (gantry dev sets it)")
 		shellRole = flag.String("shellrole", "", "internal: run a helper window role instead of the app")
 		roleURL   = flag.String("url", "", "internal: url for the helper window")
@@ -91,6 +109,15 @@ func Run(cfg Config) {
 		position  = flag.String("position", "bottom", "internal: popup position top|bottom")
 	)
 	flag.Parse()
+
+	// The tray is toggleable at RUN time, no rebuild: Config.Tray is
+	// just the default.
+	if *trayOn {
+		cfg.Tray = true
+	}
+	if *trayOff {
+		cfg.Tray = false
+	}
 
 	// Helper window roles run as child processes (crash isolation):
 	// the exe re-invokes itself with --shellrole and renders exactly
@@ -160,7 +187,19 @@ func run(cfg Config, port int, browser, noOpen bool, devURL string) error {
 		return <-errCh
 	}
 
-	icon := appicon.Render(32, appicon.DefaultPalette())
+	// Icon precedence: the exe's embedded resource (gantry build bakes
+	// icons/icon.ico in) is tried first by the shell; then the app's
+	// registered defaults (gantry_icons.go); then the drawn placeholder.
+	iconPNG, iconICO := defaultIconPNG, defaultIconICO
+	if iconPNG == nil || iconICO == nil {
+		glyph := appicon.Render(32, appicon.DefaultPalette())
+		if iconPNG == nil {
+			iconPNG = appicon.PNG(glyph)
+		}
+		if iconICO == nil {
+			iconICO = appicon.ICO(glyph)
+		}
+	}
 	window := appshell.WindowOptions{
 		AppName:   cfg.Name,
 		Title:     cfg.Title,
@@ -170,7 +209,7 @@ func run(cfg Config, port int, browser, noOpen bool, devURL string) error {
 		MinWidth:  480,
 		MinHeight: 320,
 		AutoFocus: true,
-		Icon:      appshell.IconSource{PNG: appicon.PNG(icon)},
+		Icon:      appshell.IconSource{PNG: iconPNG},
 		Geometry:  appshell.FileGeometry(geometryPath(cfg.Name)),
 	}
 	if cfg.Window != nil {
@@ -183,8 +222,8 @@ func run(cfg Config, port int, browser, noOpen bool, devURL string) error {
 	}
 	if cfg.Tray {
 		shell.Tray = &tray.Options{
-			Icon:    appicon.ICO(icon),
-			IconPNG: appicon.PNG(icon),
+			Icon:    iconICO,
+			IconPNG: iconPNG,
 			Title:   cfg.Title,
 			Tooltip: cfg.Title + " is running",
 			Menu:    cfg.TrayMenu,

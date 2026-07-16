@@ -13,8 +13,9 @@ myapp/
   go.mod             Go module + dependency on Gantry
   package.json       npm dependencies (react, gantry-web, ...)
   tsconfig.json      makes the editor understand the .tsx files
-  gantry.json        app settings the gantry CLI reads
+  gantry.json        app settings + build targets the gantry CLI reads
   index.css          app-wide styles and the theme variables
+  icons/             default icon files (icon.ico, icon.png) - swap for your art
   layouts/
     main/
       main.tsx       optional: shared chrome (navbar etc.); pages pick
@@ -31,7 +32,8 @@ myapp/
       example.css    component styles (optional)
   .vscode/           editor settings (excludes, recommendations)
   .gantry/           synthesized build root - gitignored, regenerated
-  dist/              built frontend - gitignored, regenerated
+  webdist/           built frontend (embedded into the exe) - gitignored
+  dist/              release artifacts per os/arch - gitignored
 ```
 
 ## The paired-file convention

@@ -8,20 +8,37 @@ import (
 	"path/filepath"
 )
 
-// appConfig is gantry.json at the app root - written by gantry new so
-// dev/build/docs do not re-ask anything.
+// appConfig is gantry.json at the app root - written by gantry new,
+// edited by the developer, read by dev/build.
 type appConfig struct {
-	Name  string `json:"name"`
-	Title string `json:"title"`
-	Port  int    `json:"port"`
-	Mode  string `json:"mode"`  // "single" | "multi"
-	Style string `json:"style"` // "tea" | "plain"
-	Tray  bool   `json:"tray"`
+	Name    string `json:"name"`
+	Title   string `json:"title"`
+	Version string `json:"version,omitempty"` // shown in installers; default 0.1.0
+	Port    int    `json:"port"`
+	Mode    string `json:"mode"`  // "single" | "multi"
+	Style   string `json:"style"` // "tea" | "plain"
+	Tray    bool   `json:"tray"`
 	Buttons struct {
 		Minimize bool `json:"minimize"`
 		Maximize bool `json:"maximize"`
 		Close    bool `json:"close"`
 	} `json:"buttons"`
+	// Icons is a directory (relative to the app root) holding default
+	// icon files: icon.ico (Windows exe + tray) and icon.png (window,
+	// Linux tray). Baked into the exe at build time; code-level Icon
+	// settings override them.
+	Icons string `json:"icons,omitempty"`
+	// Build configures gantry build.
+	Build struct {
+		// Targets like "windows/amd64", "linux/arm64", "mac/arm64".
+		// Empty = the current machine only.
+		Targets []string `json:"targets,omitempty"`
+		// Console keeps the console window on Windows builds (debug).
+		Console bool `json:"console,omitempty"`
+		// Installer also produces per-OS install artifacts: a Setup.exe
+		// via Inno Setup on Windows, a .tar.gz on Linux, a .zip on Mac.
+		Installer bool `json:"installer,omitempty"`
+	} `json:"build,omitempty"`
 }
 
 // findApp walks up from the working directory to the nearest gantry.json.
@@ -38,6 +55,9 @@ func findApp() (dir string, cfg appConfig, err error) {
 			}
 			if cfg.Port == 0 {
 				cfg.Port = 8330
+			}
+			if cfg.Version == "" {
+				cfg.Version = "0.1.0"
 			}
 			return dir, cfg, nil
 		}

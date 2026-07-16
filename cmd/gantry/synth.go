@@ -42,7 +42,7 @@ import { gantry } from "gantry-web/vite";
 
 export default defineConfig({
   plugins: [react(), gantry({ appRoot: ".." })],
-  build: { outDir: "../dist", emptyOutDir: true },
+  build: { outDir: "../webdist", emptyOutDir: true },
 });
 `
 

@@ -50,11 +50,13 @@ bridge.
 gantry build
 ```
 
-This builds the frontend into dist/, then compiles a single myapp.exe
-with the frontend embedded inside. Copy that one file to another
-Windows machine and it runs (WebView2 ships with Windows 10/11). The
-exe is a windowed app - no console appears behind it; build with
-`gantry build --console` when you want to see main-process logs.
+This builds the frontend (embedded into the binary) and compiles the
+app for your machine into dist/windows/amd64/myapp.exe (or your
+os/arch). Copy that one file to another machine and it runs (WebView2
+ships with Windows 10/11). The exe is a windowed app with your
+icons/icon.ico baked in; build with `gantry build --console` when you
+want main-process logs. Add targets and installers in gantry.json -
+the [command reference](../cli/commands.md) has the full build story.
 
 ## What the counter demo shows
 
