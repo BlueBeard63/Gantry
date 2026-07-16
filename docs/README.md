@@ -33,9 +33,16 @@ The UI layer (pages and components)
 - [Styling](ui/styling.md) - colocated css and theme variables
 - [The TitleBar](ui/titlebar.md) - configuring the window chrome
 
+Mobile (the same app on a phone)
+
+- [Android builds](mobile/android.md) - APKs, the toolchain, permissions, the phone dev loop
+- [Home-screen widgets](mobile/widgets.md) - declarative Glance widgets from paired Go files
+- [Notifications](mobile/notifications.md) - system notifications with actions from Go
+- [iOS](mobile/ios.md) - the experimental Xcode scaffold
+
 The CLI
 
-- [Command reference](cli/commands.md) - new, dev, build, add, docs
+- [Command reference](cli/commands.md) - new, dev, build, add, docs, mobile
 
 Advanced
 

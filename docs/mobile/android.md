@@ -18,7 +18,7 @@ The phone equivalent of `gantry dev`: it checks the toolchain (and **offers to i
 
 The phone must be **plugged in over USB** with USB debugging enabled (Settings > Developer options) - adb-over-wifi is deliberately not supported; the cable is what keeps logcat reliable. Local emulators count as plugged in. With several devices connected, unplug the extras or set `ANDROID_SERIAL`.
 
-`gantry mobile dev ios` exists but only checks the ground (a mac with Xcode) - the ios target is an experimental scaffold.
+`gantry mobile dev ios` checks the ground (a mac with Xcode), generates the [experimental iOS scaffold](ios.md) and hands off to Xcode.
 
 ## What the machine needs
 

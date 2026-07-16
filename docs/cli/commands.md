@@ -1,6 +1,6 @@
 # Command reference
 
-The gantry CLI has six commands. dev, build, add and docs find the app by walking up from the current directory to the nearest gantry.json, so they work from anywhere inside the app tree. Progress output is coloured when the terminal supports it; piping to a file or setting `NO_COLOR` gives plain text.
+The gantry CLI has seven commands. dev, build, add, mobile and docs find the app by walking up from the current directory to the nearest gantry.json, so they work from anywhere inside the app tree. Progress output is coloured when the terminal supports it; piping to a file or setting `NO_COLOR` gives plain text.
 
 ## gantry new <name>
 
@@ -47,7 +47,7 @@ dist/
 
 The pipeline: regenerate `.gantry/` and the generated Go files, one vite build into `webdist/` (the embedded frontend), then a go build per target. Targets come from `gantry.json` build.targets (see below) or the `--targets` flag; with neither, the current machine's `os/arch` builds.
 
-Cross-compilation: windows and mac targets build from any machine (mac runs in browser-fallback mode, so it is pure Go). linux targets need a Linux machine - on Windows, run `gantry build` inside **WSL**; other targets are skipped there with a notice, never failed. `android` (and the experimental `ios`) are their own world - toolchain requirements, the `mobile` config section, permissions and widgets live in the [Android builds](../mobile/android.md) page; a missing mobile toolchain skips that target with a fix hint while the rest of the run continues.
+Cross-compilation: windows and mac targets build from any machine (mac runs in browser-fallback mode, so it is pure Go). linux targets need a Linux machine - on Windows, run `gantry build` inside **WSL**; other targets are skipped there with a notice, never failed. `android` is its own world - toolchain requirements, the `mobile` config section, permissions and widgets live in the [Android builds](../mobile/android.md) page; a missing mobile toolchain skips that target with a fix hint while the rest of the run continues. `ios` generates an experimental Xcode scaffold - see [iOS](../mobile/ios.md).
 
 Windows exes get `icons/icon.ico` embedded as the executable icon (**Explorer**, **taskbar**, **shortcuts**) automatically when the icons directory exists.
 
@@ -62,6 +62,10 @@ Flags:
 - `--targets windows/amd64,linux/arm64` - override `gantry.json`
 - `--installer` - produce install artifacts (overrides `gantry.json`)
 - `--console` - keep the console window on Windows builds, for when you need main-process logs from a built exe (child roles always log to `%LocalAppData%\<app>\<role>.log` regardless)
+
+## gantry mobile dev <android|ios>
+
+The phone equivalent of `gantry dev`. For android: checks the toolchain (offering to install the missing SDK pieces), finds the USB-connected phone, builds the APK for its ABI, installs, launches and streams the app's logcat until Ctrl+C. For ios: checks for a Mac with Xcode, generates the experimental scaffold and prints the Xcode hand-off. Details live in the Mobile docs: [Android builds](../mobile/android.md), [iOS](../mobile/ios.md).
 
 ## gantry gen
 

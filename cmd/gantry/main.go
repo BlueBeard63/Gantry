@@ -1,11 +1,13 @@
 // gantry is the Gantry framework CLI.
 //
-//	gantry new <name>    scaffold a new app
-//	gantry dev           run the app with live reload in a native window
-//	gantry build         build a single exe with the frontend embedded
-//	gantry add <pkg...>  install npm packages into the app
-//	gantry docs [topic]  browse the documentation offline
-//	gantry --version     print the CLI version
+//	gantry new <name>       scaffold a new app
+//	gantry dev              run the app with live reload in a native window
+//	gantry build            build a single exe with the frontend embedded
+//	gantry add <pkg...>     install npm packages into the app
+//	gantry gen              regenerate the registry files
+//	gantry mobile dev <os>  build + run on a plugged-in phone (android|ios)
+//	gantry docs [topic]     browse the documentation offline
+//	gantry --version        print the CLI version
 package main
 
 import (
