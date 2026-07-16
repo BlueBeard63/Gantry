@@ -57,7 +57,7 @@ func cmdBuild(args []string) error {
 		return err
 	}
 
-	fmt.Println("gantry: building frontend (vite)")
+	step("building frontend (vite)")
 	vite := exec.Command(npx(), "vite", "build")
 	vite.Dir = synthDir
 	vite.Stdout = os.Stdout
@@ -76,7 +76,7 @@ func cmdBuild(args []string) error {
 	built := 0
 	for _, t := range targets {
 		if t.goos() == "linux" && runtime.GOOS != "linux" {
-			fmt.Fprintf(os.Stderr, "gantry: skipping %s/%s - Linux builds need a Linux machine (WSL works: run gantry build there)\n", t.OS, t.Arch)
+			warn("skipping %s/%s - Linux builds need a Linux machine (WSL works: run gantry build there)", t.OS, t.Arch)
 			continue
 		}
 		if err := buildOne(appDir, cfg, t, useConsole, makeInstaller); err != nil {
@@ -87,7 +87,7 @@ func cmdBuild(args []string) error {
 	if built == 0 {
 		return fmt.Errorf("no targets were built")
 	}
-	fmt.Printf("gantry: done - %s\n", filepath.Join(appDir, "dist"))
+	success("done - %s", filepath.Join(appDir, "dist"))
 	return nil
 }
 
@@ -132,12 +132,12 @@ func buildOne(appDir string, cfg appConfig, t buildTarget, console, installer bo
 	if t.OS == "windows" {
 		exeName += ".exe"
 		if err := writeSyso(appDir, cfg, t.Arch); err != nil {
-			fmt.Fprintf(os.Stderr, "gantry: exe icon skipped: %v\n", err)
+			warn("exe icon skipped: %v", err)
 		}
 	}
 	outPath := filepath.Join(outDir, exeName)
 
-	fmt.Printf("gantry: building %s/%s (go)\n", t.OS, t.Arch)
+	step("building %s/%s (go)", t.OS, t.Arch)
 	goArgs := []string{"build", "-o", outPath}
 	if t.OS == "windows" && !console {
 		goArgs = append(goArgs, "-ldflags", "-H windowsgui")
@@ -165,11 +165,11 @@ func buildOne(appDir string, cfg appConfig, t buildTarget, console, installer bo
 		return windowsInstaller(appDir, cfg, t, outDir, exeName)
 	case "linux":
 		archive := filepath.Join(outDir, fmt.Sprintf("%s-linux-%s.tar.gz", cfg.Name, t.Arch))
-		fmt.Printf("gantry: packaging %s\n", filepath.Base(archive))
+		step("packaging %s", filepath.Base(archive))
 		return tarGz(archive, outPath, cfg.Name)
 	case "mac":
 		archive := filepath.Join(outDir, fmt.Sprintf("%s-mac-%s.zip", cfg.Name, t.Arch))
-		fmt.Printf("gantry: packaging %s\n", filepath.Base(archive))
+		step("packaging %s", filepath.Base(archive))
 		return zipOne(archive, outPath, cfg.Name)
 	}
 	return nil
@@ -280,10 +280,10 @@ Filename: "{app}\%s"; Description: "{cm:LaunchProgram,%s}"; Flags: nowait postin
 
 	iscc := findISCC()
 	if iscc == "" {
-		fmt.Fprintf(os.Stderr, "gantry: Inno Setup not found - %s is ready; install Inno Setup 6 (https://jrsoftware.org/isinfo.php) to produce %s-setup.exe\n", issPath, cfg.Name)
+		warn("Inno Setup not found - %s is ready; install Inno Setup 6 (https://jrsoftware.org/isinfo.php) to produce %s-setup.exe", issPath, cfg.Name)
 		return nil
 	}
-	fmt.Printf("gantry: packaging %s-setup.exe (Inno Setup)\n", cfg.Name)
+	step("packaging %s-setup.exe (Inno Setup)", cfg.Name)
 	cmd := exec.Command(iscc, "/Q", filepath.Base(issPath))
 	cmd.Dir = outDir
 	cmd.Stdout = os.Stdout

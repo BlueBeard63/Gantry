@@ -1,6 +1,6 @@
 # Command reference
 
-The gantry CLI has five commands. dev, build, add and docs find the app by walking up from the current directory to the nearest gantry.json, so they work from anywhere inside the app tree.
+The gantry CLI has six commands. dev, build, add and docs find the app by walking up from the current directory to the nearest gantry.json, so they work from anywhere inside the app tree. Progress output is coloured when the terminal supports it; piping to a file or setting `NO_COLOR` gives plain text.
 
 ## gantry new <name>
 
@@ -95,6 +95,17 @@ Inside the browser:
 - f lists the current page's links: pick one and enter follows it - internal links navigate here, external links open in your browser (or land on the clipboard if no browser can open)
 - b / n go back / forward through your history
 - q quits
+
+## gantry --version
+
+Prints the installed CLI version (also `gantry version` or `-v`):
+
+```
+gantry --version
+Version: v0.3.1
+```
+
+Installed with `go install github.com/B-Commissions/Gantry/cmd/gantry@latest` this reports the module tag - the quick way to confirm an update actually took. Built from a local checkout it reports the version stamped from git (a pseudo-version, or `(devel)` plus the commit when no tag info is available).
 
 ## gantry.json
 

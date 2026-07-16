@@ -124,7 +124,7 @@ func cmdNew(args []string) error {
 	if !*noReplace {
 		if g := resolveGantryDir(*gantryDir); g != "" {
 			s.GantryDir = filepath.ToSlash(g)
-			fmt.Printf("gantry: using local checkout %s (pass --no-replace for the published module)\n", g)
+			info("using local checkout %s (pass --no-replace for the published module)", g)
 		}
 	}
 
@@ -176,9 +176,9 @@ func cmdNew(args []string) error {
 		return err
 	}
 
-	fmt.Printf("gantry: created %s\n", appDir)
+	success("created %s", appDir)
 
-	fmt.Println("gantry: go mod tidy")
+	step("go mod tidy")
 	tidy := exec.Command("go", "mod", "tidy")
 	tidy.Dir = appDir
 	tidy.Stdout = os.Stdout
@@ -188,7 +188,7 @@ func cmdNew(args []string) error {
 	}
 
 	if !*noInstall {
-		fmt.Println("gantry: npm install")
+		step("npm install")
 		npm := "npm"
 		if p, err := exec.LookPath("npm.cmd"); err == nil {
 			npm = p
@@ -203,12 +203,12 @@ func cmdNew(args []string) error {
 	}
 
 	fmt.Printf(`
-Done. Next:
+%s
 
   cd %s
   gantry dev      (live reload in a native window)
   gantry build    (single exe)
-`, name)
+`, successStyle.Render("Done. Next:"), name)
 	return nil
 }
 
@@ -287,7 +287,7 @@ func resolveGantryDir(flagVal string) string {
 		if dir, err := verifyGantryDir(flagVal); err == nil {
 			return dir
 		}
-		fmt.Fprintf(os.Stderr, "gantry: --gantry-dir %s is not a Gantry checkout; using the published module\n", flagVal)
+		warn("--gantry-dir %s is not a Gantry checkout; using the published module", flagVal)
 		return ""
 	}
 	if env := os.Getenv("GANTRY_DIR"); env != "" {
@@ -328,7 +328,7 @@ func askYesNo(in *bufio.Reader, q string, def bool) bool {
 	if !def {
 		hint = "y/N"
 	}
-	fmt.Printf("%s [%s] ", q, hint)
+	fmt.Print(promptStr(q, hint))
 	line, _ := in.ReadString('\n')
 	line = strings.ToLower(strings.TrimSpace(line))
 	if line == "" {

@@ -5,29 +5,45 @@
 //	gantry build         build a single exe with the frontend embedded
 //	gantry add <pkg...>  install npm packages into the app
 //	gantry docs [topic]  browse the documentation offline
+//	gantry --version     print the CLI version
 package main
 
 import (
 	"fmt"
 	"os"
+	"runtime/debug"
+	"strings"
+
+	"github.com/charmbracelet/lipgloss"
 )
 
-const usage = `gantry - build native desktop apps with Go and React
+var usageCommands = []struct{ cmd, desc string }{
+	{"gantry new <name>", "scaffold a new app (interactive; see flags below)"},
+	{"gantry dev", "run the current app with live reload"},
+	{"gantry build", "build the current app into a single exe"},
+	{"gantry add <pkg...>", "install npm packages into the app"},
+	{"gantry gen", "regenerate gantry_registry.go (dev/build do this too)"},
+	{"gantry docs [topic]", "browse the documentation offline"},
+	{"gantry --version", "print the CLI version"},
+}
 
-Usage:
-  gantry new <name>     scaffold a new app (interactive; see flags below)
-  gantry dev            run the current app with live reload
-  gantry build          build the current app into a single exe
-  gantry add <pkg...>   install npm packages into the app
-  gantry gen            regenerate gantry_registry.go (dev/build do this too)
-  gantry docs [topic]   browse the documentation offline
-
-Run gantry new -h for scaffolding flags.
-`
+// usageText renders the usage block with the command column coloured;
+// the renderer decides whether colour actually applies (stdout for
+// help, stderr for unknown commands).
+func usageText(r *lipgloss.Renderer) string {
+	cmdStyle := r.NewStyle().Foreground(lipgloss.Color("39"))
+	var b strings.Builder
+	b.WriteString("gantry - build native desktop apps with Go and React\n\nUsage:\n")
+	for _, c := range usageCommands {
+		b.WriteString("  " + cmdStyle.Render(fmt.Sprintf("%-20s", c.cmd)) + "  " + c.desc + "\n")
+	}
+	b.WriteString("\nRun gantry new -h for scaffolding flags.\n")
+	return b.String()
+}
 
 func main() {
 	if len(os.Args) < 2 {
-		fmt.Print(usage)
+		fmt.Print(usageText(stdoutStyles))
 		os.Exit(2)
 	}
 	var err error
@@ -47,14 +63,40 @@ func main() {
 		err = cmdGen(os.Args[2:])
 	case "docs":
 		err = cmdDocs(os.Args[2:])
+	case "version", "-v", "--version":
+		fmt.Println("Version: " + fullVersion())
 	case "help", "-h", "--help":
-		fmt.Print(usage)
+		fmt.Print(usageText(stdoutStyles))
 	default:
-		fmt.Fprintf(os.Stderr, "gantry: unknown command %q\n\n%s", os.Args[1], usage)
+		fail("unknown command %q", os.Args[1])
+		fmt.Fprint(os.Stderr, "\n"+usageText(stderrStyles))
 		os.Exit(2)
 	}
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "gantry: %v\n", err)
+		fail("%v", err)
 		os.Exit(1)
 	}
+}
+
+// fullVersion is cliVersion plus the vcs revision when this is a
+// local path install (go install ./cmd/gantry reports "(devel)").
+func fullVersion() string {
+	v := cliVersion()
+	if v == "" {
+		return "(unknown)"
+	}
+	if v == "(devel)" {
+		if bi, ok := debug.ReadBuildInfo(); ok {
+			for _, s := range bi.Settings {
+				if s.Key == "vcs.revision" && s.Value != "" {
+					rev := s.Value
+					if len(rev) > 12 {
+						rev = rev[:12]
+					}
+					return v + " " + rev
+				}
+			}
+		}
+	}
+	return v
 }

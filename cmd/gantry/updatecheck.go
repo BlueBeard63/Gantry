@@ -2,7 +2,6 @@ package main
 
 import (
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -31,8 +30,7 @@ func checkForUpdate() {
 	if latest == "" || !semverLess(current, latest) {
 		return
 	}
-	fmt.Fprintf(os.Stderr,
-		"gantry: %s is available (you have %s) - update with: go install %s/cmd/gantry@latest\n",
+	warn("%s is available (you have %s) - update with: go install %s/cmd/gantry@latest",
 		latest, current, modulePath)
 }
 
