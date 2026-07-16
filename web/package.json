@@ -1,0 +1,28 @@
+{
+  "name": "gantry-web",
+  "version": "0.1.0",
+  "description": "Frontend half of the Gantry desktop app framework: window chrome, native bridge, Tea runtime, Vite plugin",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./tea": "./src/tea/index.ts",
+    "./vite": "./src/vite/index.js",
+    "./styles.css": "./src/styles.css",
+    "./types": "./types/index.d.ts"
+  },
+  "files": [
+    "src",
+    "types"
+  ],
+  "peerDependencies": {
+    "lucide-react": "*",
+    "react": ">=18",
+    "react-dom": ">=18",
+    "vite": ">=5"
+  },
+  "peerDependenciesMeta": {
+    "vite": {
+      "optional": true
+    }
+  }
+}

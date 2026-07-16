@@ -1,0 +1,18 @@
+# Demo
+
+A desktop app built with [Gantry](https://github.com/B-Commissions/Gantry).
+
+## Layout
+
+- main.go - entrypoint: registers pages/components, starts the server and window
+- pages/ - each folder is one page: a .go half (logic), a .tsx half (look), optional .css
+- components/ - reusable paired components, same convention
+- index.css - app-wide theme (the --gantry-* variables live here)
+- gantry.json - app settings the gantry CLI reads
+
+## Commands
+
+- gantry dev - run with live reload in the native window (logs in this terminal)
+- gantry build - build a single windowed exe (--console keeps the console for debugging)
+- gantry add <pkg> - add an npm package
+- gantry docs - browse the framework docs offline

@@ -1,0 +1,8 @@
+module [[.Name]]
+
+go 1.25.0
+
+require github.com/B-Commissions/Gantry v0.0.0
+[[if .GantryDir]]
+replace github.com/B-Commissions/Gantry => "[[.GantryDir]]"
+[[end]]

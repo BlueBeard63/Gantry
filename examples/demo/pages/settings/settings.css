@@ -1,0 +1,26 @@
+/* Styles for the settings page only (scoped to its page class). */
+
+.gantry-pages-settings .settings-page {
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-width: 480px;
+}
+
+.gantry-pages-settings h2 {
+  margin: 0;
+}
+
+.gantry-pages-settings .settings-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--gantry-fg-dim);
+}
+
+.gantry-pages-settings .settings-actions {
+  display: flex;
+  gap: 8px;
+}

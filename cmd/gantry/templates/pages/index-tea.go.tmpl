@@ -1,0 +1,39 @@
+// The Go half of the index page. Its Model owns the page state and
+// logic; the paired index.tsx renders it with <TeaView />. Update this
+// file, save, and gantry dev restarts the app with the new logic.
+package index
+
+import (
+	"fmt"
+
+	"github.com/B-Commissions/Gantry/ui"
+)
+
+var Page = ui.Page{
+	Key:   "pages/index",
+	Model: func() ui.Model { return model{} },
+}
+
+// model is the page state.
+type model struct {
+	count int
+}
+
+// incMsg is sent when the button is clicked.
+type incMsg struct{}
+
+func (m model) Init() ui.Cmd { return nil }
+
+func (m model) Update(msg ui.Msg) (ui.Model, ui.Cmd) {
+	switch msg.(type) {
+	case incMsg:
+		m.count++
+	}
+	return m, nil
+}
+
+func (m model) View() ui.Node {
+	return ui.Column(
+		ui.Button(fmt.Sprintf("count is %d", m.count), incMsg{}),
+	).WithProps("class", "counter")
+}

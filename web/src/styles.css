@@ -1,0 +1,266 @@
+/* Gantry chrome + Tea built-in styles. Theme everything from the app's
+   root index.css by overriding these variables - the components read
+   them live, so a retheme is just new values, no component changes. */
+
+:root {
+  --gantry-bg: #101012;
+  --gantry-fg: #e8e8ea;
+  --gantry-fg-dim: #9a9aa0;
+  --gantry-accent: #6ea8fe;
+  --gantry-border: #2a2a2e;
+  --gantry-titlebar-h: 40px;
+  --gantry-titlebar-bg: transparent;
+  --gantry-titlebar-fg: var(--gantry-fg);
+  --gantry-btn-hover: rgba(255, 255, 255, 0.08);
+  --gantry-close-hover: #c42b1c;
+  --gantry-control-bg: #1a1a1e;
+  --gantry-control-border: #34343a;
+  --gantry-radius: 6px;
+  --gantry-font:
+    "Segoe UI", system-ui, -apple-system, sans-serif;
+}
+
+/* ---- window chrome ---- */
+
+.gantry-titlebar {
+  position: relative;
+  display: flex;
+  align-items: center;
+  flex: none;
+  background: var(--gantry-titlebar-bg);
+  color: var(--gantry-titlebar-fg);
+  font-family: var(--gantry-font);
+  user-select: none;
+}
+
+.gantry-dragstrip {
+  position: absolute;
+  top: 0;
+  z-index: 30;
+}
+
+.gantry-titlebar-left {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding-left: 8px;
+  position: relative;
+  z-index: 31;
+}
+
+.gantry-titlebar-title {
+  position: absolute;
+  left: 0;
+  right: 0;
+  text-align: center;
+  font-size: 13px;
+  color: var(--gantry-fg-dim);
+  pointer-events: none; /* stays part of the drag band */
+}
+
+.gantry-titlebar-buttons {
+  display: flex;
+  align-items: center;
+  margin-left: auto;
+  position: relative;
+  z-index: 31;
+}
+
+.gantry-winbtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 46px;
+  height: var(--gantry-titlebar-h);
+  border: none;
+  background: transparent;
+  color: var(--gantry-titlebar-fg);
+  cursor: default;
+}
+
+.gantry-winbtn:hover {
+  background: var(--gantry-btn-hover);
+}
+
+.gantry-winbtn-close:hover {
+  background: var(--gantry-close-hover);
+  color: #fff;
+}
+
+/* ---- Tea built-ins ---- */
+
+.gantry-tea-column {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-height: 0;
+}
+
+.gantry-tea-row {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.gantry-tea-text {
+  font-family: var(--gantry-font);
+  color: var(--gantry-fg);
+  font-size: 14px;
+}
+
+.gantry-tea-heading {
+  font-family: var(--gantry-font);
+  color: var(--gantry-fg);
+  font-size: 18px;
+  font-weight: 600;
+  margin: 0;
+}
+
+.gantry-tea-button {
+  font-family: var(--gantry-font);
+  font-size: 13px;
+  color: var(--gantry-fg);
+  background: var(--gantry-control-bg);
+  border: 1px solid var(--gantry-control-border);
+  border-radius: var(--gantry-radius);
+  padding: 6px 14px;
+}
+
+.gantry-tea-button:hover {
+  border-color: var(--gantry-accent);
+}
+
+.gantry-tea-button:active {
+  transform: translateY(1px);
+}
+
+.gantry-tea-input,
+.gantry-tea-select {
+  font-family: var(--gantry-font);
+  font-size: 13px;
+  color: var(--gantry-fg);
+  background: var(--gantry-control-bg);
+  border: 1px solid var(--gantry-control-border);
+  border-radius: var(--gantry-radius);
+  padding: 6px 10px;
+  outline: none;
+}
+
+.gantry-tea-input:focus,
+.gantry-tea-select:focus {
+  border-color: var(--gantry-accent);
+}
+
+.gantry-tea-checkbox {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--gantry-font);
+  font-size: 13px;
+  color: var(--gantry-fg);
+}
+
+.gantry-tea-divider {
+  border: none;
+  border-top: 1px solid var(--gantry-border);
+  margin: 4px 0;
+  width: 100%;
+}
+
+.gantry-tea-spacer {
+  flex: 1;
+}
+
+.gantry-tea-progress {
+  height: 6px;
+  border-radius: 3px;
+  background: var(--gantry-control-bg);
+  overflow: hidden;
+  min-width: 80px;
+  flex: 1;
+}
+
+.gantry-tea-progress-fill {
+  height: 100%;
+  background: var(--gantry-accent);
+}
+
+.gantry-tea-unknown {
+  font-family: var(--gantry-font);
+  font-size: 12px;
+  color: #ff8080;
+  border: 1px dashed #ff8080;
+  border-radius: var(--gantry-radius);
+  padding: 4px 8px;
+}
+
+/* ---- themed defaults for plain elements ----
+   Pages write ordinary <input>/<button>/<select> and get the app look
+   without any per-page css; the Tea built-ins carry the same values. */
+
+.gantry-app input[type="text"],
+.gantry-app input[type="password"],
+.gantry-app input[type="number"],
+.gantry-app input[type="search"],
+.gantry-app input:not([type]),
+.gantry-app textarea,
+.gantry-app select {
+  font-family: var(--gantry-font);
+  font-size: 13px;
+  color: var(--gantry-fg);
+  background: var(--gantry-control-bg);
+  border: 1px solid var(--gantry-control-border);
+  border-radius: var(--gantry-radius);
+  padding: 6px 10px;
+  outline: none;
+}
+
+.gantry-app input:focus,
+.gantry-app textarea:focus,
+.gantry-app select:focus {
+  border-color: var(--gantry-accent);
+}
+
+.gantry-app button:not(.gantry-winbtn) {
+  font-family: var(--gantry-font);
+  font-size: 13px;
+  color: var(--gantry-fg);
+  background: var(--gantry-control-bg);
+  border: 1px solid var(--gantry-control-border);
+  border-radius: var(--gantry-radius);
+  padding: 6px 14px;
+}
+
+.gantry-app button:not(.gantry-winbtn):hover {
+  border-color: var(--gantry-accent);
+}
+
+.gantry-app input[type="checkbox"] {
+  accent-color: var(--gantry-accent);
+}
+
+/* Link renders anchors without href (no status bubble); keep the
+   pointer cursor they would otherwise lose. */
+.gantry-app a[role="link"] {
+  cursor: pointer;
+}
+
+/* ---- app scaffold ---- */
+
+.gantry-app {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  background: var(--gantry-bg);
+  color: var(--gantry-fg);
+  font-family: var(--gantry-font);
+  overflow: hidden;
+}
+
+.gantry-page {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+}
