@@ -13,6 +13,15 @@
     "close": true
   },
   "mobile": {
-    "id": "ec.morrison.demo"
+    "id": "ec.morrison.demo",
+    "widgets": [
+      {
+        "name": "status",
+        "label": "Demo Status",
+        "minSize": "3x1",
+        "maxSize": "5x2",
+        "refreshMinutes": 30
+      }
+    ]
   }
 }

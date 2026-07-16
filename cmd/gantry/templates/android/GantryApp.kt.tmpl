@@ -14,5 +14,6 @@ class GantryApp : Application() {
         super.onCreate()
         backend = GoBackend(this)
         backend.start()
-    }
+[[if .Widgets]]        WidgetWorker.schedule(this)
+[[end]]    }
 }

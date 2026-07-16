@@ -1,0 +1,60 @@
+// Synthesized by gantry build - regenerated every run, never hand-edited.
+package [[.ID]]
+
+import android.content.Context
+import androidx.glance.GlanceId
+import androidx.glance.appwidget.GlanceAppWidget
+import androidx.glance.appwidget.GlanceAppWidgetReceiver
+import androidx.glance.appwidget.provideContent
+import androidx.glance.appwidget.updateAll
+import org.json.JSONObject
+import java.io.File
+
+// One GlanceAppWidget + receiver per widget declared in gantry.json,
+// each rendering its cached node tree from filesDir/gantry-widgets/.
+// The cache is written by WidgetWorker (background) and WidgetRefresh
+// (whenever the app is open).
+
+// updateAllGantryWidgets pushes the cached JSON into every widget.
+suspend fun updateAllGantryWidgets(context: Context) {
+[[range .Widgets]]    [[.ClassName]]().updateAll(context)
+[[end]]}
+
+// WidgetStore holds the per-widget node trees between refreshes.
+object WidgetStore {
+    private fun dir(context: Context) = File(context.filesDir, "gantry-widgets")
+
+    // saveEnvelope splits an emitted envelope ({version, widgets:[{name,
+    // root}]}) into one file per widget.
+    fun saveEnvelope(context: Context, raw: String) {
+        runCatching {
+            val start = raw.indexOf('{')
+            if (start < 0) return
+            val widgets = JSONObject(raw.substring(start)).optJSONArray("widgets") ?: return
+            val d = dir(context)
+            d.mkdirs()
+            for (i in 0 until widgets.length()) {
+                val w = widgets.getJSONObject(i)
+                val name = w.optString("name")
+                if (name.isEmpty()) continue
+                File(d, "$name.json").writeText(w.getJSONObject("root").toString())
+            }
+        }
+    }
+
+    fun load(context: Context, name: String): JSONObject? = runCatching {
+        JSONObject(File(dir(context), "$name.json").readText())
+    }.getOrNull()
+}
+[[range .Widgets]]
+class [[.ClassName]]Receiver : GlanceAppWidgetReceiver() {
+    override val glanceAppWidget: GlanceAppWidget = [[.ClassName]]()
+}
+
+class [[.ClassName]] : GlanceAppWidget() {
+    override suspend fun provideGlance(context: Context, id: GlanceId) {
+        val root = WidgetStore.load(context, "[[.Name]]")
+        provideContent { GantryWidgetContent(root) }
+    }
+}
+[[end]]

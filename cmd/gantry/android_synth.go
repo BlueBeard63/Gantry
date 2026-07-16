@@ -6,6 +6,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"text/template"
 )
@@ -22,6 +23,80 @@ type androidScaffold struct {
 	Permissions        []string        // manifest uses-permission names
 	RuntimePermissions []string        // subset the shell prompts for at launch
 	Keystore           *keystoreConfig // File resolved to an absolute forward-slash path; nil = debug signing
+	Widgets            []androidWidget
+	MinRefreshMinutes  int // smallest widget refresh period - the worker's cadence
+}
+
+// androidWidget is one home-screen widget with launcher metadata
+// translated to Android's units (grid cells and their dp equivalent,
+// dp = 70*cells - 30).
+type androidWidget struct {
+	Name           string
+	ClassName      string // Kotlin class, e.g. "StatusWidget"
+	Label          string
+	TargetW        int // launcher grid cells
+	TargetH        int
+	MinWidthDp     int
+	MinHeightDp    int
+	MaxWidthDp     int // 0 = no max (template omits the attrs)
+	MaxHeightDp    int
+	Resize         string
+	RefreshMinutes int
+}
+
+// androidWidgets translates the effective widget list for the
+// templates; the second result is the smallest refresh period.
+func androidWidgets(appDir string, cfg appConfig) ([]androidWidget, int, error) {
+	widgets, err := collectWidgets(appDir, cfg)
+	if err != nil {
+		return nil, 0, err
+	}
+	out := make([]androidWidget, 0, len(widgets))
+	minRefresh := 0
+	for _, w := range widgets {
+		tw, th, err := parseCells(w.MinSize)
+		if err != nil {
+			return nil, 0, fmt.Errorf("widget %q minSize: %w", w.Name, err)
+		}
+		aw := androidWidget{
+			Name:           w.Name,
+			ClassName:      strings.ReplaceAll(title(w.Name), " ", "") + "Widget",
+			Label:          w.Label,
+			TargetW:        tw,
+			TargetH:        th,
+			MinWidthDp:     70*tw - 30,
+			MinHeightDp:    70*th - 30,
+			Resize:         w.Resize,
+			RefreshMinutes: w.RefreshMinutes,
+		}
+		if w.MaxSize != "" {
+			mw, mh, err := parseCells(w.MaxSize)
+			if err != nil {
+				return nil, 0, fmt.Errorf("widget %q maxSize: %w", w.Name, err)
+			}
+			aw.MaxWidthDp, aw.MaxHeightDp = 70*mw-30, 70*mh-30
+		}
+		if minRefresh == 0 || w.RefreshMinutes < minRefresh {
+			minRefresh = w.RefreshMinutes
+		}
+		out = append(out, aw)
+	}
+	return out, minRefresh, nil
+}
+
+// parseCells parses a "CxR" launcher grid size.
+func parseCells(s string) (w, h int, err error) {
+	c, r, ok := strings.Cut(s, "x")
+	if ok {
+		w, err = strconv.Atoi(c)
+		if err == nil {
+			h, err = strconv.Atoi(r)
+		}
+	}
+	if !ok || err != nil || w < 1 || h < 1 {
+		return 0, 0, fmt.Errorf("bad size %q (want CxR grid cells, e.g. 3x1)", s)
+	}
+	return w, h, nil
 }
 
 // writeAndroidSynth (re)generates the hidden Gradle project in
@@ -65,6 +140,10 @@ func writeAndroidSynth(appDir string, cfg appConfig) (string, error) {
 		resolved.File = filepath.ToSlash(resolved.File)
 		s.Keystore = &resolved
 	}
+	s.Widgets, s.MinRefreshMinutes, err = androidWidgets(appDir, cfg)
+	if err != nil {
+		return "", err
+	}
 
 	// Kotlin sources live under the id's package path so the generated
 	// tree looks like any hand-written Android project.
@@ -81,6 +160,28 @@ func writeAndroidSynth(appDir string, cfg appConfig) (string, error) {
 		"strings.xml.tmpl":          "app/src/main/res/values/strings.xml",
 		"themes.xml.tmpl":           "app/src/main/res/values/themes.xml",
 	}
+
+	// Widget files regenerate from scratch: drop them all first so
+	// removing a widget doesn't leave stale Kotlin/resources behind
+	// (the synth otherwise never deletes - Gradle caches live here).
+	for _, stale := range []string{
+		"app/src/main/java/" + pkgDir + "/Widgets.kt",
+		"app/src/main/java/" + pkgDir + "/WidgetRenderer.kt",
+		"app/src/main/java/" + pkgDir + "/WidgetWorker.kt",
+	} {
+		_ = os.Remove(filepath.Join(dir, filepath.FromSlash(stale)))
+	}
+	if infos, err := filepath.Glob(filepath.Join(dir, "app", "src", "main", "res", "xml", "widget_*_info.xml")); err == nil {
+		for _, p := range infos {
+			_ = os.Remove(p)
+		}
+	}
+	if len(s.Widgets) > 0 {
+		rendered["Widgets.kt.tmpl"] = "app/src/main/java/" + pkgDir + "/Widgets.kt"
+		rendered["WidgetRenderer.kt.tmpl"] = "app/src/main/java/" + pkgDir + "/WidgetRenderer.kt"
+		rendered["WidgetWorker.kt.tmpl"] = "app/src/main/java/" + pkgDir + "/WidgetWorker.kt"
+	}
+
 	for tmpl, out := range rendered {
 		src, err := templates.ReadFile("templates/android/" + tmpl)
 		if err != nil {
@@ -98,6 +199,28 @@ func writeAndroidSynth(appDir string, cfg appConfig) (string, error) {
 		}
 		if err := writeFileMkdir(filepath.Join(dir, filepath.FromSlash(out)), buf.Bytes(), 0o644); err != nil {
 			return "", err
+		}
+	}
+
+	// Each widget's launcher metadata renders its own provider info xml.
+	if len(s.Widgets) > 0 {
+		src, err := templates.ReadFile("templates/android/widget_info.xml.tmpl")
+		if err != nil {
+			return "", fmt.Errorf("reading template android/widget_info.xml.tmpl: %w", err)
+		}
+		t, err := template.New("widget_info.xml.tmpl").Delims("[[", "]]").Parse(string(src))
+		if err != nil {
+			return "", fmt.Errorf("parsing template android/widget_info.xml.tmpl: %w", err)
+		}
+		for _, w := range s.Widgets {
+			var buf bytes.Buffer
+			if err := t.Execute(&buf, w); err != nil {
+				return "", fmt.Errorf("rendering widget_%s_info.xml: %w", w.Name, err)
+			}
+			out := filepath.Join(dir, "app", "src", "main", "res", "xml", "widget_"+w.Name+"_info.xml")
+			if err := writeFileMkdir(out, buf.Bytes(), 0o644); err != nil {
+				return "", err
+			}
 		}
 	}
 

@@ -11,31 +11,56 @@ import (
 	"encoding/json"
 	"io"
 	"net/http"
+
+	"github.com/B-Commissions/Gantry/widget"
 )
 
-// registeredWidgets holds the app's home-screen widgets. The concrete
-// widget type arrives with the widget package; any keeps the generated
-// registry compiling until then.
-var registeredWidgets []any
+// registeredWidgets holds the app's home-screen widgets.
+var registeredWidgets []widget.Widget
 
 // RegisterWidgets records the app's home-screen widgets - called by
 // the generated gantry_widgets.go, one widget per widgets/<name> dir.
-func RegisterWidgets(ws ...any) {
+func RegisterWidgets(ws ...widget.Widget) {
 	registeredWidgets = append(registeredWidgets, ws...)
 }
 
-// emitWidgets writes the versioned widget envelope: the Android shell
-// runs the binary with --emit-widgets to refresh home-screen widgets
-// without booting the whole app. Stub until the widget package lands -
-// an empty envelope with the versioned shape.
+// widgetSnapshot is one rendered widget in the envelope.
+type widgetSnapshot struct {
+	Name string      `json:"name"`
+	Root widget.Node `json:"root"`
+}
+
+// widgetEnvelope renders every registered widget into the versioned
+// shape shared by --emit-widgets and /gantry/widgets.json. The Kotlin
+// shell splits it into per-widget files and hands each root to the
+// Glance renderer.
+func widgetEnvelope() any {
+	snaps := make([]widgetSnapshot, 0, len(registeredWidgets))
+	for _, w := range registeredWidgets {
+		snaps = append(snaps, widgetSnapshot{Name: w.Name, Root: w.Render()})
+	}
+	return struct {
+		Version int              `json:"version"`
+		Widgets []widgetSnapshot `json:"widgets"`
+	}{Version: 1, Widgets: snaps}
+}
+
+// emitWidgets writes the widget envelope: the Android shell runs the
+// binary with --emit-widgets to refresh home-screen widgets in the
+// background without booting the whole app.
 func emitWidgets(w io.Writer) error {
-	env := struct {
-		Version int   `json:"version"`
-		Widgets []any `json:"widgets"`
-	}{Version: 1, Widgets: []any{}}
 	enc := json.NewEncoder(w)
 	enc.SetIndent("", "  ")
-	return enc.Encode(env)
+	return enc.Encode(widgetEnvelope())
+}
+
+// widgetsHandler serves the same envelope from the running server, so
+// the shell can refresh widgets for free whenever the app is open.
+func widgetsHandler() http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(widgetEnvelope())
+	})
 }
 
 // tokenHandler guards every route with a shared secret when token is

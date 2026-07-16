@@ -4,26 +4,56 @@ package [[.ID]]
 import android.annotation.SuppressLint
 import android.app.Activity
 import android.content.pm.PackageManager
+import android.graphics.Color
+import android.os.Build
 import android.os.Bundle
+import android.view.View
+import android.view.WindowInsets
+import android.view.WindowInsetsController
 import android.webkit.PermissionRequest
 import android.webkit.WebChromeClient
 import android.webkit.WebView
 import android.webkit.WebViewClient
+import android.widget.FrameLayout
 
 // MainActivity is a full-screen WebView pointed at the Go server on
 // 127.0.0.1. All app UI lives in the web frontend; this shell only
-// bridges Android concerns (permissions, back navigation).
+// bridges Android concerns (permissions, insets, back navigation).
+//
+// Insets: the window is edge-to-edge (Android 15 enforces it), but the
+// WebView canvas is padded inside the status/navigation bars so no
+// content hides under them. The padded strips belong to the frame,
+// whose background is sampled from the page's own background colour -
+// the app looks like it runs under the bars without actually doing so.
 class MainActivity : Activity() {
+    private lateinit var frame: FrameLayout
     private lateinit var web: WebView
 
     @SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        if (Build.VERSION.SDK_INT >= 30) {
+            window.setDecorFitsSystemWindows(false)
+        } else {
+            @Suppress("DEPRECATION")
+            window.decorView.systemUiVisibility =
+                View.SYSTEM_UI_FLAG_LAYOUT_STABLE or
+                    View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN or
+                    View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
+        }
+
         web = WebView(this)
         web.settings.javaScriptEnabled = true
         web.settings.domStorageEnabled = true
         web.settings.mediaPlaybackRequiresUserGesture = false
-        web.webViewClient = WebViewClient()
+        web.webViewClient = object : WebViewClient() {
+            override fun onPageFinished(view: WebView, url: String) {
+                view.evaluateJavascript(
+                    "getComputedStyle(document.body).backgroundColor"
+                ) { value -> applyPageBackground(value) }
+            }
+        }
         web.webChromeClient = object : WebChromeClient() {
             // The page is the app itself: pass web media requests through
             // to whatever Android permissions the app already holds.
@@ -39,7 +69,26 @@ class MainActivity : Activity() {
                 if (granted.isEmpty()) request.deny() else request.grant(granted.toTypedArray())
             }
         }
-        setContentView(web)
+
+        frame = FrameLayout(this)
+        frame.addView(web)
+        frame.setOnApplyWindowInsetsListener { v, insets ->
+            // ime() keeps the canvas above the keyboard too.
+            if (Build.VERSION.SDK_INT >= 30) {
+                val s = insets.getInsets(WindowInsets.Type.systemBars() or WindowInsets.Type.ime())
+                v.setPadding(s.left, s.top, s.right, s.bottom)
+            } else {
+                @Suppress("DEPRECATION")
+                v.setPadding(
+                    insets.systemWindowInsetLeft,
+                    insets.systemWindowInsetTop,
+                    insets.systemWindowInsetRight,
+                    insets.systemWindowInsetBottom,
+                )
+            }
+            insets
+        }
+        setContentView(frame)
 
         askPermissionsOnce()
 
@@ -50,6 +99,45 @@ class MainActivity : Activity() {
                 // a cookie so in-app navigation stays clean.
                 web.loadUrl("http://127.0.0.1:$port/?gantry_token=${backend.token}")
             }
+        }
+    }
+
+    // applyPageBackground paints the inset strips with the page's own
+    // background ("rgb(r, g, b)" from computed style) and flips the
+    // system bar icons dark/light to stay readable on it.
+    private fun applyPageBackground(cssColor: String?) {
+        val m = Regex("""rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*([\d.]+))?\)""")
+            .find(cssColor ?: "") ?: return
+        if (m.groupValues[4] == "0") return // transparent body: keep the theme colour
+        val r = m.groupValues[1].toInt()
+        val g = m.groupValues[2].toInt()
+        val b = m.groupValues[3].toInt()
+        frame.setBackgroundColor(Color.rgb(r, g, b))
+
+        val lightBackground = 0.299 * r + 0.587 * g + 0.114 * b > 145
+        val lightFlags = WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS or
+            WindowInsetsController.APPEARANCE_LIGHT_NAVIGATION_BARS
+        if (Build.VERSION.SDK_INT >= 30) {
+            window.insetsController?.setSystemBarsAppearance(
+                if (lightBackground) lightFlags else 0,
+                lightFlags,
+            )
+        } else {
+            @Suppress("DEPRECATION")
+            var f = window.decorView.systemUiVisibility
+            f = if (lightBackground) {
+                f or View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR
+            } else {
+                f and View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR.inv()
+            }
+            if (Build.VERSION.SDK_INT >= 27) {
+                f = if (lightBackground) {
+                    f or View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR
+                } else {
+                    f and View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR.inv()
+                }
+            }
+            window.decorView.systemUiVisibility = f
         }
     }
 

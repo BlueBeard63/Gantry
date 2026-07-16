@@ -84,7 +84,9 @@ class GoBackend(private val context: Context) {
                         listeners.toList()
                     }
                     toNotify.forEach { it(newPort) }
-                }
+[[if .Widgets]]                    // The server is up anyway: refresh the widgets for free.
+                    Thread { WidgetRefresh.fromServer(context, newPort, token) }.start()
+[[end]]                }
             }
         }
         p.waitFor()

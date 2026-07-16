@@ -2,6 +2,11 @@
 <!-- Synthesized by gantry build - regenerated every run, never hand-edited. -->
 <resources>
     <!-- No action bar: the WebView is the whole screen, and the web
-         frontend draws its own chrome. -->
-    <style name="Theme.Gantry" parent="@android:style/Theme.DeviceDefault.NoActionBar" />
+         frontend draws its own chrome. Bars are transparent - the shell
+         goes edge-to-edge and paints the inset strips with the page's
+         background colour (see MainActivity.applyPageBackground). -->
+    <style name="Theme.Gantry" parent="@android:style/Theme.DeviceDefault.NoActionBar">
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+    </style>
 </resources>

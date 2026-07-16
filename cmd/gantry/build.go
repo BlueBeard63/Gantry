@@ -46,24 +46,8 @@ func cmdBuild(args []string) error {
 	if err != nil {
 		return err
 	}
-	synthDir, err := writeSynth(appDir, cfg)
-	if err != nil {
+	if err := prepareApp(appDir, cfg); err != nil {
 		return err
-	}
-	if err := writeRegistry(appDir); err != nil {
-		return err
-	}
-	if err := writeIcons(appDir, cfg); err != nil {
-		return err
-	}
-
-	step("building frontend (vite)")
-	vite := exec.Command(npx(), "vite", "build")
-	vite.Dir = synthDir
-	vite.Stdout = os.Stdout
-	vite.Stderr = os.Stderr
-	if err := vite.Run(); err != nil {
-		return fmt.Errorf("vite build failed: %w", err)
 	}
 
 	targets, err := resolveTargets(*targetsFlag, cfg)
@@ -116,6 +100,34 @@ func cmdBuild(args []string) error {
 		return fmt.Errorf("no targets were built")
 	}
 	success("done - %s", filepath.Join(appDir, "dist"))
+	return nil
+}
+
+// prepareApp regenerates the synth dir + generated files and runs the
+// vite build: everything a target build needs before go compiles.
+func prepareApp(appDir string, cfg appConfig) error {
+	synthDir, err := writeSynth(appDir, cfg)
+	if err != nil {
+		return err
+	}
+	if err := writeRegistry(appDir); err != nil {
+		return err
+	}
+	if err := writeWidgetRegistry(appDir, cfg); err != nil {
+		return err
+	}
+	if err := writeIcons(appDir, cfg); err != nil {
+		return err
+	}
+
+	step("building frontend (vite)")
+	vite := exec.Command(npx(), "vite", "build")
+	vite.Dir = synthDir
+	vite.Stdout = os.Stdout
+	vite.Stderr = os.Stderr
+	if err := vite.Run(); err != nil {
+		return fmt.Errorf("vite build failed: %w", err)
+	}
 	return nil
 }
 

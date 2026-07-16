@@ -190,6 +190,7 @@ func run(cfg Config, f runFlags) error {
 
 	mux := http.NewServeMux()
 	mux.Handle("/gantry/ws", app.Handler())
+	mux.Handle("/gantry/widgets.json", widgetsHandler())
 	if cfg.Setup != nil {
 		cfg.Setup(app, mux)
 	}

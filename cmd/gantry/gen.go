@@ -26,6 +26,9 @@ func cmdGen(args []string) error {
 	if err := writeRegistry(appDir); err != nil {
 		return err
 	}
+	if err := writeWidgetRegistry(appDir, cfg); err != nil {
+		return err
+	}
 	return writeIcons(appDir, cfg)
 }
 
@@ -89,15 +92,10 @@ type registryEntry struct {
 //
 //	app := ui.NewApp(gantryPairs()...)
 func writeRegistry(appDir string) error {
-	modData, err := os.ReadFile(filepath.Join(appDir, "go.mod"))
+	module, err := moduleName(appDir)
 	if err != nil {
-		return fmt.Errorf("reading go.mod: %w", err)
+		return err
 	}
-	m := moduleRe.FindSubmatch(modData)
-	if m == nil {
-		return fmt.Errorf("no module line in go.mod")
-	}
-	module := strings.Trim(string(m[1]), `"`)
 
 	// Pairs nest to any depth (pages/account/settings/settings.go):
 	// walk every directory whose leaf holds a registration var.
@@ -152,6 +150,19 @@ func writeRegistry(appDir string) error {
 	}
 	b.WriteString("}\n")
 	return os.WriteFile(filepath.Join(appDir, "gantry_registry.go"), []byte(b.String()), 0o644)
+}
+
+// moduleName reads the app's module path from go.mod.
+func moduleName(appDir string) (string, error) {
+	modData, err := os.ReadFile(filepath.Join(appDir, "go.mod"))
+	if err != nil {
+		return "", fmt.Errorf("reading go.mod: %w", err)
+	}
+	m := moduleRe.FindSubmatch(modData)
+	if m == nil {
+		return "", fmt.Errorf("no module line in go.mod")
+	}
+	return strings.Trim(string(m[1]), `"`), nil
 }
 
 // scanPair looks at every .go file in a pair folder for the exported

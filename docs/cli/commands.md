@@ -42,11 +42,12 @@ dist/
   windows/amd64/myapp-setup.exe    (with installers on + Inno Setup installed)
   linux/amd64/myapp                (+ myapp-linux-amd64.tar.gz)
   mac/arm64/myapp                  (+ myapp-mac-arm64.zip)
+  android/myapp-0.1.0.apk          (with an android target - see the Mobile docs)
 ```
 
 The pipeline: regenerate `.gantry/` and the generated Go files, one vite build into `webdist/` (the embedded frontend), then a go build per target. Targets come from `gantry.json` build.targets (see below) or the `--targets` flag; with neither, the current machine's `os/arch` builds.
 
-Cross-compilation: windows and mac targets build from any machine (mac runs in browser-fallback mode, so it is pure Go). linux targets need a Linux machine - on Windows, run `gantry build` inside **WSL**; other targets are skipped there with a notice, never failed.
+Cross-compilation: windows and mac targets build from any machine (mac runs in browser-fallback mode, so it is pure Go). linux targets need a Linux machine - on Windows, run `gantry build` inside **WSL**; other targets are skipped there with a notice, never failed. `android` (and the experimental `ios`) are their own world - toolchain requirements, the `mobile` config section, permissions and widgets live in the [Android builds](../mobile/android.md) page; a missing mobile toolchain skips that target with a fix hint while the rest of the run continues.
 
 Windows exes get `icons/icon.ico` embedded as the executable icon (**Explorer**, **taskbar**, **shortcuts**) automatically when the icons directory exists.
 
@@ -129,7 +130,8 @@ The file that makes a folder an app in the CLI's eyes. It carries a `$schema` re
     "targets": ["windows/amd64", "linux/amd64", "mac/arm64"],
     "console": false,        // keep the console on Windows builds
     "installer": true        // produce Setup.exe / tar.gz / zip
-  }
+  },
+  "mobile": { ... }          // android/ios identity, permissions, widgets - see the Mobile docs
 }
 ```
 

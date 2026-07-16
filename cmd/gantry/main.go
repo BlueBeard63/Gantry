@@ -23,6 +23,7 @@ var usageCommands = []struct{ cmd, desc string }{
 	{"gantry build", "build the current app into a single exe"},
 	{"gantry add <pkg...>", "install npm packages into the app"},
 	{"gantry gen", "regenerate gantry_registry.go (dev/build do this too)"},
+	{"gantry mobile dev <os>", "build + run on a plugged-in phone with live logcat (android|ios)"},
 	{"gantry docs [topic]", "browse the documentation offline"},
 	{"gantry --version", "print the CLI version"},
 }
@@ -35,7 +36,7 @@ func usageText(r *lipgloss.Renderer) string {
 	var b strings.Builder
 	b.WriteString("gantry - build native desktop apps with Go and React\n\nUsage:\n")
 	for _, c := range usageCommands {
-		b.WriteString("  " + cmdStyle.Render(fmt.Sprintf("%-20s", c.cmd)) + "  " + c.desc + "\n")
+		b.WriteString("  " + cmdStyle.Render(fmt.Sprintf("%-22s", c.cmd)) + "  " + c.desc + "\n")
 	}
 	b.WriteString("\nRun gantry new -h for scaffolding flags.\n")
 	return b.String()
@@ -61,6 +62,9 @@ func main() {
 		err = cmdAdd(os.Args[2:])
 	case "gen":
 		err = cmdGen(os.Args[2:])
+	case "mobile":
+		checkForUpdate()
+		err = cmdMobile(os.Args[2:])
 	case "docs":
 		err = cmdDocs(os.Args[2:])
 	case "version", "-v", "--version":

@@ -1,0 +1,68 @@
+// Synthesized by gantry build - regenerated every run, never hand-edited.
+package [[.ID]]
+
+import android.content.Context
+import android.util.Log
+import androidx.work.ExistingPeriodicWorkPolicy
+import androidx.work.PeriodicWorkRequestBuilder
+import androidx.work.WorkManager
+import androidx.work.Worker
+import androidx.work.WorkerParameters
+import kotlinx.coroutines.runBlocking
+import java.io.File
+import java.net.URL
+import java.util.concurrent.TimeUnit
+
+private const val TAG = "gantry-widgets"
+
+// WidgetWorker refreshes the home-screen widgets in the background: it
+// runs the app's Go binary with --emit-widgets (which prints the widget
+// envelope and exits without serving), caches the JSON per widget and
+// pushes it into Glance. One periodic worker runs at the smallest
+// configured refreshMinutes; WorkManager floors periods at 15 minutes.
+class WidgetWorker(context: Context, params: WorkerParameters) : Worker(context, params) {
+    override fun doWork(): Result {
+        val ctx = applicationContext
+        return try {
+            val exe = File(ctx.applicationInfo.nativeLibraryDir, "libgantryapp.so")
+            val pb = ProcessBuilder(exe.absolutePath, "--emit-widgets")
+            pb.environment()["HOME"] = ctx.filesDir.absolutePath
+            pb.environment()["TMPDIR"] = ctx.cacheDir.absolutePath
+            val p = pb.start()
+            val out = p.inputStream.bufferedReader().readText()
+            p.waitFor()
+            WidgetStore.saveEnvelope(ctx, out)
+            runBlocking { updateAllGantryWidgets(ctx) }
+            Result.success()
+        } catch (e: Exception) {
+            Log.e(TAG, "widget refresh failed", e)
+            Result.retry()
+        }
+    }
+
+    companion object {
+        fun schedule(context: Context) {
+            val request =
+                PeriodicWorkRequestBuilder<WidgetWorker>([[.MinRefreshMinutes]], TimeUnit.MINUTES).build()
+            WorkManager.getInstance(context).enqueueUniquePeriodicWork(
+                "gantry-widgets", ExistingPeriodicWorkPolicy.UPDATE, request,
+            )
+        }
+    }
+}
+
+// WidgetRefresh pulls the envelope from the running server instead of
+// spawning another process - called by GoBackend whenever the app is
+// open and the server (re)announces itself.
+object WidgetRefresh {
+    fun fromServer(context: Context, port: Int, token: String) {
+        try {
+            val body = URL("http://127.0.0.1:$port/gantry/widgets.json?gantry_token=$token")
+                .openStream().bufferedReader().readText()
+            WidgetStore.saveEnvelope(context, body)
+            runBlocking { updateAllGantryWidgets(context) }
+        } catch (e: Exception) {
+            Log.w(TAG, "widget refresh from server failed", e)
+        }
+    }
+}

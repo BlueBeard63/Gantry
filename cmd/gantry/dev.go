@@ -30,6 +30,9 @@ func cmdDev(args []string) error {
 	if err := writeRegistry(appDir); err != nil {
 		return err
 	}
+	if err := writeWidgetRegistry(appDir, cfg); err != nil {
+		return err
+	}
 	if err := writeIcons(appDir, cfg); err != nil {
 		return err
 	}

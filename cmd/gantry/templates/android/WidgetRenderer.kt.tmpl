@@ -1,0 +1,113 @@
+// Synthesized by gantry build - regenerated every run, never hand-edited.
+package [[.ID]]
+
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.glance.GlanceModifier
+import androidx.glance.action.clickable
+import androidx.glance.appwidget.LinearProgressIndicator
+import androidx.glance.appwidget.action.actionStartActivity
+import androidx.glance.appwidget.cornerRadius
+import androidx.glance.background
+import androidx.glance.layout.Alignment
+import androidx.glance.layout.Box
+import androidx.glance.layout.Column
+import androidx.glance.layout.Row
+import androidx.glance.layout.Spacer
+import androidx.glance.layout.fillMaxSize
+import androidx.glance.layout.fillMaxWidth
+import androidx.glance.layout.height
+import androidx.glance.layout.padding
+import androidx.glance.layout.size
+import androidx.glance.text.FontWeight
+import androidx.glance.text.Text
+import androidx.glance.text.TextStyle
+import androidx.glance.unit.ColorProvider
+import org.json.JSONArray
+import org.json.JSONObject
+
+// Generic Glance renderer for the gantry widget node tree (the JSON
+// the app's Go render functions emit - see the widget package docs).
+// The tree carries content and emphasis; the palette lives here so
+// every gantry widget looks consistent.
+
+private val bg = ColorProvider(Color(0xFF111111))
+private val fg = ColorProvider(Color(0xFFEDEDED))
+private val dim = ColorProvider(Color(0xFF8F8F8F))
+private val track = ColorProvider(Color(0x338F8F8F))
+
+// GantryWidgetContent is one whole widget: rounded card, tap opens the
+// app (widgets have no handlers of their own in v1).
+@Composable
+fun GantryWidgetContent(root: JSONObject?) {
+    Box(
+        modifier = GlanceModifier.fillMaxSize().background(bg).cornerRadius(20.dp)
+            .clickable(actionStartActivity<MainActivity>()).padding(12.dp),
+    ) {
+        if (root == null) {
+            Text("Open the app to fill this widget", style = TextStyle(color = dim, fontSize = 12.sp))
+        } else {
+            RenderNode(root)
+        }
+    }
+}
+
+@Composable
+private fun RenderNode(node: JSONObject) {
+    when (node.optString("type")) {
+        // Spacers are handled inside column/row so they can flex
+        // (defaultWeight only exists inside a Column/Row scope).
+        "column" -> Column {
+            forEachChild(node) { child ->
+                if (child.optString("type") == "spacer") {
+                    Spacer(GlanceModifier.defaultWeight())
+                } else {
+                    RenderNode(child)
+                }
+            }
+        }
+        "row" -> Row(verticalAlignment = Alignment.CenterVertically) {
+            forEachChild(node) { child ->
+                if (child.optString("type") == "spacer") {
+                    Spacer(GlanceModifier.defaultWeight())
+                } else {
+                    RenderNode(child)
+                }
+            }
+        }
+        "text" -> Text(
+            node.optString("text"),
+            style = TextStyle(
+                color = parseColor(node.optString("color"))
+                    ?: if (node.optBoolean("dim")) dim else fg,
+                fontSize = node.optInt("size", 13).sp,
+                fontWeight = if (node.optBoolean("bold")) FontWeight.Bold else FontWeight.Normal,
+            ),
+            maxLines = node.optInt("maxLines", Int.MAX_VALUE),
+        )
+        "progress" -> LinearProgressIndicator(
+            progress = node.optDouble("value", 0.0).toFloat(),
+            modifier = GlanceModifier.fillMaxWidth(),
+            color = parseColor(node.optString("color")) ?: fg,
+            backgroundColor = track,
+        )
+        "spacer" -> Spacer(GlanceModifier.size(8.dp)) // outside column/row: a fixed gap
+        "divider" -> Box(GlanceModifier.fillMaxWidth().height(1.dp).background(track)) {}
+    }
+}
+
+private inline fun forEachChild(node: JSONObject, render: (JSONObject) -> Unit) {
+    val children: JSONArray = node.optJSONArray("children") ?: return
+    for (i in 0 until children.length()) {
+        render(children.getJSONObject(i))
+    }
+}
+
+private fun parseColor(hex: String?): ColorProvider? {
+    if (hex.isNullOrEmpty()) return null
+    return runCatching {
+        ColorProvider(Color(android.graphics.Color.parseColor(hex)))
+    }.getOrNull()
+}
