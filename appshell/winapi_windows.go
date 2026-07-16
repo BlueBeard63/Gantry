@@ -14,6 +14,7 @@ import (
 var (
 	user32                       = syscall.NewLazyDLL("user32.dll")
 	procShowWindow               = user32.NewProc("ShowWindow")
+	procShowWindowAsync          = user32.NewProc("ShowWindowAsync")
 	procIsZoomed                 = user32.NewProc("IsZoomed")
 	procSendMessageW             = user32.NewProc("SendMessageW")
 	procGetWindowLongPtrW        = user32.NewProc("GetWindowLongPtrW")
@@ -94,9 +95,12 @@ const (
 	swpFrameChange = 0x0020
 	swpShowWindow  = 0x0040
 
-	// DWMWA_WINDOW_CORNER_PREFERENCE / DWMWCP_ROUND: Win11 rounded corners.
+	// DWMWA_WINDOW_CORNER_PREFERENCE values: Win11 corner styles.
 	dwmwaCornerPref = 33
+	dwmwcpDefault   = 0
+	dwmwcpSquare    = 1
 	dwmwcpRound     = 2
+	dwmwcpRoundSm   = 3
 
 	monitorDefaultToNearest = 2
 )

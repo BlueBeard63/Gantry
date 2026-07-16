@@ -19,6 +19,7 @@ Usage:
   gantry dev            run the current app with live reload
   gantry build          build the current app into a single exe
   gantry add <pkg...>   install npm packages into the app
+  gantry gen            regenerate gantry_registry.go (dev/build do this too)
   gantry docs [topic]   browse the documentation offline
 
 Run gantry new -h for scaffolding flags.
@@ -39,6 +40,8 @@ func main() {
 		err = cmdBuild(os.Args[2:])
 	case "add":
 		err = cmdAdd(os.Args[2:])
+	case "gen":
+		err = cmdGen(os.Args[2:])
 	case "docs":
 		err = cmdDocs(os.Args[2:])
 	case "help", "-h", "--help":

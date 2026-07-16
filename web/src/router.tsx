@@ -36,6 +36,16 @@ export function redirect(path: string): void {
   notify();
 }
 
+/** goBack navigates back through the page history (popstate re-renders). */
+export function goBack(): void {
+  history.back();
+}
+
+/** goForward navigates forward through the page history. */
+export function goForward(): void {
+  history.forward();
+}
+
 function subscribe(fn: () => void): () => void {
   listeners.add(fn);
   return () => listeners.delete(fn);

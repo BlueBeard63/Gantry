@@ -110,12 +110,17 @@ func RunWindow(opts WindowOptions) error {
 	// External links open in the user's default browser, never inside
 	// the app window (gantry-web's ExternalLink uses this).
 	_ = w.Bind(prefix+"OpenExternal", func(url string) { _ = OpenInBrowser(url) })
+	// ShowWindowAsync, never ShowWindow: these run inside a JS-binding
+	// dispatch, and a synchronous show-state change re-enters the
+	// WndProc (WM_SIZE/WM_NCCALCSIZE cascade) mid-dispatch - the same
+	// crash family as Terminate-in-binding, seen as intermittent
+	// crashes when window buttons are hit during rapid UI activity.
 	if !opts.DisableMinimize {
-		_ = w.Bind(prefix+"Minimize", func() { procShowWindow.Call(hwnd, swMinimize) })
+		_ = w.Bind(prefix+"Minimize", func() { procShowWindowAsync.Call(hwnd, swMinimize) })
 	}
 	if opts.EnableMaximize {
-		_ = w.Bind(prefix+"Maximize", func() { procShowWindow.Call(hwnd, swMaximize) })
-		_ = w.Bind(prefix+"Restore", func() { procShowWindow.Call(hwnd, swRestore) })
+		_ = w.Bind(prefix+"Maximize", func() { procShowWindowAsync.Call(hwnd, swMaximize) })
+		_ = w.Bind(prefix+"Restore", func() { procShowWindowAsync.Call(hwnd, swRestore) })
 		_ = w.Bind(prefix+"IsMaximized", func() bool {
 			z, _, _ := procIsZoomed.Call(hwnd)
 			return z != 0
@@ -131,12 +136,14 @@ func RunWindow(opts WindowOptions) error {
 	// Caps tells the frontend which window buttons this window actually
 	// supports, so the TitleBar renders exactly those - no manual
 	// mirroring of Go options into React props.
-	_ = w.Bind(prefix+"Caps", func() map[string]bool {
-		return map[string]bool{
+	_ = w.Bind(prefix+"Caps", func() map[string]any {
+		return map[string]any{
 			"minimize":    !opts.DisableMinimize,
 			"maximize":    opts.EnableMaximize,
 			"close":       !opts.DisableClose,
 			"alwaysOnTop": opts.AlwaysOnTop,
+			"platform":    "windows",
+			"frameless":   !opts.Framed,
 		}
 	})
 	for name, fn := range opts.ExtraBindings {
@@ -197,6 +204,7 @@ func RunWindow(opts WindowOptions) error {
 			uintptr(opts.Width), uintptr(opts.Height), swpNoZOrder)
 	}
 	applyIcon(hwnd, opts.Icon)
+	applyCorners(hwnd, opts.Corners)
 	if opts.AlwaysOnTop {
 		procSetWindowPos.Call(hwnd, hwndTopmost, 0, 0, 0, 0, swpNoMove|swpNoSize)
 	}

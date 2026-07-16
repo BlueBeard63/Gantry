@@ -8,6 +8,10 @@ export interface ShellCaps {
   maximize: boolean;
   close: boolean;
   alwaysOnTop: boolean;
+  /** "windows" | "linux" - which native host is running. */
+  platform?: string;
+  /** True when the window is frameless (custom chrome active). */
+  frameless?: boolean;
 }
 
 export interface ShellBridge {
@@ -31,6 +35,12 @@ export interface ShellBridge {
   setAlwaysOnTop(on: boolean): void;
   /** Open a URL in the user's default browser (never in the app). */
   openExternal(url: string): void;
+  /**
+   * Linux frameless windows: start an interactive resize from an edge
+   * ("n","s","e","w","ne","nw","se","sw"). No-op on Windows, where the
+   * native hit-test handles edges.
+   */
+  resizeEdge(edge: string): void;
 }
 
 type AnyFn = (...args: unknown[]) => unknown;
@@ -79,5 +89,6 @@ export function getShell(prefix = "gantry"): ShellBridge {
     resize: (w, h) => call("Resize", w, h),
     setAlwaysOnTop: (on) => call("SetAlwaysOnTop", on),
     openExternal: (url) => call("OpenExternal", url),
+    resizeEdge: (edge) => call("ResizeEdge", edge),
   };
 }

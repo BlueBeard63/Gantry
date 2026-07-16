@@ -40,6 +40,30 @@ npm --version
 
 Any recent LTS (v20 or newer) is fine.
 
+## Linux prerequisites
+
+Building on Linux needs the GTK and WebKit development packages (the
+exe then runs on machines with the ordinary runtime libraries):
+
+```
+sudo apt-get install libgtk-3-dev libwebkit2gtk-4.1-dev pkg-config gcc
+```
+
+On distros that only ship webkit2gtk-4.1 (Ubuntu 24.04+), alias the
+4.0 pkg-config name the webview library asks for - the two are
+API-compatible for what it uses:
+
+```
+sudo ln -s /usr/lib/x86_64-linux-gnu/pkgconfig/webkit2gtk-4.1.pc \
+           /usr/lib/x86_64-linux-gnu/pkgconfig/webkit2gtk-4.0.pc
+```
+
+Under WSLg specifically, Gantry automatically disables WebKit's
+DMA-BUF renderer (it cannot drive WSL's software GL and produces a
+white, input-dead window); real Linux machines keep the GPU path. Set
+WEBKIT_DISABLE_DMABUF_RENDERER yourself to override in either
+direction.
+
 ## Install the gantry CLI
 
 The CLI is the tool you will actually type: it scaffolds apps, runs

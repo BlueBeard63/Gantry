@@ -135,6 +135,9 @@ func cmdNew(args []string) error {
 	if err := render(appDir, s); err != nil {
 		return err
 	}
+	if err := writeRegistry(appDir); err != nil {
+		return err
+	}
 
 	cfg := appConfig{Name: s.Name, Title: s.Title, Port: s.Port, Tray: s.Tray}
 	cfg.Mode = map[bool]string{true: "multi", false: "single"}[s.Multi]

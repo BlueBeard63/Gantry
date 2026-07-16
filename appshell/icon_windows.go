@@ -8,6 +8,26 @@ import (
 	"unsafe"
 )
 
+// applyCorners sets the Win11 corner preference ("" leaves the system
+// default). Harmless no-op on Win10 (the attribute is unknown there).
+func applyCorners(hwnd uintptr, corners string) {
+	var pref int32
+	switch corners {
+	case "":
+		return
+	case "round":
+		pref = dwmwcpRound
+	case "small":
+		pref = dwmwcpRoundSm
+	case "square":
+		pref = dwmwcpSquare
+	default:
+		pref = dwmwcpDefault
+	}
+	procDwmSetWindowAttribute.Call(hwnd, dwmwaCornerPref,
+		uintptr(unsafe.Pointer(&pref)), unsafe.Sizeof(pref))
+}
+
 // applyIcon stamps an icon onto a window (taskbar, alt-tab). Release
 // builds usually carry a multi-size icon resource in the exe (e.g. via
 // the rsrc tool) - extracting that gives crisp small/big variants; dev

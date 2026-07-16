@@ -129,7 +129,8 @@ page css.
 
 A layout folder can hold a .go file like any pair - useful when the
 shared chrome shows live data (a status bar with a sync indicator, a
-sidebar with counts). Register it as a component under the layouts key:
+sidebar with counts). Export a Component under the layouts key and it
+registers automatically like every other pair:
 
 ```go
 // layouts/main/main.go

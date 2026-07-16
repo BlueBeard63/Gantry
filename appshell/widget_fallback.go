@@ -1,4 +1,4 @@
-//go:build !windows || nogui
+//go:build nogui || (!windows && !linux)
 
 package appshell
 

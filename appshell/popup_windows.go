@@ -6,8 +6,6 @@ import (
 	"unsafe"
 
 	webview2 "github.com/jchv/go-webview2"
-
-	"github.com/B-Commissions/Gantry/monitors"
 )
 
 // RunPopup opens a frameless, always-on-top notification window at the
@@ -56,15 +54,7 @@ func RunPopup(opts PopupOptions) error {
 	}
 	w.Navigate(opts.URL)
 
-	m := monitors.Pick(monitors.All(), opts.Monitor)
-	x := m.WorkX + (m.WorkWidth-opts.Width)/2
-	y := m.WorkY + m.WorkHeight - opts.Height - opts.Margin
-	if opts.Position == "top" {
-		y = m.WorkY + opts.Margin
-	}
-	if opts.AdjustPos != nil {
-		x, y = opts.AdjustPos(x, y)
-	}
+	x, y := popupPos(opts)
 
 	// Strip the frame, pin topmost WITHOUT taking focus, position on the
 	// work area (above the taskbar).

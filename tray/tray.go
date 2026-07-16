@@ -5,8 +5,24 @@
 package tray
 
 import (
+	"runtime"
+
 	"fyne.io/systray"
 )
+
+// platformIcon picks the icon format the current OS's tray expects.
+func (o *Options) platformIcon() []byte {
+	if runtime.GOOS == "windows" {
+		if len(o.Icon) > 0 {
+			return o.Icon
+		}
+		return o.IconPNG
+	}
+	if len(o.IconPNG) > 0 {
+		return o.IconPNG
+	}
+	return o.Icon
+}
 
 // Item is a live handle to one menu entry, usable from OnClick handlers
 // and OnReady to change the menu at runtime.
@@ -61,9 +77,12 @@ type MenuItem struct {
 
 // Options configures the tray icon.
 type Options struct {
-	// Icon is the tray icon as ICO bytes (Windows) - e.g. appicon.ICO(...)
-	// or the app's own .ico file contents.
-	Icon    []byte
+	// Icon is the tray icon as ICO bytes - what Windows trays want
+	// (e.g. appicon.ICO(...) or an .ico file's contents).
+	Icon []byte
+	// IconPNG is the tray icon as PNG bytes - what Linux (and Mac)
+	// trays want. Leave empty on Windows-only apps.
+	IconPNG []byte
 	Title   string
 	Tooltip string
 	// OnTapped runs on tray icon left-click (the menu stays on
@@ -96,8 +115,8 @@ func Quit() { systray.Quit() }
 // Windows run it on its own goroutine.
 func Run(o Options) {
 	systray.Run(func() {
-		if len(o.Icon) > 0 {
-			systray.SetIcon(o.Icon)
+		if icon := o.platformIcon(); len(icon) > 0 {
+			systray.SetIcon(icon)
 		}
 		if o.Title != "" {
 			systray.SetTitle(o.Title)

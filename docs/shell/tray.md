@@ -99,6 +99,8 @@ means cancel the app context".
 
 ## Icons
 
-The tray wants ICO bytes. Use your own .ico file's contents, or draw
-one at runtime with the appicon package - see
-[Monitors and icons](monitors-and-icons.md).
+Windows trays want ICO bytes (Options.Icon); Linux and Mac trays want
+PNG (Options.IconPNG). Set both - tray.Run picks the right one per
+platform - or use the appicon package for both formats at once; see
+[Monitors and icons](monitors-and-icons.md). gantry.Run sets both
+automatically.

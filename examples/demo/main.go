@@ -1,144 +1,40 @@
 // Demo - a Gantry desktop app.
 //
-// Run modes:
-//
-//	demo                the desktop app (native window + local server)
-//	demo --browser      serve + open in the default browser instead
-//	demo --no-open      headless server only
-//
 // gantry dev runs it with live reload; gantry build makes the exe.
+// Pages and components register themselves (gantry_registry.go is
+// generated from the pages/, components/ and layouts/ folders).
 package main
 
 import (
-	"context"
-	"flag"
 	"log"
 	"net/http"
-	"os"
-	"os/signal"
-	"strconv"
 
-	"github.com/B-Commissions/Gantry/appicon"
 	"github.com/B-Commissions/Gantry/appshell"
+	"github.com/B-Commissions/Gantry/gantry"
 	"github.com/B-Commissions/Gantry/ui"
-
-	"github.com/B-Commissions/Gantry/tray"
-
-	"demo/pages/index"
-	"demo/pages/settings"
-	"demo/components/example"
 )
 
 func main() {
-	var (
-		port      = flag.Int("port", 8330, "local server port")
-		browser   = flag.Bool("browser", false, "open in the default browser instead of a native window")
-		noOpen    = flag.Bool("no-open", false, "headless: serve only, no window")
-		devURL    = flag.String("dev-url", "", "dev: load the frontend from this URL (gantry dev sets it)")
-		shellRole = flag.String("shellrole", "", "internal: run a helper window role instead of the app")
-		roleURL   = flag.String("url", "", "internal: url for the helper window")
-		monitor   = flag.Int("monitor", -1, "internal: monitor index for popups")
-		position  = flag.String("position", "bottom", "internal: popup position top|bottom")
-	)
-	flag.Parse()
-
-	// Helper window roles run as child processes (crash isolation): the
-	// exe re-invokes itself with --shellrole and renders one window.
-	switch *shellRole {
-	case "popup":
-		defer appshell.RoleLog("demo", "popup")()
-		if err := appshell.RunPopup(appshell.PopupOptions{
-			AppName:  "demo",
-			URL:      *roleURL,
-			Width:    460,
-			Height:   140,
-			Monitor:  *monitor,
-			Position: *position,
-		}); err != nil {
-			log.Fatalf("popup: %v", err)
-		}
-		return
-	case "":
-		// fall through to the app itself
-	default:
-		log.Fatalf("unknown --shellrole %q", *shellRole)
-	}
-
-	if err := run(*port, *browser, *noOpen, *devURL); err != nil {
-		log.Fatal(err)
-	}
-}
-
-func run(port int, browser, noOpen bool, devURL string) error {
-	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
-	defer cancel()
-
-	// Every pages/ and components/ .go half registers here. Adding a new
-	// pair: create the folder, then add it to this list.
-	app := ui.NewApp(
-		index.Page,
-		settings.Page,
-		example.Component,
-	)
-
-	mux := http.NewServeMux()
-	mux.Handle("/gantry/ws", app.Handler())
-	// Your own HTTP endpoints go under /api (the dev proxy forwards them):
-	// mux.HandleFunc("/api/hello", func(w http.ResponseWriter, r *http.Request) { ... })
-	mux.Handle("/", appshell.ServeSPA(dist()))
-
-	ln, err := appshell.Listen(port) // also the single-instance guard
-	if err != nil {
-		return err
-	}
-	server := &http.Server{Handler: mux}
-	errCh := make(chan error, 1)
-	go func() { errCh <- server.Serve(ln) }()
-	go func() {
-		<-ctx.Done()
-		_ = server.Close()
-	}()
-
-	url := "http://127.0.0.1:" + strconv.Itoa(port)
-	if devURL != "" {
-		url = devURL // gantry dev: the vite server, HMR inside the native window
-	}
-	log.Printf("Demo serving on %s", url)
-
-	if noOpen {
-		return <-errCh
-	}
-
-	icon := appicon.Render(32, appicon.DefaultPalette())
-	shell := &appshell.App{
-		Window: appshell.WindowOptions{
-			AppName:   "demo",
-			Title:     "Demo",
-			URL:       url,
-			Width:     1100,
-			Height:    720,
-			MinWidth:  480,
-			MinHeight: 320,
-			EnableMaximize: true,
-			AutoFocus: true,
-			Icon:      appshell.IconSource{PNG: appicon.PNG(icon)},
-			Geometry:  appshell.FileGeometry(geometryPath()),
+	gantry.Run(gantry.Config{
+		Name:  "demo",
+		Title: "Demo",
+		Port:  8330,
+		Dist:  dist(),
+		Pairs: gantryPairs(),
+		Tray:  true,
+		Window: func(w *appshell.WindowOptions) {
+			w.EnableMaximize = true
+			// app.tsx puts back/forward buttons in the left slot with
+			// leftReserve: 100 - the native clickable zone must match.
+			w.CaptionLeftReserve = 100
 		},
-		Browser: browser,
-		Tray: &tray.Options{
-			Icon:    appicon.ICO(icon),
-			Title:   "Demo",
-			Tooltip: "Demo is running",
-			// Add your own actions here; Open and Quit are added for you.
+		Setup: func(app *ui.App, mux *http.ServeMux) {
+			// A value shared with React in real time: the settings page
+			// binds a slider to it with useGoState("volume", ...).
+			volume := ui.NewState(app, "volume", 0.5)
+			volume.OnChange(func(v float64) {
+				log.Printf("demo: volume set to %.2f from the frontend", v)
+			})
 		},
-	}
-	return shell.Run(ctx, cancel)
-}
-
-func geometryPath() string {
-	base, err := os.UserConfigDir()
-	if err != nil {
-		return "geometry.json"
-	}
-	return base + "/demo/geometry.json"
+	})
 }

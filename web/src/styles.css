@@ -39,13 +39,38 @@
   z-index: 30;
 }
 
+/* The custom slots sit flush against the window edges; space them
+   with your own padding/margins if you want inset. */
 .gantry-titlebar-left {
   display: flex;
-  align-items: center;
-  gap: 4px;
-  padding-left: 8px;
+  align-items: stretch;
+  height: 100%;
   position: relative;
   z-index: 31;
+}
+
+.gantry-titlebar-right {
+  display: flex;
+  align-items: stretch;
+  height: 100%;
+}
+
+/* Titlebar buttons for YOUR controls (back/forward, menus, actions) -
+   styled independently of the window buttons via their own variables. */
+.gantry-tbbtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: var(--gantry-tbbtn-w, 40px);
+  height: 100%;
+  border: none;
+  background: var(--gantry-tbbtn-bg, transparent);
+  color: var(--gantry-tbbtn-fg, var(--gantry-titlebar-fg));
+  cursor: default;
+}
+
+.gantry-tbbtn:hover {
+  background: var(--gantry-tbbtn-hover, var(--gantry-btn-hover));
 }
 
 .gantry-titlebar-title {
@@ -58,9 +83,21 @@
   pointer-events: none; /* stays part of the drag band */
 }
 
-.gantry-titlebar-buttons {
+/* Left/right-aligned title text (inside the flex sections). */
+.gantry-titlebar-text {
   display: flex;
   align-items: center;
+  font-size: 13px;
+  color: var(--gantry-fg-dim);
+  padding: 0 8px;
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+.gantry-titlebar-end {
+  display: flex;
+  align-items: stretch;
+  height: 100%;
   margin-left: auto;
   position: relative;
   z-index: 31;
@@ -71,7 +108,7 @@
   align-items: center;
   justify-content: center;
   width: 46px;
-  height: var(--gantry-titlebar-h);
+  height: 100%; /* follows the bar's height, thin or tall */
   border: none;
   background: transparent;
   color: var(--gantry-titlebar-fg);

@@ -70,8 +70,23 @@ Go app runs beside it, and the native window loads the Vite URL with
 
 ## Platforms
 
-Windows is the fully-featured target (frameless chrome, widgets,
-popups, tray). Linux gets a plain WebKitGTK window with title and size
-honored; nogui builds (`-tags nogui`) strip the native window entirely
-and fall back to the browser - useful for CI or headless servers. The
-build-tag split lives inside appshell; app code does not branch.
+Windows (WebView2 + raw Win32) and Linux (WebKitGTK + GTK3) both get
+the full shell: frameless custom chrome, native drag, window buttons,
+min/max sizes, always-on-top, the close hook, geometry persistence,
+widgets, popups, monitors and the tray. The one visible difference is
+edge resizing: Windows re-implements the invisible native frame in the
+window's hit-test, while on Linux the frontend renders thin resize
+strips (gantry-web's ResizeFrame, added automatically) that hand off
+to the compositor's interactive resize.
+
+Linux caveats: window positioning and saved geometry are best-effort
+under pure Wayland (the protocol does not let apps place themselves;
+X11 and XWayland honor it), corner rounding belongs to the compositor,
+and the tray needs a shell with a status-icon host (most desktops; not
+WSLg).
+
+Mac is future work (no hardware to test against yet): apps still run
+there via the browser fallback, and OpenInBrowser already knows
+"open". nogui builds (`-tags nogui`) strip the native window on every
+platform - useful for CI and headless servers. The build-tag split
+lives inside appshell; app code does not branch.

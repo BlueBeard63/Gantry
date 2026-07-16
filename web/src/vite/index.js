@@ -68,6 +68,17 @@ export function gantry(opts = {}) {
       lines.push(`import * as l${i} from ${JSON.stringify(l.tsx)};`);
     });
 
+    // Optional root app.tsx: default-exports CreateAppOptions so apps
+    // customize createApp (TitleBar slots, title placement, extra
+    // components) without owning the synthesized entry file.
+    const appTsx = path.join(appRoot, "app.tsx");
+    if (fs.existsSync(appTsx)) {
+      lines.push(`import * as appMod from ${JSON.stringify(appTsx.split(path.sep).join("/"))};`);
+      lines.push(`export const appConfig = appMod;`);
+    } else {
+      lines.push(`export const appConfig = null;`);
+    }
+
     pages.forEach((p, i) => {
       lines.push(`import * as p${i} from ${JSON.stringify(p.tsx)};`);
     });
@@ -174,7 +185,8 @@ export function gantry(opts = {}) {
         if (!f.startsWith(root)) return;
         if (
           !/\/(pages|components|layouts)\/[^/]+\/[^/]+\.(tsx|css)$/.test(f) &&
-          !f.endsWith("/index.css")
+          !f.endsWith("/index.css") &&
+          !f.endsWith("/app.tsx")
         ) {
           return;
         }

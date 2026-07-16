@@ -1,0 +1,25 @@
+/* App-wide styles. This file loads first and applies everywhere -
+   define your theme here by overriding the --gantry-* variables that
+   the window chrome and Tea built-ins read. */
+
+:root {
+  --gantry-bg: #101012;
+  --gantry-fg: #e8e8ea;
+  --gantry-fg-dim: #9a9aa0;
+  --gantry-accent: #6ea8fe;
+  --gantry-border: #2a2a2e;
+  --gantry-titlebar-bg: transparent;
+  --gantry-btn-hover: rgba(255, 255, 255, 0.08);
+  --gantry-close-hover: #c42b1c;
+  --gantry-control-bg: #1a1a1e;
+  --gantry-control-border: #34343a;
+  --gantry-radius: 6px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+}

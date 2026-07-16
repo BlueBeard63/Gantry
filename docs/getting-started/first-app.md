@@ -69,6 +69,17 @@ where the count lives:
   send("buttonPress", n), which lands in the handler in index.go -
   watch the terminal log. That is the paired-file channel.
 
+## The main.go you got
+
+Open it - it is about a dozen lines: gantry.Run with the app's name,
+title, port, the embedded frontend, and gantryPairs() (a generated
+file registering every page and component automatically - add a
+folder, run gantry dev, it is registered). Services, shared state and
+API routes hang off the Setup hook when you need them; window tweaks
+off the Window hook. The full expanded wiring, for when an app
+outgrows Run, is documented in
+[Without the CLI](../advanced/without-the-cli.md).
+
 ## Where to go next
 
 - [Project structure](project-structure.md) - what every file is for

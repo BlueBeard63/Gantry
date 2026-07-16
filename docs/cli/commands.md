@@ -65,6 +65,14 @@ Flags:
   %LocalAppData%\<app>\<role>.log regardless).
 - -o path - output name (default <name>.exe)
 
+## gantry gen
+
+Regenerates gantry_registry.go - the file that auto-registers every
+pages/, components/ and layouts/ Go half (their exported Page and
+Component vars) so main.go never lists them. dev and build run it
+automatically; call it by hand before a plain go build after adding or
+removing pairs.
+
 ## gantry add <pkg...>
 
 npm install, aimed at the app root regardless of where you run it.

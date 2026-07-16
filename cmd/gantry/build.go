@@ -26,6 +26,9 @@ func cmdBuild(args []string) error {
 	if err != nil {
 		return err
 	}
+	if err := writeRegistry(appDir); err != nil {
+		return err
+	}
 
 	fmt.Println("gantry: building frontend (vite)")
 	vite := exec.Command(npx(), "vite", "build")

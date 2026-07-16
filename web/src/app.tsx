@@ -1,8 +1,9 @@
 /// <reference path="../types/index.d.ts" />
 import { StrictMode, useEffect, type FC, type ReactNode } from "react";
 import { createRoot } from "react-dom/client";
-import { pages, components as pairedComponents, layouts, type GantryPage } from "virtual:gantry-app";
-import { TitleBar } from "./TitleBar";
+import { pages, components as pairedComponents, layouts, appConfig, type GantryPage } from "virtual:gantry-app";
+import { TitleBar, type TitleBarProps } from "./TitleBar";
+import { ResizeFrame } from "./ResizeFrame";
 import { installZoomGuard } from "./zoom";
 import { connect, ready } from "./socket";
 import { useRoute, redirect } from "./router";
@@ -10,8 +11,15 @@ import { setRegistry, type ComponentRegistry, type TeaComponentProps } from "./t
 import "./styles.css";
 
 export interface CreateAppOptions {
-  /** Title shown centered in the TitleBar (default: none). */
+  /** Title shown in the TitleBar (default: none). */
   title?: ReactNode;
+  /**
+   * TitleBar customization: title placement (titleAlign), your own
+   * controls in the left/right slots (back/forward buttons, menus),
+   * heights and reserves. The usual home for this is the optional
+   * app.tsx at the app root, default-exporting CreateAppOptions.
+   */
+  titleBar?: Partial<TitleBarProps>;
   /** Extra Tea components beyond the paired components/ folders. */
   components?: ComponentRegistry;
   /** Binding prefix when the Go side changed it from "gantry". */
@@ -105,7 +113,8 @@ function AppRoot({ options }: { options: CreateAppOptions }) {
   }
   return (
     <div className="gantry-app">
-      {chrome && <TitleBar title={options.title} prefix={options.prefix} />}
+      <ResizeFrame prefix={options.prefix} />
+      {chrome && <TitleBar title={options.title} prefix={options.prefix} {...options.titleBar} />}
       {content}
     </div>
   );
@@ -119,6 +128,11 @@ function AppRoot({ options }: { options: CreateAppOptions }) {
  * touches it to pass options.
  */
 export function createApp(options: CreateAppOptions = {}): void {
+  // The optional root app.tsx wins over the synthesized defaults, so
+  // apps customize everything without owning the entry file.
+  if (appConfig?.default) {
+    options = { ...options, ...appConfig.default };
+  }
   installZoomGuard();
   connect(options.socketURL);
 

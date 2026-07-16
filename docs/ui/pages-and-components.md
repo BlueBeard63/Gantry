@@ -187,19 +187,24 @@ Push goes to the connected window. There is exactly one connected
 client at a time (the app window; a reload or dev restart replaces it),
 so Push is fire-and-forget - a push with no client is silently dropped.
 
-## Registration checklist
+## Registration is automatic
 
-Adding a new pair is three steps:
+Adding a new pair is two steps:
 
 1. Make the folder and files: pages/stats/stats.go + stats.tsx
    (+ stats.css if you want styles).
-2. In stats.go: package stats, export Page (or Component) with the Key.
-3. In main.go: import "myapp/pages/stats" and add stats.Page to
-   ui.NewApp(...).
+2. In stats.go: package stats, export `var Page = ui.Page{...}` (or
+   `var Component = ui.Component{...}`).
 
-The frontend side needs nothing - the Vite plugin discovers the tsx by
-its location. During gantry dev, adding the folder triggers a reload;
-the Go side needs a dev restart (Go compiles).
+That is it. The frontend discovers the tsx by its location (the Vite
+plugin), and the Go side is generated: gantry dev/build scan pages/,
+components/ and layouts/ for the exported Page/Component vars and
+regenerate gantry_registry.go, which main.go consumes as
+`ui.NewApp(gantryPairs()...)`. Run `gantry gen` to regenerate it by
+hand (e.g. before a plain `go build`). Never edit the generated file.
+
+During gantry dev, adding a folder hot-reloads the frontend; the Go
+side needs a dev restart (Go compiles).
 
 ## When to use which style
 

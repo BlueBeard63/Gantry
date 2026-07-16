@@ -78,6 +78,10 @@ type WindowOptions struct {
 	// AlwaysOnTop pins the window above normal windows and adds the
 	// SetAlwaysOnTop binding.
 	AlwaysOnTop bool
+	// Corners picks the Win11 corner style: "" (system default),
+	// "round", "small" (small radius), or "square". Ignored on other
+	// platforms (the compositor owns corners there) and on Win10.
+	Corners string
 
 	// Custom-chrome hit-test metrics (device pixels). These MUST match
 	// the TitleBar the frontend renders - they are two halves of one

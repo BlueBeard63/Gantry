@@ -4,9 +4,11 @@ import { useShell, useShellCaps } from "./hooks";
 import { DragStrip } from "./DragStrip";
 
 export interface TitleBarProps {
-  /** Centered title content; pointer-transparent so it stays draggable. */
+  /** Title content. Pointer-transparent so the bar stays draggable. */
   title?: ReactNode;
-  /** Extra content on the left (menu buttons, an icon). */
+  /** Where the title sits: "center" (default), "left" or "right". */
+  titleAlign?: "left" | "center" | "right";
+  /** Extra content on the left (back/forward buttons, a menu, an icon). */
   left?: ReactNode;
   /** Extra content on the right, before the window buttons. */
   right?: ReactNode;
@@ -18,6 +20,12 @@ export interface TitleBarProps {
    * clickable instead of draggable.
    */
   rightReserve?: number;
+  /**
+   * Width of the clickable zone on the left; MUST match the Go window's
+   * CaptionLeftReserve when you put buttons in the left slot (default
+   * 8 - bump it, e.g. 90, so left-slot buttons receive clicks).
+   */
+  leftReserve?: number;
   /** Override the Caps()-driven visibility per button. */
   showMinimize?: boolean;
   showMaximize?: boolean;
@@ -31,18 +39,28 @@ export interface TitleBarProps {
 }
 
 /**
- * TitleBar draws the custom window chrome: a drag strip, an optional
- * centered title, and the window buttons. Which buttons appear comes
- * from the Go window's Caps() - configure buttons once, in Go. In a
- * plain browser the window buttons hide themselves.
+ * TitleBar draws the custom window chrome: a drag strip, a title
+ * (left, center or right), your own controls in the left/right slots,
+ * and the window buttons. Which window buttons appear comes from the
+ * Go window's Caps() - configure buttons once, in Go. In a plain
+ * browser the window buttons hide themselves.
+ *
+ * Apps customize it app-wide from app.tsx:
+ *
+ *	export default {
+ *	  title: "Myapp",
+ *	  titleBar: { titleAlign: "left", left: <NavButtons />, leftReserve: 90 },
+ *	} satisfies CreateAppOptions;
  */
 export function TitleBar(props: TitleBarProps) {
   const {
     title,
+    titleAlign = "center",
     left,
     right,
     height = 40,
     rightReserve = 150,
+    leftReserve = 8,
     closeHint,
     onClose,
     prefix,
@@ -60,17 +78,24 @@ export function TitleBar(props: TitleBarProps) {
     if (showMax) void shell.isMaximized().then(setMaximized);
   }, [shell, showMax]);
 
+  const titleEl =
+    title != null ? <div className="gantry-titlebar-text">{title}</div> : null;
+
   return (
     <div className={"gantry-titlebar " + (className ?? "")} style={{ height }}>
-      <DragStrip height={height} rightInset={rightReserve} prefix={prefix} />
-      {left != null && <div className="gantry-titlebar-left">{left}</div>}
-      {title != null && (
+      <DragStrip height={height} leftInset={leftReserve} rightInset={rightReserve} prefix={prefix} />
+      <div className="gantry-titlebar-left">
+        {left}
+        {titleAlign === "left" && titleEl}
+      </div>
+      {titleAlign === "center" && title != null && (
         <div className="gantry-titlebar-title" style={{ lineHeight: height + "px" }}>
           {title}
         </div>
       )}
-      <div className="gantry-titlebar-buttons" style={{ minWidth: right != null ? undefined : 0 }}>
-        {right}
+      <div className="gantry-titlebar-end">
+        {titleAlign === "right" && titleEl}
+        {right != null && <div className="gantry-titlebar-right">{right}</div>}
         {showMin && (
           <button
             type="button"

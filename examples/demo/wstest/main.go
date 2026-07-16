@@ -19,7 +19,11 @@ func main() {
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
 
-	c, _, err := websocket.Dial(ctx, "ws://127.0.0.1:8331/gantry/ws", nil)
+	url := "ws://127.0.0.1:8331/gantry/ws"
+	if len(os.Args) > 1 {
+		url = "ws://127.0.0.1:" + os.Args[1] + "/gantry/ws"
+	}
+	c, _, err := websocket.Dial(ctx, url, nil)
 	if err != nil {
 		fmt.Println("DIAL FAILED:", err)
 		os.Exit(1)
@@ -49,10 +53,19 @@ func main() {
 	clickRe := regexp.MustCompile(`"click":"(h\d+)"`)
 
 	send(`{"t":"ready","page":"pages/index"}`)
-	r1 := read()
-	raw1 := r1["_raw"].(string)
-	if r1["t"] != "render" {
-		fmt.Println("EXPECTED render, got:", raw1)
+	// New connections receive the shared-state snapshot (and possibly
+	// other frames) before the first render - skip to the render.
+	var raw1 string
+	for tries := 0; tries < 8; tries++ {
+		r := read()
+		if r["t"] == "render" {
+			raw1 = r["_raw"].(string)
+			break
+		}
+		fmt.Println("skipping pre-render frame:", r["_raw"])
+	}
+	if raw1 == "" {
+		fmt.Println("NEVER got a render")
 		os.Exit(1)
 	}
 	// The Model keeps state across connections (that is the point), so

@@ -9,8 +9,6 @@ import (
 	"unsafe"
 
 	webview2 "github.com/jchv/go-webview2"
-
-	"github.com/B-Commissions/Gantry/monitors"
 )
 
 // closeOnDeactivate dismisses the window when it loses activation (a
@@ -29,33 +27,6 @@ func closeOnDeactivate(hwnd uintptr) {
 	})
 	orig, _, _ = procSetWindowLongPtrW.Call(hwnd, gwlpWndProc, proc)
 	_ = orig
-}
-
-// widgetPos computes the widget's top-left corner on the monitor's work
-// area from its placement.
-func widgetPos(o WidgetOptions) (int, int) {
-	if o.Placement == PlaceCustom {
-		return o.X, o.Y
-	}
-	m := monitors.Pick(monitors.All(), o.Monitor)
-	var x, y int
-	switch o.Placement {
-	case PlaceTopLeft, PlaceBottomLeft:
-		x = m.WorkX + o.Margin
-	case PlaceTopRight, PlaceBottomRight:
-		x = m.WorkX + m.WorkWidth - o.Width - o.Margin
-	default: // centered horizontally
-		x = m.WorkX + (m.WorkWidth-o.Width)/2
-	}
-	switch o.Placement {
-	case PlaceTopCenter, PlaceTopLeft, PlaceTopRight:
-		y = m.WorkY + o.Margin
-	case PlaceBottomCenter, PlaceBottomLeft, PlaceBottomRight:
-		y = m.WorkY + m.WorkHeight - o.Height - o.Margin
-	default: // PlaceCenter
-		y = m.WorkY + (m.WorkHeight-o.Height)/2
-	}
-	return x, y
 }
 
 // RunWidget opens a small always-on-top helper window and blocks until

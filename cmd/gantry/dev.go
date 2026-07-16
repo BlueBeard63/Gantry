@@ -27,6 +27,9 @@ func cmdDev(args []string) error {
 	if err != nil {
 		return err
 	}
+	if err := writeRegistry(appDir); err != nil {
+		return err
+	}
 
 	// Ctrl+C tears both children down.
 	stop := make(chan os.Signal, 1)

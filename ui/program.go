@@ -91,22 +91,45 @@ func (p *program) loop() {
 		case <-p.stop:
 			return
 		case msg := <-p.msgs:
-			if batch, ok := msg.(batchMsg); ok {
-				for _, c := range batch {
-					p.runCmd(c)
+			changed := p.apply(msg)
+			// Coalesce: drain every already-queued message before
+			// rendering, so a burst of rapid events produces ONE
+			// render instead of hammering the frontend with a full
+			// tree per click.
+		drain:
+			for {
+				select {
+				case more := <-p.msgs:
+					if p.apply(more) {
+						changed = true
+					}
+				default:
+					break drain
 				}
-				continue
 			}
-			if _, ok := msg.(rerenderMsg); ok {
+			if changed {
 				p.render()
-				continue
 			}
-			model, cmd := p.model.Update(msg)
-			p.model = model
-			p.runCmd(cmd)
-			p.render()
 		}
 	}
+}
+
+// apply folds one message into the model; reports whether a render is
+// due.
+func (p *program) apply(msg Msg) bool {
+	if batch, ok := msg.(batchMsg); ok {
+		for _, c := range batch {
+			p.runCmd(c)
+		}
+		return false
+	}
+	if _, ok := msg.(rerenderMsg); ok {
+		return true
+	}
+	model, cmd := p.model.Update(msg)
+	p.model = model
+	p.runCmd(cmd)
+	return true
 }
 
 func (p *program) runCmd(cmd Cmd) {

@@ -1,0 +1,13 @@
+{
+  "name": "hello",
+  "title": "Hello",
+  "port": 8330,
+  "mode": "single",
+  "style": "plain",
+  "tray": false,
+  "buttons": {
+    "minimize": true,
+    "maximize": false,
+    "close": true
+  }
+}

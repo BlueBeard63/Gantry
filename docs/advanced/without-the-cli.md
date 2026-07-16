@@ -103,9 +103,19 @@ You give up the generated router and automatic component registry; the
 bridge, TitleBar, usePaired (pass keys explicitly) and TeaView all work
 the same.
 
-## Go without appshell.App
+## Go without gantry.Run
 
-RunWindow, RunWidget, RunPopup, tray.Run and Listen are all public -
-App.Run is ~60 lines of glue you can replace. The one hard rule:
-RunWindow must run on the main goroutine, and everything else on other
-goroutines. Read appshell/app.go for the reference loop.
+gantry.Run is the one-call bootstrap (flags, roles, server, window,
+tray); its Window/Setup/Roles hooks cover most customization without
+leaving it. When an app truly outgrows it, copy the body of
+gantry/gantry.go into your main.go and own the loop - it is ordinary
+wiring around public APIs: appshell.Listen, an http.ServeMux with
+app.Handler() and appshell.ServeSPA, then appshell.App.Run.
+
+One level further down, appshell.App.Run itself is ~60 lines of glue
+over RunWindow, tray.Run and CloseMainWindow. The one hard rule at
+every level: RunWindow must run on the main goroutine, and everything
+else on other goroutines. Read appshell/app.go for the reference loop.
+
+The generated gantry_registry.go keeps working at any level - or drop
+it and pass pages/components to ui.NewApp by hand.

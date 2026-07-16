@@ -65,6 +65,9 @@ Geometry: appshell.FileGeometry(
   [Close behavior](close-and-lifecycle.md).
 - AlwaysOnTop - pins the window above normal windows, and binds
   SetAlwaysOnTop(bool) so the frontend can toggle it.
+- Corners - Win11 corner style: "" (system default), "round", "small"
+  or "square". On Linux/Mac the compositor owns window corners, and
+  Win10 ignores the attribute.
 
 The frontend never needs telling which buttons you picked: the bridge's
 Caps() function reports them and the TitleBar configures itself.
@@ -124,6 +127,18 @@ browser tab (where they simply do not exist).
 - Debug - enables webview devtools.
 - DataDirRole - only matters when one app opens several window kinds;
   the scaffold's defaults are already correct.
+
+## Linux
+
+The same WindowOptions drive a GTK window on Linux: frameless
+(undecorated), native drag, minimize/maximize/close, min/max sizes,
+always-on-top, the close hook and geometry persistence all work. Edge
+resizing comes from the frontend there - gantry-web renders invisible
+resize strips (ResizeFrame, added automatically on frameless Linux
+windows) that start the compositor's interactive resize via the
+ResizeEdge binding. Positioning and saved geometry are best-effort
+under pure Wayland (X11/XWayland honor them), and Corners is
+Windows-only (compositors own corners on Linux).
 
 ## Related pages
 

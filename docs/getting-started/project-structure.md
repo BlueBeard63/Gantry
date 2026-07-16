@@ -6,7 +6,9 @@ those.
 
 ```
 myapp/
-  main.go            the entrypoint: registers pages, starts everything
+  main.go            the entrypoint: a dozen lines calling gantry.Run
+  gantry_registry.go generated page/component registrations - never edit
+  app.tsx            optional: TitleBar and app options (see the TitleBar docs)
   embed.go           embeds dist/ into the exe
   go.mod             Go module + dependency on Gantry
   package.json       npm dependencies (react, gantry-web, ...)
@@ -69,19 +71,12 @@ native window pointed at one of your routes. See
 
 ## Registration
 
-main.go passes every page and component to ui.NewApp:
-
-```go
-app := ui.NewApp(
-    index.Page,
-    settings.Page,
-    example.Component,
-)
-```
-
-When you add a new pair, add its import and registration here. If you
-forget, the tsx side's send() logs "no handler for ..." in the Go
-terminal - the message names the missing key.
+Automatic. gantry dev/build (or gantry gen) scan the pages/,
+components/ and layouts/ folders for exported Page/Component vars and
+regenerate gantry_registry.go; main.go just calls
+`gantry.Run(gantry.Config{... Pairs: gantryPairs() ...})`. Add a pair,
+run gantry dev, done. If a key ever misses (typo in the Key string),
+the tsx side's send() logs "no handler for ..." in the Go terminal.
 
 ## gantry.json
 

@@ -30,5 +30,7 @@ declare module "virtual:gantry-app" {
   export const components: Record<string, { default: FC }>;
   /** Layouts by short name: layouts/main/main.tsx -> "main". */
   export const layouts: Record<string, { default: FC<{ children?: ReactNode }> }>;
+  /** The root app.tsx module (default export: CreateAppOptions), or null. */
+  export const appConfig: { default: import("gantry-web").CreateAppOptions } | null;
   export const singlePage: boolean;
 }
