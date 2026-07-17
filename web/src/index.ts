@@ -8,7 +8,7 @@ export { DragStrip } from "./DragStrip";
 export type { DragStripProps } from "./DragStrip";
 export { ResizeFrame } from "./ResizeFrame";
 export { createApp } from "./app";
-export type { CreateAppOptions } from "./app";
+export type { CreateAppOptions, GantryAppModule, GantryPage, GantryPageModule } from "./app";
 export { navigate, redirect, goBack, goForward, useRoute, isActive, Link, ExternalLink } from "./router";
 export type { LinkProps, ExternalLinkProps } from "./router";
 export { usePaired } from "./paired";

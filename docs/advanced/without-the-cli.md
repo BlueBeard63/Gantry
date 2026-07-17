@@ -26,9 +26,14 @@ Three files, regenerated every run:
 ### main.tsx
 
 ```tsx
+import "gantry-web/styles.css";
 import { createApp } from "gantry-web";
-createApp({ title: "Myapp" });
+import * as app from "virtual:gantry-app";
+
+createApp(app, { title: "Myapp" });
 ```
+
+The `virtual:gantry-app` import (the route table and component registry the plugin generates) is passed in here rather than imported inside gantry-web - that keeps the package free of virtual ids so Vite can prebundle it as a single module.
 
 ### vite.config.ts
 

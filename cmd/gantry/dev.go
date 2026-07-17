@@ -41,13 +41,20 @@ func cmdDev(args []string) error {
 	stop := make(chan os.Signal, 1)
 	signal.Notify(stop, os.Interrupt)
 
+	// Both children spawn real work in grandchildren (npx.cmd -> node,
+	// go run -> the app exe); the group kills whole trees, not just the
+	// wrappers.
+	group := newChildGroup()
+
 	vite := exec.Command(npx(), "vite", "dev", "--port", strconv.Itoa(*vitePort), "--strictPort")
 	vite.Dir = synthDir
 	vite.Stdout = os.Stdout
 	vite.Stderr = os.Stderr
+	group.setup(vite)
 	if err := vite.Start(); err != nil {
 		return fmt.Errorf("starting vite (is node installed and npm install done?): %w", err)
 	}
+	group.add(vite)
 
 	devURL := fmt.Sprintf("http://localhost:%d", *vitePort)
 	// Everything after "--" goes to the app itself, e.g.
@@ -57,10 +64,12 @@ func cmdDev(args []string) error {
 	app.Dir = appDir
 	app.Stdout = os.Stdout
 	app.Stderr = os.Stderr
+	group.setup(app)
 	if err := app.Start(); err != nil {
-		_ = vite.Process.Kill()
+		group.kill()
 		return fmt.Errorf("starting go run: %w", err)
 	}
+	group.add(app)
 
 	appDone := make(chan error, 1)
 	go func() { appDone <- app.Wait() }()
@@ -72,12 +81,7 @@ func cmdDev(args []string) error {
 	case <-appDone: // window closed / app quit
 	case <-viteDone: // vite died
 	}
-	if app.Process != nil {
-		_ = app.Process.Kill()
-	}
-	if vite.Process != nil {
-		_ = vite.Process.Kill()
-	}
+	group.kill()
 	return nil
 }
 

@@ -160,17 +160,20 @@ export function gantry(opts = {}) {
       const target = "http://127.0.0.1:" + goPort;
 
       return {
-        // gantry-web ships TypeScript source through an npm file: link;
-        // excluding it from prebundling keeps it in the normal
-        // transform pipeline (plugin-react handles its tsx), and
-        // deduping react avoids a second copy through the symlink.
-        // Excluding it also hides its imports from the dep scanner, so
-        // deps reached only through gantry-web must be force-included:
-        // the CJS ones (react-dom/client) otherwise get served raw and
-        // lose their named exports, and lucide-react would waterfall
-        // one request per icon module.
+        // gantry-web MUST stay prebundlable (which is why it never
+        // imports virtual:gantry-app - esbuild cannot resolve virtual
+        // ids). A registry install is bundled into one optimized module;
+        // do NOT add it to optimizeDeps.exclude: served as raw
+        // node_modules source, Vite can reference the same file under
+        // two URLs (?v=hash vs bare) and instantiate the package twice,
+        // splitting the router's subscribers so navigation stops
+        // rendering. An npm file: link (framework development) resolves
+        // outside node_modules and is served as source automatically -
+        // there the force-included deps below matter: the CJS ones
+        // (react-dom/client) otherwise get served raw and lose their
+        // named exports, and lucide-react would waterfall one request
+        // per icon module.
         optimizeDeps: {
-          exclude: ["gantry-web"],
           include: [
             "react",
             "react-dom",

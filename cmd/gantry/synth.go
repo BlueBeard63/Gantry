@@ -29,10 +29,18 @@ func writeSynth(appDir string, cfg appConfig) (string, error) {
 </html>
 `, cfg.Title)
 
+	// The virtual:gantry-app import lives HERE, not inside gantry-web:
+	// only app code goes through the Vite plugin that resolves it, and
+	// keeping it out of the package is what lets gantry-web be
+	// prebundled as one module (see the plugin's optimizeDeps note).
+	// styles.css comes first so the app's index.css can override the
+	// --gantry-* variables.
 	mainTSX := fmt.Sprintf(`// Synthesized by gantry - regenerated on every dev/build run.
+import "gantry-web/styles.css";
 import { createApp } from "gantry-web";
+import * as app from "virtual:gantry-app";
 
-createApp({ title: %q });
+createApp(app, { title: %q });
 `, cfg.Title)
 
 	viteConfig := `// Synthesized by gantry - regenerated on every dev/build run.

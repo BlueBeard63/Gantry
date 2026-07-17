@@ -9,10 +9,16 @@ import {
 } from "react";
 import { getShell } from "./bridge";
 
-const listeners = new Set<() => void>();
+// Subscriptions go through a window-scoped event, NOT a module-local
+// set: if bundling ever instantiates this module twice (it happened -
+// Vite served excluded node_modules source under ?v=hash and bare URLs
+// at once), a local set splits the subscribers and navigation silently
+// stops re-rendering half the app. The window survives any number of
+// module copies; the route itself already lives in location.pathname.
+const NAV_EVENT = "gantry:navigate";
 
 function notify() {
-  for (const fn of listeners) fn();
+  window.dispatchEvent(new Event(NAV_EVENT));
 }
 
 if (typeof window !== "undefined") {
@@ -47,8 +53,8 @@ export function goForward(): void {
 }
 
 function subscribe(fn: () => void): () => void {
-  listeners.add(fn);
-  return () => listeners.delete(fn);
+  window.addEventListener(NAV_EVENT, fn);
+  return () => window.removeEventListener(NAV_EVENT, fn);
 }
 
 /** useRoute returns the current pathname; re-renders on navigation. */

@@ -1,14 +1,58 @@
 /// <reference path="../types/index.d.ts" />
 import { StrictMode, useEffect, type FC, type ReactNode } from "react";
 import { createRoot } from "react-dom/client";
-import { pages, components as pairedComponents, layouts, appConfig, type GantryPage } from "virtual:gantry-app";
 import { TitleBar, type TitleBarProps } from "./TitleBar";
 import { ResizeFrame } from "./ResizeFrame";
 import { installZoomGuard } from "./zoom";
 import { connect, ready } from "./socket";
 import { useRoute, redirect } from "./router";
 import { setRegistry, type ComponentRegistry, type TeaComponentProps } from "./tea/Runtime";
-import "./styles.css";
+
+/** The shape of a page module (a pages/<name>/<name>.tsx file). */
+export interface GantryPageModule {
+  default: FC;
+  /** export const chrome = false to hide the TitleBar on this page. */
+  chrome?: boolean;
+  /**
+   * Which layouts/ wrap this page: a name ("compact"), several nested
+   * outermost-first (["main", "compact"]), false for none, true to
+   * force "main" even on a chromeless page. Default: "main" if it
+   * exists (chromeless pages default to none).
+   */
+  layout?: boolean | string | string[];
+  /** export const route = "/custom" to override the derived route. */
+  route?: string;
+}
+
+export interface GantryPage {
+  key: string;
+  route: string;
+  mod: GantryPageModule;
+}
+
+/**
+ * The generated virtual:gantry-app module: the page/component/layout
+ * registry the Vite plugin derives from the app's folders. The
+ * synthesized .gantry/main.tsx imports it and hands it to createApp.
+ * gantry-web itself must never import the virtual module: esbuild
+ * cannot resolve virtual ids, so that import would force the package
+ * out of dep prebundling - and serving it as raw node_modules source
+ * lets Vite double-instantiate modules (?v=hash vs bare URLs), which
+ * split the router's subscriber set and broke navigation.
+ */
+export interface GantryAppModule {
+  pages: GantryPage[];
+  components: Record<string, { default: FC }>;
+  /** Layouts by short name: layouts/main/main.tsx -> "main". */
+  layouts: Record<string, { default: FC<{ children?: ReactNode }> }>;
+  /** The root app.tsx module (default export: CreateAppOptions), or null. */
+  appConfig: { default: CreateAppOptions } | null;
+  singlePage?: boolean;
+}
+
+// The registry handed to createApp; module-level so match/layoutsFor
+// read it without threading props.
+let reg: GantryAppModule;
 
 export interface CreateAppOptions {
   /** Title shown in the TitleBar (default: none). */
@@ -40,7 +84,7 @@ function routeOf(p: GantryPage): string {
 
 function match(path: string): GantryPage | undefined {
   const clean = path !== "/" && path.endsWith("/") ? path.slice(0, -1) : path;
-  return pages.find((p) => routeOf(p) === clean) ?? pages.find((p) => routeOf(p) === "/");
+  return reg.pages.find((p) => routeOf(p) === clean) ?? reg.pages.find((p) => routeOf(p) === "/");
 }
 
 function PageHost({ page }: { page: GantryPage }) {
@@ -72,19 +116,19 @@ function layoutsFor(page: GantryPage, chrome: boolean): FC<{ children?: ReactNod
   } else if (Array.isArray(sel)) {
     names = sel;
   } else if (sel === true) {
-    names = layouts.main ? ["main"] : [];
+    names = reg.layouts.main ? ["main"] : [];
   } else {
     // Default: the "main" layout on normal pages; chromeless pages
     // (widgets, popups) are their own surfaces and skip it.
-    names = chrome && layouts.main ? ["main"] : [];
+    names = chrome && reg.layouts.main ? ["main"] : [];
   }
   const out: FC<{ children?: ReactNode }>[] = [];
   for (const n of names) {
-    const mod = layouts[n];
+    const mod = reg.layouts[n];
     if (mod?.default) {
       out.push(mod.default);
     } else {
-      console.warn(`gantry: page ${page.key} wants unknown layout "${n}" (have: ${Object.keys(layouts).join(", ") || "none"})`);
+      console.warn(`gantry: page ${page.key} wants unknown layout "${n}" (have: ${Object.keys(reg.layouts).join(", ") || "none"})`);
     }
   }
   return out;
@@ -124,20 +168,22 @@ function AppRoot({ options }: { options: CreateAppOptions }) {
  * createApp boots a Gantry frontend: zoom guard, websocket, component
  * registry, TitleBar, the root layout (layout.tsx at the app root, if
  * present), and the page router (single-page mode when only pages/index
- * exists). The synthesized .gantry/main.tsx calls this; an app only
- * touches it to pass options.
+ * exists). The synthesized .gantry/main.tsx calls this with the
+ * virtual:gantry-app module (`import * as app from "virtual:gantry-app"`);
+ * an app only touches it to pass options.
  */
-export function createApp(options: CreateAppOptions = {}): void {
+export function createApp(app: GantryAppModule, options: CreateAppOptions = {}): void {
+  reg = app;
   // The optional root app.tsx wins over the synthesized defaults, so
   // apps customize everything without owning the entry file.
-  if (appConfig?.default) {
-    options = { ...options, ...appConfig.default };
+  if (reg.appConfig?.default) {
+    options = { ...options, ...reg.appConfig.default };
   }
   installZoomGuard();
   connect(options.socketURL);
 
   const registry: ComponentRegistry = {};
-  for (const [key, mod] of Object.entries(pairedComponents)) {
+  for (const [key, mod] of Object.entries(reg.components)) {
     if (typeof mod.default === "function") {
       registry[key] = mod.default as FC<TeaComponentProps>;
     }
