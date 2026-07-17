@@ -1,6 +1,6 @@
 {
   "name": "gantry-web",
-  "version": "0.3.1",
+  "version": "0.3.2",
   "description": "Frontend half of the Gantry desktop app framework: window chrome, native bridge, Tea runtime, Vite plugin",
   "license": "MIT",
   "repository": {

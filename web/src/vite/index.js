@@ -164,7 +164,22 @@ export function gantry(opts = {}) {
         // excluding it from prebundling keeps it in the normal
         // transform pipeline (plugin-react handles its tsx), and
         // deduping react avoids a second copy through the symlink.
-        optimizeDeps: { exclude: ["gantry-web"] },
+        // Excluding it also hides its imports from the dep scanner, so
+        // deps reached only through gantry-web must be force-included:
+        // the CJS ones (react-dom/client) otherwise get served raw and
+        // lose their named exports, and lucide-react would waterfall
+        // one request per icon module.
+        optimizeDeps: {
+          exclude: ["gantry-web"],
+          include: [
+            "react",
+            "react-dom",
+            "react-dom/client",
+            "react/jsx-runtime",
+            "react/jsx-dev-runtime",
+            "lucide-react",
+          ],
+        },
         // dedupe makes imports inside the symlinked gantry-web source
         // resolve from the APP's node_modules (the package itself has
         // none) and guarantees a single React instance.
