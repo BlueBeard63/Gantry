@@ -49,8 +49,12 @@ Each test writes to `test-results/<TestName>/`:
 | `app.log` | the app process's stdout and stderr |
 | `trace.jsonl` | every protocol frame in and out plus every driver action, timestamped - the test-side mirror of the app's breadcrumb trail |
 | `crash.log` | the runtime's fatal-panic trace, when the process died that way |
+| `failure.png` | what was on screen when the test failed - automatic on [DOM-plane](dom.md) tests |
+| `console.log` | the webview's console output and uncaught JS exceptions (DOM plane) |
+| `<name>.png` | explicit `app.Screenshot("name")` / `el.Screenshot("name")` captures (DOM plane) |
+| `screencast.avi` | the whole test as video, with `gantry test --record` / `WithRecording()` (DOM plane) |
 
-Passing tests keep nothing unless `gantry test --keep-artifacts` (or `gantrytest.KeepArtifacts()` per launch). Failing tests always keep their directory, and the failure output names it.
+Passing tests keep nothing unless `gantry test --keep-artifacts` (or `gantrytest.KeepArtifacts()` per launch); recorded tests keep theirs regardless, since a screencast that vanishes on pass would be pointless. Failing tests always keep their directory, and the failure output names it.
 
 Every timed-out wait also embeds the last 20 protocol frames straight into the test failure message, so the common case needs no artifact spelunking at all:
 
@@ -63,4 +67,3 @@ Every timed-out wait also embeds the last 20 protocol frames straight into the t
     artifacts.go:66: gantrytest: artifacts in .../test-results/TestSettingsSave
 ```
 
-Screenshots on failure and screencast recordings are part of the DOM tier and land with it.

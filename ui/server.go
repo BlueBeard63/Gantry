@@ -61,13 +61,17 @@ type pushMsg struct {
 	P    any    `json:"p,omitempty"`
 }
 
-// conn is one connected client. A desktop app has exactly one; a new
-// connection (webview reload, React StrictMode remount, dev HMR)
-// replaces the old.
+// conn is one connected client. A desktop app has exactly one real
+// client; a new connection (webview reload, React StrictMode remount,
+// dev HMR) replaces the old. Observer connections (?observer=1) are
+// additional read-write taps that never replace the real client - the
+// test driver uses one to watch the protocol while the webview drives
+// the UI.
 type conn struct {
-	ws     *websocket.Conn
-	ctx    context.Context
-	cancel context.CancelFunc
+	ws       *websocket.Conn
+	ctx      context.Context
+	cancel   context.CancelFunc
+	observer bool
 
 	mu     sync.Mutex
 	seq    uint64
@@ -117,17 +121,30 @@ func (a *App) Handler() http.Handler {
 			return
 		}
 		ctx, cancel := context.WithCancel(r.Context())
-		c := &conn{ws: ws, ctx: ctx, cancel: cancel}
+		c := &conn{ws: ws, ctx: ctx, cancel: cancel,
+			observer: r.URL.Query().Get("observer") == "1"}
 
-		// This client is now THE client; detach and close any predecessor.
-		a.mu.Lock()
-		old := a.conn
-		a.conn = c
-		a.mu.Unlock()
-		if old != nil {
-			old.detach(a)
-			old.cancel()
-			_ = old.ws.Close(websocket.StatusNormalClosure, "replaced")
+		if c.observer {
+			// Observers ride alongside the real client: they see every
+			// frame the app sends and their events/calls work, but they
+			// never displace the webview's connection.
+			a.mu.Lock()
+			if a.observers == nil {
+				a.observers = map[*conn]struct{}{}
+			}
+			a.observers[c] = struct{}{}
+			a.mu.Unlock()
+		} else {
+			// This client is now THE client; detach and close any predecessor.
+			a.mu.Lock()
+			old := a.conn
+			a.conn = c
+			a.mu.Unlock()
+			if old != nil {
+				old.detach(a)
+				old.cancel()
+				_ = old.ws.Close(websocket.StatusNormalClosure, "replaced")
+			}
 		}
 
 		// A fresh client starts from the current shared state.
@@ -156,7 +173,9 @@ func (a *App) Handler() http.Handler {
 		c.detach(a)
 		cancel()
 		a.mu.Lock()
-		if a.conn == c {
+		if c.observer {
+			delete(a.observers, c)
+		} else if a.conn == c {
 			a.conn = nil
 		}
 		a.mu.Unlock()
@@ -164,7 +183,9 @@ func (a *App) Handler() http.Handler {
 	})
 }
 
-// detach stops render delivery to this conn's active page.
+// detach stops render delivery to this conn's active page - but only
+// when this conn owns the delivery (an observer leaving must not cut
+// off the webview's renders).
 func (c *conn) detach(a *App) {
 	c.mu.Lock()
 	page := c.page
@@ -177,7 +198,44 @@ func (c *conn) detach(a *App) {
 	prog := a.programs[page]
 	a.mu.Unlock()
 	if prog != nil {
-		prog.setDeliver(nil)
+		prog.clearDeliver(c)
+	}
+}
+
+// allClients snapshots every connected client - the real one plus any
+// observers - for fan-out writes (pushes, state, error frames).
+func (a *App) allClients() []*conn {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	out := make([]*conn, 0, 1+len(a.observers))
+	if a.conn != nil {
+		out = append(out, a.conn)
+	}
+	for o := range a.observers {
+		out = append(out, o)
+	}
+	return out
+}
+
+// deliverTo builds a program's render-delivery function: the owning
+// conn (nil for an observers-only delivery) plus every observer at the
+// time of each render.
+func (a *App) deliverTo(owner *conn) func(wireNode) {
+	return func(tree wireNode) {
+		if owner != nil {
+			owner.sendRender(tree)
+		}
+		a.mu.Lock()
+		obs := make([]*conn, 0, len(a.observers))
+		for o := range a.observers {
+			if o != owner {
+				obs = append(obs, o)
+			}
+		}
+		a.mu.Unlock()
+		for _, o := range obs {
+			o.sendRender(tree)
+		}
 	}
 }
 
@@ -208,7 +266,19 @@ func (a *App) readLoop(c *conn) {
 				a.recordCrumb("navigate", msg.Page, true)
 			}
 			if prog := a.program(msg.Page); prog != nil {
-				prog.setDeliver(c.sendRender)
+				if c.observer {
+					// An observer never steals delivery from the real
+					// client: it owns delivery only while nobody else
+					// does, and otherwise just asks for a fresh tree
+					// (renders fan out to observers anyway).
+					if !prog.hasDeliverer() {
+						prog.setDeliver(c, a.deliverTo(nil))
+					} else {
+						prog.rerender()
+					}
+				} else {
+					prog.setDeliver(c, a.deliverTo(c))
+				}
 			}
 
 		case "event":
@@ -296,7 +366,16 @@ func (a *App) readLoop(c *conn) {
 
 		case "setstate":
 			a.recordCrumb("state", msg.Key, true)
-			a.applyFrontendState(msg.Key, msg.P)
+			if a.applyFrontendState(msg.Key, msg.P) {
+				// Mirror the write to every OTHER client (the writer
+				// already has it): with an observer attached, both
+				// planes see one state timeline.
+				for _, o := range a.allClients() {
+					if o != c {
+						o.write(stateMsg{T: "state", Key: msg.Key, P: msg.P})
+					}
+				}
+			}
 		}
 	}
 }

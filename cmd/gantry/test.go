@@ -30,6 +30,7 @@ func cmdTest(args []string) error {
 
 	fs := flag.NewFlagSet("test", flag.ExitOnError)
 	headed := fs.Bool("headed", false, "run apps with the real window instead of headless")
+	record := fs.Bool("record", false, "record a screencast.avi artifact for every DOM-plane test (implies keeping those artifacts)")
 	keep := fs.Bool("keep-artifacts", false, "keep passing tests' artifacts too (test-results/)")
 	mode := fs.String("mode", "development", "app mode for the suite: development or production")
 	par := fs.Int("p", defaultParallel(), "test parallelism (each parallel test is a full app process)")
@@ -90,6 +91,9 @@ func cmdTest(args []string) error {
 	)
 	if *headed {
 		env = append(env, "GANTRY_TEST_HEADED=1")
+	}
+	if *record {
+		env = append(env, "GANTRY_TEST_RECORD=1")
 	}
 	if *keep {
 		env = append(env, "GANTRY_TEST_KEEP_ARTIFACTS=1")

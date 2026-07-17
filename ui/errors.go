@@ -111,14 +111,15 @@ func (a *App) reportError(e ErrorInfo, push bool) {
 	if len(a.errors) > maxErrors {
 		a.errors = a.errors[len(a.errors)-maxErrors:]
 	}
-	c := a.conn
 	a.mu.Unlock()
 
-	if push && c != nil {
-		c.write(struct {
-			T string    `json:"t"`
-			P ErrorInfo `json:"p"`
-		}{T: "error", P: e})
+	if push {
+		for _, c := range a.allClients() {
+			c.write(struct {
+				T string    `json:"t"`
+				P ErrorInfo `json:"p"`
+			}{T: "error", P: e})
+		}
 	}
 }
 

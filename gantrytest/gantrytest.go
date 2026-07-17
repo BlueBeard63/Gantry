@@ -28,7 +28,10 @@ package gantrytest
 import (
 	"encoding/json"
 	"fmt"
+	"net"
 	"os"
+	"runtime"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -40,6 +43,8 @@ type launchConfig struct {
 	binPath      string
 	mode         string
 	headed       bool
+	dom          bool
+	record       bool
 	keep         bool
 	timeout      time.Duration
 	args         map[string]any
@@ -64,9 +69,28 @@ func WithMode(mode string) Option {
 	return func(c *launchConfig) { c.mode = mode }
 }
 
-// WithHeaded opens the real window instead of running headless.
+// WithHeaded opens the real window instead of running headless. On
+// Windows a headed launch also gets the DOM plane, like WithDOM.
 func WithHeaded() Option {
 	return func(c *launchConfig) { c.headed = true }
+}
+
+// WithDOM enables the DOM plane (tier 2): the app opens a real webview
+// window - parked off-screen unless headed - with a per-instance
+// devtools port, and the driver attaches over CDP. Unlocks App.Page,
+// Find, element actions and screenshots. Windows-only for now (the
+// Linux webview is WebKitGTK, which does not speak CDP); the test is
+// skipped elsewhere.
+func WithDOM() Option {
+	return func(c *launchConfig) { c.dom = true }
+}
+
+// WithRecording records a screencast of the whole test into the
+// artifact directory as screencast.avi (kept even on pass). Needs the
+// DOM plane; `gantry test --record` turns it on suite-wide. No-op on a
+// launch without a webview.
+func WithRecording() Option {
+	return func(c *launchConfig) { c.record = true }
 }
 
 // WithEnv adds one environment variable to the app process.
@@ -110,6 +134,13 @@ type App struct {
 	proc   proc
 	client *client
 	art    *artifacts
+
+	// DOM plane (WithDOM / headed on Windows): the webview's devtools
+	// port, the CDP connection attached to it, and the screencast
+	// recorder when this run records.
+	debugPort int
+	cdp       *cdp
+	rec       *recorder
 }
 
 // Launch builds (or reuses) the app under test, starts it headless on
@@ -122,6 +153,7 @@ func Launch(t testing.TB, opts ...Option) *App {
 	cfg := launchConfig{
 		mode:         envDefault("GANTRY_TEST_MODE", "development"),
 		headed:       os.Getenv("GANTRY_TEST_HEADED") == "1",
+		record:       os.Getenv("GANTRY_TEST_RECORD") == "1",
 		keep:         os.Getenv("GANTRY_TEST_KEEP_ARTIFACTS") == "1",
 		timeout:      10 * time.Second,
 		artifactRoot: os.Getenv("GANTRY_TEST_ARTIFACTS"),
@@ -129,6 +161,15 @@ func Launch(t testing.TB, opts ...Option) *App {
 	for _, o := range opts {
 		o(&cfg)
 	}
+
+	// The DOM plane needs a CDP-speaking webview: WebView2. Linux runs
+	// WebKitGTK (its own inspector protocol) - that lands later; the
+	// protocol plane stays fully cross-platform.
+	if cfg.dom && runtime.GOOS != "windows" {
+		t.Skipf("gantrytest: the DOM plane needs WebView2 (Windows-only for now; host is %s)", runtime.GOOS)
+	}
+	dom := cfg.dom || (cfg.headed && runtime.GOOS == "windows")
+	record := cfg.record && dom
 
 	appDir := cfg.appDir
 	if appDir == "" {
@@ -155,41 +196,106 @@ func Launch(t testing.TB, opts ...Option) *App {
 	if artRoot == "" {
 		artRoot = fmt.Sprintf("%s%ctest-results", appDir, os.PathSeparator)
 	}
-	art := newArtifacts(t, artRoot, cfg.keep)
+	// A recorded run keeps its artifacts - a screencast that vanishes on
+	// pass would be pointless.
+	art := newArtifacts(t, artRoot, cfg.keep || record)
 
-	configDir := t.TempDir()
+	configDir := tempConfigDir(t)
 	env := append(os.Environ(), "GANTRY_MODE="+cfg.mode)
 	env = append(env, argEnv(t, appCfg, cfg.args)...)
 	env = append(env, configDirEnv(configDir)...)
+	var debugPort int
+	if dom {
+		// A per-instance devtools port, passed the official WebView2
+		// way; the window opens for real but parks off-screen unless
+		// the test is headed.
+		debugPort = freeTCPPort(t)
+		env = append(env, "WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS=--remote-debugging-port="+strconv.Itoa(debugPort))
+		if !cfg.headed {
+			env = append(env, "GANTRY_WINDOW_OFFSCREEN=1")
+		}
+	}
 	env = append(env, cfg.env...)
 
 	a := &App{
 		t: t, cfg: cfg, appCfg: appCfg, appDir: appDir,
-		be:  localBackend{},
-		art: art,
+		be:        localBackend{},
+		art:       art,
+		debugPort: debugPort,
 		spec: launchSpec{
 			bin: bin, appDir: appDir, appName: appCfg.Name,
-			configDir: configDir, env: env, headed: cfg.headed,
+			configDir: configDir, env: env, window: cfg.headed || dom,
 			appLog: art.appLog, timeout: 60 * time.Second,
 		},
 	}
 	t.Cleanup(a.teardown)
 
-	art.trace.action("launch %s (mode=%s headed=%v)", bin, cfg.mode, cfg.headed)
+	art.trace.action("launch %s (mode=%s headed=%v dom=%v)", bin, cfg.mode, cfg.headed, dom)
 	a.proc, err = a.be.launch(a.spec)
 	if err != nil {
 		t.Fatalf("gantrytest: launching the app: %v", err)
 	}
 	art.trace.action("app ready on port %d", a.proc.port())
 
-	a.client, err = dialClient(t, art.trace, a.proc.port(), cfg.timeout)
+	// With a webview attached the driver connects as an observer, so it
+	// never displaces the frontend's connection (the server allows one
+	// real client and any number of observers).
+	a.client, err = dialClient(t, art.trace, a.proc.port(), cfg.timeout, dom)
 	if err != nil {
 		t.Fatalf("gantrytest: %v", err)
+	}
+	if dom {
+		if record {
+			a.rec = &recorder{}
+		}
+		a.attachDOM()
 	}
 	return a
 }
 
+// attachDOM connects the CDP client to the webview (and starts the
+// screencast when this run records). The deadline is generous: the
+// first attach includes a cold WebView2 start and the frontend's
+// initial load.
+func (a *App) attachDOM() {
+	a.t.Helper()
+	d, err := attachCDP(a.art.trace, a.debugPort, a.proc.port(), a.art.path("console.log"), 30*time.Second)
+	if err != nil {
+		a.t.Fatalf("gantrytest: attaching the DOM plane: %v", err)
+	}
+	a.cdp = d
+	if a.rec != nil {
+		if err := d.startScreencast(a.rec.add); err != nil {
+			a.t.Logf("gantrytest: starting the screencast: %v", err)
+		}
+	}
+}
+
 func (a *App) teardown() {
+	if a.cdp != nil {
+		// The automatic failure artifact: what was on screen when the
+		// test died, captured while the app is still alive.
+		if a.t.Failed() {
+			if data, err := a.cdp.screenshot(nil); err == nil {
+				a.art.savePNG(a.t, "failure", data)
+			}
+		}
+		if a.rec != nil {
+			a.cdp.stopScreencast()
+		}
+		a.cdp.close()
+		a.cdp = nil
+	}
+	if a.rec != nil {
+		written, err := a.rec.writeAVI(a.art.path("screencast.avi"), 12)
+		switch {
+		case err != nil:
+			a.t.Logf("gantrytest: writing screencast.avi: %v", err)
+		case written:
+			a.t.Logf("gantrytest: screencast %s", a.art.path("screencast.avi"))
+		}
+		a.rec = nil
+	}
 	if a.client != nil {
 		a.client.close()
 	}
@@ -198,6 +304,32 @@ func (a *App) teardown() {
 		a.art.saveFile("crash.log", a.proc.crashLogPath())
 	}
 	a.art.finalize(a.t)
+	removeTempDir(a.t, a.spec.configDir)
+}
+
+// tempConfigDir makes the per-test stand-in for the user config dir.
+// Deliberately not t.TempDir: on Windows the webview's data folder
+// lives in here, and its browser processes can hold file locks for a
+// beat after the kill - t.TempDir's cleanup would fail the test over
+// it. Removal is retried and best-effort instead.
+func tempConfigDir(t testing.TB) string {
+	t.Helper()
+	dir, err := os.MkdirTemp("", "gantrytest-")
+	if err != nil {
+		t.Fatalf("gantrytest: creating the config dir: %v", err)
+	}
+	return dir
+}
+
+func removeTempDir(t testing.TB, dir string) {
+	var err error
+	for i := 0; i < 10; i++ {
+		if err = os.RemoveAll(dir); err == nil {
+			return
+		}
+		time.Sleep(300 * time.Millisecond)
+	}
+	t.Logf("gantrytest: could not remove the temp config dir %s: %v (still locked by a dying webview?)", dir, err)
 }
 
 // Restart kills the app hard and relaunches it with the same binary,
@@ -207,6 +339,10 @@ func (a *App) teardown() {
 func (a *App) Restart() {
 	a.t.Helper()
 	a.art.trace.action("restart: hard-killing the app")
+	if a.cdp != nil {
+		a.cdp.close()
+		a.cdp = nil
+	}
 	a.client.close()
 	a.proc.stop()
 	// The relaunch truncates crash.log after reading it - keep a copy.
@@ -218,9 +354,12 @@ func (a *App) Restart() {
 		a.t.Fatalf("gantrytest: relaunching the app: %v", err)
 	}
 	a.art.trace.action("app ready on port %d after restart", a.proc.port())
-	a.client, err = dialClient(a.t, a.art.trace, a.proc.port(), a.cfg.timeout)
+	a.client, err = dialClient(a.t, a.art.trace, a.proc.port(), a.cfg.timeout, a.spec.window)
 	if err != nil {
 		a.t.Fatalf("gantrytest: %v", err)
+	}
+	if a.spec.window {
+		a.attachDOM()
 	}
 }
 
@@ -577,14 +716,34 @@ const (
 	Notifications Capability = "notifications"
 )
 
-// Supports reports whether the current backend provides the
-// capability. Tier 1 is protocol-plane only, so every capability is
-// false until the CDP (tier 2) and device (M1/M2) tiers land.
-func (a *App) Supports(Capability) bool { return false }
+// Supports reports whether this launch provides the capability: DOM
+// and Hover when the CDP plane is attached (WithDOM / headed on
+// Windows); Touch and Notifications arrive with the device tiers.
+func (a *App) Supports(c Capability) bool {
+	switch c {
+	case DOM, Hover:
+		return a.cdp != nil
+	}
+	return false
+}
 
 func envDefault(key, def string) string {
 	if v := os.Getenv(key); v != "" {
 		return v
 	}
 	return def
+}
+
+// freeTCPPort reserves an ephemeral port and releases it for the
+// webview's devtools endpoint to bind. The tiny reuse race is
+// acceptable for a per-instance test port.
+func freeTCPPort(t testing.TB) int {
+	t.Helper()
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("gantrytest: reserving a devtools port: %v", err)
+	}
+	port := ln.Addr().(*net.TCPAddr).Port
+	_ = ln.Close()
+	return port
 }

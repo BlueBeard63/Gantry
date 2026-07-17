@@ -6,14 +6,14 @@ Gantry ships an end-to-end testing system that drives the real app - the real Go
 gantry test
 ```
 
-This page covers getting a first test running. The follow-on pages cover [driving the app](driving.md), [error assertions and artifacts](errors-and-artifacts.md), [widget snapshots](widgets.md), [mobile testing](mobile.md) and [CI](ci.md).
+This page covers getting a first test running. The follow-on pages cover [driving the app](driving.md), [the DOM plane](dom.md), [error assertions and artifacts](errors-and-artifacts.md), [widget snapshots](widgets.md), [mobile testing](mobile.md) and [CI](ci.md).
 
 ## What a test can see
 
 A test session talks to the app on two planes, and can assert on either or both:
 
 - **The protocol plane** - what Go thinks. The driver dials `/gantry/ws` and speaks the [wire protocol](../advanced/protocol.md) exactly like the frontend does: it mounts pages, fires Tea and paired events, awaits calls, and observes renders, pushes, shared state and error frames. Everything on this plane is headless and cross-platform, and it is enough to test a Tea-style app end to end.
-- **The DOM plane** - what the user sees. Element queries, real clicks and typing, screenshots, driven over the webview's devtools protocol. This tier is not shipped yet; the API is designed so the same tests grow into it.
+- **The DOM plane** - what the user sees. Element queries, real clicks and typing, screenshots and screencasts, driven over the webview's devtools protocol (CDP). Launch with `WithDOM()` to enable it; Windows-only for now (WebView2 speaks CDP, WebKitGTK does not), and `WithDOM()` tests skip cleanly elsewhere. See [the DOM plane](dom.md).
 
 ## Your first test
 
@@ -76,7 +76,8 @@ gantry test [flags] [pattern]
 | Flag | Meaning |
 | --- | --- |
 | `pattern` | test name filter, passed to `go test -run` |
-| `--headed` | real window instead of headless |
+| `--headed` | real window instead of headless (and the [DOM plane](dom.md) with it, on Windows) |
+| `--record` | record `screencast.avi` for every DOM-plane test (implies keeping those artifacts) |
 | `--mode production` | run apps in production mode |
 | `-p N` | parallelism (default NumCPU/2 - each parallel test is a full app process) |
 | `--keep-artifacts` | keep passing tests' artifacts too |

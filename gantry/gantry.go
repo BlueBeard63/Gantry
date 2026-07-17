@@ -332,6 +332,15 @@ func run(cfg Config, f runFlags) error {
 	if cfg.Window != nil {
 		cfg.Window(&window)
 	}
+	// The test runner's DOM plane needs a real webview to attach CDP to,
+	// but not one the user sees: parked far off-screen, no focus steal,
+	// no geometry persistence (gantrytest sets this for non-headed
+	// DOM-plane launches).
+	if os.Getenv("GANTRY_WINDOW_OFFSCREEN") == "1" {
+		window.X, window.Y = -10000, -10000
+		window.AutoFocus = false
+		window.Geometry = nil
+	}
 
 	shell := &appshell.App{
 		Window:  window,

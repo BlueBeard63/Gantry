@@ -26,33 +26,48 @@ func parseTree(raw json.RawMessage) (*Node, error) {
 	return &n, nil
 }
 
-// Match narrows Find beyond the node type. Combine freely:
-// tree.Find("button", Text("Save")).
-type Match func(*Node) bool
+// Match narrows Find beyond the node type or selector. Combine freely:
+// tree.Find("button", Text("Save")). Text works on both planes (tree
+// and DOM Find); the structural matchers below are tree-only.
+type Match interface {
+	matchNode(*Node) bool
+}
+
+// MatchFunc adapts a custom predicate into a (tree-plane) Match.
+type MatchFunc func(*Node) bool
+
+func (f MatchFunc) matchNode(n *Node) bool { return f(n) }
+
+// textMatch carries the substring so the DOM plane can reuse it as an
+// element text filter.
+type textMatch string
+
+func (m textMatch) matchNode(n *Node) bool {
+	return strings.Contains(n.ownText(), string(m))
+}
 
 // Text matches nodes whose own text-bearing props (text, label, title,
-// placeholder) contain substr.
+// placeholder) contain substr. On the DOM plane (Page.Find) it filters
+// elements by their rendered text instead.
 func Text(substr string) Match {
-	return func(n *Node) bool {
-		return strings.Contains(n.ownText(), substr)
-	}
+	return textMatch(substr)
 }
 
 // Key matches nodes with this exact key.
 func Key(key string) Match {
-	return func(n *Node) bool { return n.Key == key }
+	return MatchFunc(func(n *Node) bool { return n.Key == key })
 }
 
 // Prop matches nodes whose prop equals want (compared via JSON
 // round-trip semantics: numbers arrive as float64).
 func Prop(name string, want any) Match {
-	return func(n *Node) bool { return n.Props[name] == want }
+	return MatchFunc(func(n *Node) bool { return n.Props[name] == want })
 }
 
 // HasHandler matches nodes that carry a handler for the event
 // ("click", "change", ...).
 func HasHandler(event string) Match {
-	return func(n *Node) bool { return n.Handlers[event] != "" }
+	return MatchFunc(func(n *Node) bool { return n.Handlers[event] != "" })
 }
 
 // Find returns the first node (depth-first, including the receiver)
@@ -93,7 +108,7 @@ func (n *Node) matches(typ string, matches []Match) bool {
 		return false
 	}
 	for _, m := range matches {
-		if !m(n) {
+		if !m.matchNode(n) {
 			return false
 		}
 	}

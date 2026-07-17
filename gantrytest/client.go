@@ -90,9 +90,14 @@ type client struct {
 	consumed     map[string]bool // error signatures already returned by WaitError
 }
 
-func dialClient(t testing.TB, tr *trace, port int, timeout time.Duration) (*client, error) {
+func dialClient(t testing.TB, tr *trace, port int, timeout time.Duration, observer bool) (*client, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	url := fmt.Sprintf("ws://127.0.0.1:%d/gantry/ws", port)
+	if observer {
+		// With a webview attached, the driver rides alongside it as an
+		// observer instead of displacing its connection.
+		url += "?observer=1"
+	}
 	dialCtx, dialDone := context.WithTimeout(ctx, 15*time.Second)
 	defer dialDone()
 	conn, _, err := websocket.Dial(dialCtx, url, nil)

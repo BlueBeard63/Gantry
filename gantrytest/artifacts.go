@@ -43,6 +43,24 @@ func newArtifacts(t testing.TB, root string, keep bool) *artifacts {
 	return a
 }
 
+// path returns the artifact-dir path for a file the driver writes
+// directly (console.log).
+func (a *artifacts) path(name string) string {
+	return filepath.Join(a.dir, name)
+}
+
+// savePNG writes a named screenshot into the artifact dir. Best-effort:
+// a failed write logs rather than failing the test (screenshots often
+// happen during cleanup of an already-failed test).
+func (a *artifacts) savePNG(t testing.TB, name string, data []byte) {
+	file := unsafePathChars.ReplaceAllString(name, "_") + ".png"
+	if err := os.WriteFile(filepath.Join(a.dir, file), data, 0o644); err != nil {
+		t.Logf("gantrytest: writing screenshot %s: %v", file, err)
+		return
+	}
+	t.Logf("gantrytest: screenshot %s", filepath.Join(a.dir, file))
+}
+
 // saveFile copies an external file (crash.log) into the artifact dir
 // when it exists and is non-empty.
 func (a *artifacts) saveFile(name, srcPath string) {

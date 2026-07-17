@@ -41,7 +41,7 @@ type launchSpec struct {
 	appName   string
 	configDir string   // per-test stand-in for the user config dir
 	env       []string // full environment (os.Environ() + overrides)
-	headed    bool
+	window    bool     // open the real window (headed or DOM-plane runs)
 	appLog    *syncWriter
 	timeout   time.Duration // how long to wait for GANTRY_READY
 }
@@ -57,7 +57,7 @@ var readyRe = regexp.MustCompile(`^GANTRY_READY port=(\d+)$`)
 
 func (localBackend) launch(spec launchSpec) (proc, error) {
 	args := []string{"--port", "0", "--announce-ready"}
-	if !spec.headed {
+	if !spec.window {
 		args = append(args, "--no-open")
 	}
 	cmd := exec.Command(spec.bin, args...)
@@ -148,14 +148,17 @@ func (p *localProc) crashLogPath() string {
 
 // configDirEnv redirects the app's os.UserConfigDir - where
 // geometry.json and crash.log live - into the per-test dir, so tests
-// are hermetic and crash.log assertions are per-test.
+// are hermetic and crash.log assertions are per-test. On Windows the
+// cache dir (LOCALAPPDATA) is redirected too: that is where the
+// WebView2 user-data folder lives, and two app processes must never
+// share one - without this, parallel DOM-plane tests would collide.
 func configDirEnv(configDir string) []string {
 	switch runtime.GOOS {
 	case "windows":
-		return []string{"APPDATA=" + configDir}
+		return []string{"APPDATA=" + configDir, "LOCALAPPDATA=" + configDir}
 	case "darwin":
 		return []string{"HOME=" + configDir}
 	default:
-		return []string{"XDG_CONFIG_HOME=" + configDir}
+		return []string{"XDG_CONFIG_HOME=" + configDir, "XDG_CACHE_HOME=" + configDir}
 	}
 }

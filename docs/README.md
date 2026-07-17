@@ -44,6 +44,7 @@ Testing (end-to-end tests against the real app)
 
 - [Setup](testing/setup.md) - the gantrytest driver, your first test, the gantry test command
 - [Driving the app](testing/driving.md) - pages, trees, events, calls, state, pushes, restarts
+- [The DOM plane](testing/dom.md) - element driving over CDP: real clicks and typing, screenshots, screencasts
 - [Errors and artifacts](testing/errors-and-artifacts.md) - error assertions, traces, per-test recordings
 - [Widget snapshots](testing/widgets.md) - host-side widget tests and golden files
 - [Mobile testing](testing/mobile.md) - where the device story is going

@@ -1,6 +1,6 @@
 # Testing: driving the app
 
-Everything on this page is the protocol plane: the driver speaking `/gantry/ws` the way the frontend does. It works headless on every platform.
+Everything on this page is the protocol plane: the driver speaking `/gantry/ws` the way the frontend does. It works headless on every platform. Element-level driving of the real webview is [the DOM plane](dom.md), which layers onto the same `App`.
 
 ## Launch options
 
@@ -9,6 +9,8 @@ app := gantrytest.Launch(t,
 	gantrytest.WithArgs(map[string]any{"mock-data": true}), // declared args, same env vars gantry dev uses
 	gantrytest.WithMode("production"),                      // default: development
 	gantrytest.WithHeaded(),                                // real window instead of headless
+	gantrytest.WithDOM(),                                   // the DOM plane: real webview + CDP, off-screen (see dom.md)
+	gantrytest.WithRecording(),                             // record screencast.avi for this test (needs the DOM plane)
 	gantrytest.WithEnv("MY_FLAG", "1"),                     // extra environment for the app process
 	gantrytest.WithTimeout(20*time.Second),                 // default deadline for every waiting API (default 10s)
 	gantrytest.WithBinary("dist/windows/amd64/myapp.exe"),  // launch a prebuilt binary
@@ -108,4 +110,4 @@ gantrytest.MobileOnly(t)   // skip unless a device target
 if app.Supports(gantrytest.Hover) { ... } // capability check inside a shared test
 ```
 
-Tier 1 is protocol-plane only, so every capability reports false today; the DOM tier and device backends flip them without changing test code.
+A `WithDOM()`/headed launch reports `DOM` and `Hover`; a protocol-only launch reports every capability false. `Touch` and `Notifications` arrive with the device backends, without changing test code.

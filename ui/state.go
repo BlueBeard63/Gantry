@@ -92,24 +92,27 @@ func (s *State[T]) OnChange(fn func(T)) {
 	s.mu.Unlock()
 }
 
-// setStateRaw stores the raw value and optionally pushes to the client
-// (Go-initiated changes push; frontend-initiated ones do not echo).
+// setStateRaw stores the raw value and optionally pushes to every
+// client (Go-initiated changes push; frontend-initiated ones do not
+// echo to their writer - see the readLoop's setstate mirroring).
 func (a *App) setStateRaw(name string, raw json.RawMessage, push bool) {
 	a.mu.Lock()
 	entry := a.states[name]
 	if entry != nil {
 		entry.raw = raw
 	}
-	c := a.conn
 	a.mu.Unlock()
-	if entry == nil || !push || c == nil {
+	if entry == nil || !push {
 		return
 	}
-	c.write(stateMsg{T: "state", Key: name, P: raw})
+	for _, c := range a.allClients() {
+		c.write(stateMsg{T: "state", Key: name, P: raw})
+	}
 }
 
-// applyFrontendState handles a setstate message from the client.
-func (a *App) applyFrontendState(name string, raw json.RawMessage) {
+// applyFrontendState handles a setstate message from the client and
+// reports whether the state exists (unknown writes are dropped).
+func (a *App) applyFrontendState(name string, raw json.RawMessage) bool {
 	a.mu.Lock()
 	entry := a.states[name]
 	if entry != nil {
@@ -122,11 +125,12 @@ func (a *App) applyFrontendState(name string, raw json.RawMessage) {
 	a.mu.Unlock()
 	if entry == nil {
 		log.Printf("ui: setstate for unknown state %q (declare it with ui.NewState)", name)
-		return
+		return false
 	}
 	for _, fn := range fns {
 		fn(raw)
 	}
+	return true
 }
 
 // snapshotStates returns every declared state for a fresh connection.
