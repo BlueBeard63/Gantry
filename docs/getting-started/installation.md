@@ -78,12 +78,12 @@ gantry help
 
 A Gantry app depends on the framework's Go module and its npm package (gantry-web). gantry new wires both up in one of two modes:
 
-Published mode (the default): go.mod depends on the module normally (`go mod tidy` resolves the latest tag) and `package.json` depends on the `gantry-web` package from the npm registry. Nothing to set up.
+Published mode (the default): go.mod depends on the module normally (`go mod tidy` resolves the latest tag) and `package.json` pins the `gantry-web` package from the npm registry to the exact version matching the CLI - the two halves of a release must move together, and `gantry upgrade` moves the pin for you. Nothing to set up.
 
 Local-checkout mode (for developing Gantry itself): `go.mod` gets a replace directive pointing at the checkout folder and `package.json` gets `"gantry-web": "file:<checkout>/web"` - every edit to the framework shows up in the app immediately. It activates when you pass `--gantry-dir`, set the `GANTRY_DIR` environment variable, or scaffoldfrom inside a checkout (detected silently); `--no-replace` forces published mode even then.
 
 Private repos need `GOPRIVATE=github.com/B-Commissions` for the published mode's go side.
 
-The CLI also checks for new Gantry releases once a day (a 1.5 second query to the Go module proxy before new/dev/build) and prints a one-line notice when you are behind. Set `GANTRY_NO_UPDATE_CHECK=1` to turn it off; local (devel) builds never check.
+The CLI also checks for new Gantry releases once a day (a 1.5 second query to the Go module proxy before new/dev/build) and prints a one-line notice when you are behind. When that happens, `gantry update` reinstalls the CLI and `gantry upgrade` brings an app's packages and scaffold files along - see the [command reference](../cli/commands.md). Set `GANTRY_NO_UPDATE_CHECK=1` to turn the daily check off; local (devel) builds never check.
 
 Next: [Your first app](first-app.md), or if Go or React are new to you, read the [Go primer](go-primer.md) and [TSX primer](tsx-primer.md) first.

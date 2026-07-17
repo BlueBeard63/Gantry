@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"regexp"
 	"runtime/debug"
 	"strconv"
 	"strings"
@@ -30,8 +31,8 @@ func checkForUpdate() {
 	if latest == "" || !semverLess(current, latest) {
 		return
 	}
-	warn("%s is available (you have %s) - update with: go install %s/cmd/gantry@latest",
-		latest, current, modulePath)
+	warn("%s is available (you have %s) - update with: gantry update",
+		latest, current)
 }
 
 func cliVersion() string {
@@ -41,6 +42,20 @@ func cliVersion() string {
 	}
 	return bi.Main.Version
 }
+
+// taggedVersion is cliVersion when it is a clean release tag, "" for
+// local checkout builds - those stamp "(devel)", a "+dirty" suffix or
+// a pseudo-version, none of which name a real release (or a valid npm
+// pin).
+func taggedVersion() string {
+	v := cliVersion()
+	if !releaseTagRe.MatchString(v) {
+		return ""
+	}
+	return v
+}
+
+var releaseTagRe = regexp.MustCompile(`^v\d+\.\d+\.\d+$`)
 
 type updateCache struct {
 	CheckedAt time.Time `json:"checkedAt"`
@@ -63,7 +78,24 @@ func latestVersion() string {
 		}
 	}
 
-	client := &http.Client{Timeout: 1500 * time.Millisecond}
+	latest := latestVersionFresh()
+	if latest == "" {
+		return ""
+	}
+
+	c = updateCache{CheckedAt: time.Now(), Latest: latest}
+	if data, err := json.Marshal(c); err == nil {
+		_ = os.MkdirAll(filepath.Dir(cachePath), 0o700)
+		_ = os.WriteFile(cachePath, data, 0o600)
+	}
+	return latest
+}
+
+// latestVersionFresh asks the module proxy directly, bypassing the
+// daily cache - update/upgrade must not act on stale answers. A more
+// generous timeout than the passive check: the user asked for this.
+func latestVersionFresh() string {
+	client := &http.Client{Timeout: 10 * time.Second}
 	resp, err := client.Get("https://proxy.golang.org/" + proxyEscape(modulePath) + "/@latest")
 	if err != nil {
 		return ""
@@ -77,12 +109,6 @@ func latestVersion() string {
 	}
 	if json.NewDecoder(resp.Body).Decode(&info) != nil {
 		return ""
-	}
-
-	c = updateCache{CheckedAt: time.Now(), Latest: info.Version}
-	if data, err := json.Marshal(c); err == nil {
-		_ = os.MkdirAll(filepath.Dir(cachePath), 0o700)
-		_ = os.WriteFile(cachePath, data, 0o600)
 	}
 	return info.Version
 }

@@ -26,6 +26,11 @@
       "default": "0.1.0",
       "description": "App version, shown by installers (Setup.exe's AppVersion)."
     },
+    "gantry": {
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+\\.\\d+.*$",
+      "description": "The Gantry framework version this app was scaffolded with or last brought to by gantry upgrade. Maintained by the CLI."
+    },
     "port": {
       "type": "integer",
       "minimum": 1,

@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"bytes"
 	"embed"
 	"flag"
 	"fmt"
@@ -20,19 +21,46 @@ var templates embed.FS
 
 // scaffold is the data every template renders with.
 type scaffold struct {
-	Name      string // module + exe name, e.g. "myapp"
-	Title     string // window title, e.g. "My App"
-	Port      int
-	Tray      bool
-	Multi     bool
-	Tea       bool
-	BtnMin    bool
-	BtnMax    bool
-	BtnClose  bool
-	GantryDir string // forward-slash path to the local Gantry checkout ("" = none, use GOPRIVATE)
+	Name       string // module + exe name, e.g. "myapp"
+	Title      string // window title, e.g. "My App"
+	Port       int
+	Tray       bool
+	Multi      bool
+	Tea        bool
+	BtnMin     bool
+	BtnMax     bool
+	BtnClose   bool
+	GantryDir  string // forward-slash path to the local Gantry checkout ("" = none, use GOPRIVATE)
+	WebVersion string // exact gantry-web npm version to pin ("" = fall back to "latest")
 }
 
 func (s scaffold) GantryWeb() string { return s.GantryDir + "/web" }
+
+// GantryWebDep is package.json's gantry-web value: a file: link in
+// framework-development mode, otherwise an exact version pinned to the
+// CLI - the CLI's synthesized entry and the package must move in
+// lockstep, so a floating "latest" is only the last resort (dev CLI
+// builds with the proxy unreachable).
+func (s scaffold) GantryWebDep() string {
+	if s.GantryDir != "" {
+		return "file:" + s.GantryWeb()
+	}
+	if s.WebVersion != "" {
+		return s.WebVersion
+	}
+	return "latest"
+}
+
+// webPinVersion is the npm version new/upgrade pin gantry-web to: the
+// CLI's own release tag, or the newest known tag for dev CLI builds.
+// Bare (no "v"), as npm versions are written.
+func webPinVersion() string {
+	v := taggedVersion()
+	if v == "" {
+		v = latestVersionFresh()
+	}
+	return strings.TrimPrefix(v, "v")
+}
 
 func cmdNew(args []string) error {
 	fs := flag.NewFlagSet("new", flag.ExitOnError)
@@ -71,9 +99,10 @@ func cmdNew(args []string) error {
 
 	in := bufio.NewReader(os.Stdin)
 	s := scaffold{
-		Name:  strings.ToLower(name),
-		Title: title(name),
-		Port:  *port,
+		Name:       strings.ToLower(name),
+		Title:      title(name),
+		Port:       *port,
+		WebVersion: webPinVersion(),
 	}
 
 	// Buttons.
@@ -145,6 +174,7 @@ func cmdNew(args []string) error {
 	}
 
 	cfg := appConfig{Name: s.Name, Title: s.Title, Version: "0.1.0", Port: s.Port, Tray: s.Tray}
+	cfg.Gantry = strings.TrimPrefix(taggedVersion(), "v")
 	cfg.Mode = map[bool]string{true: "multi", false: "single"}[s.Multi]
 	cfg.Style = map[bool]string{true: "tea", false: "plain"}[s.Tea]
 	cfg.Buttons.Minimize = s.BtnMin
@@ -212,69 +242,85 @@ func cmdNew(args []string) error {
 	return nil
 }
 
-// render writes every scaffold file. Template paths mirror the app
-// layout; a leading _ segment marks conditional trees.
-func render(appDir string, s scaffold) error {
-	type file struct {
-		tmpl string // path under templates/
-		out  string // path under appDir
-		when bool
-	}
+// scaffoldFile is one entry of the scaffold table. user marks files an
+// app developer normally edits after scaffolding - gantry upgrade
+// defaults those to "keep" and everything else to "overwrite".
+type scaffoldFile struct {
+	tmpl string // path under templates/
+	out  string // path under appDir
+	when bool
+	user bool
+}
+
+// scaffoldFiles is the full scaffold table for one app configuration.
+// Template paths mirror the app layout.
+func scaffoldFiles(s scaffold) []scaffoldFile {
 	pageStyle := "plain"
 	if s.Tea {
 		pageStyle = "tea"
 	}
-	files := []file{
-		{"go.mod.tmpl", "go.mod", true},
-		{"main.go.tmpl", "main.go", true},
-		{"embed.go.tmpl", "embed.go", true},
-		{"package.json.tmpl", "package.json", true},
-		{"tsconfig.json.tmpl", "tsconfig.json", true},
-		{"gitignore.tmpl", ".gitignore", true},
-		{"README.md.tmpl", "README.md", true},
-		{"index.css.tmpl", "index.css", true},
-		{"dist-placeholder.html.tmpl", "webdist/index.html", true},
-		{"vscode-settings.json.tmpl", ".vscode/settings.json", true},
-		{"vscode-extensions.json.tmpl", ".vscode/extensions.json", true},
-		{"pages/index-" + pageStyle + ".go.tmpl", "pages/index/index.go", true},
-		{"pages/index-" + pageStyle + ".tsx.tmpl", "pages/index/index.tsx", true},
-		{"pages/index.css.tmpl", "pages/index/index.css", true},
-		{"layouts/main.tsx.tmpl", "layouts/main/main.tsx", s.Multi},
-		{"layouts/main.css.tmpl", "layouts/main/main.css", s.Multi},
-		{"pages/settings.go.tmpl", "pages/settings/settings.go", s.Multi},
-		{"pages/settings.tsx.tmpl", "pages/settings/settings.tsx", s.Multi},
-		{"pages/settings.css.tmpl", "pages/settings/settings.css", s.Multi},
-		{"components/example.go.tmpl", "components/example/example.go", s.Multi},
-		{"components/example.tsx.tmpl", "components/example/example.tsx", s.Multi},
-		{"components/example.css.tmpl", "components/example/example.css", s.Multi},
+	return []scaffoldFile{
+		{"go.mod.tmpl", "go.mod", true, false},
+		{"main.go.tmpl", "main.go", true, true},
+		{"embed.go.tmpl", "embed.go", true, false},
+		{"package.json.tmpl", "package.json", true, false},
+		{"tsconfig.json.tmpl", "tsconfig.json", true, false},
+		{"gitignore.tmpl", ".gitignore", true, false},
+		{"README.md.tmpl", "README.md", true, true},
+		{"index.css.tmpl", "index.css", true, true},
+		{"dist-placeholder.html.tmpl", "webdist/index.html", true, false},
+		{"vscode-settings.json.tmpl", ".vscode/settings.json", true, false},
+		{"vscode-extensions.json.tmpl", ".vscode/extensions.json", true, false},
+		{"pages/index-" + pageStyle + ".go.tmpl", "pages/index/index.go", true, true},
+		{"pages/index-" + pageStyle + ".tsx.tmpl", "pages/index/index.tsx", true, true},
+		{"pages/index.css.tmpl", "pages/index/index.css", true, true},
+		{"layouts/main.tsx.tmpl", "layouts/main/main.tsx", s.Multi, true},
+		{"layouts/main.css.tmpl", "layouts/main/main.css", s.Multi, true},
+		{"pages/settings.go.tmpl", "pages/settings/settings.go", s.Multi, true},
+		{"pages/settings.tsx.tmpl", "pages/settings/settings.tsx", s.Multi, true},
+		{"pages/settings.css.tmpl", "pages/settings/settings.css", s.Multi, true},
+		{"components/example.go.tmpl", "components/example/example.go", s.Multi, true},
+		{"components/example.tsx.tmpl", "components/example/example.tsx", s.Multi, true},
+		{"components/example.css.tmpl", "components/example/example.css", s.Multi, true},
 	}
-	for _, f := range files {
+}
+
+// renderBytes renders one embedded template with the scaffold data.
+func renderBytes(tmpl string, s scaffold) ([]byte, error) {
+	src, err := templates.ReadFile("templates/" + tmpl)
+	if err != nil {
+		return nil, fmt.Errorf("reading template %s: %w", tmpl, err)
+	}
+	// [[ ]] delimiters: tsx legitimately contains {{ (JSX style
+	// objects), so the Go defaults would collide.
+	t, err := template.New(tmpl).Delims("[[", "]]").Parse(string(src))
+	if err != nil {
+		return nil, fmt.Errorf("parsing template %s: %w", tmpl, err)
+	}
+	var buf bytes.Buffer
+	if err := t.Execute(&buf, s); err != nil {
+		return nil, fmt.Errorf("rendering %s: %w", tmpl, err)
+	}
+	return buf.Bytes(), nil
+}
+
+// render writes every scaffold file.
+func render(appDir string, s scaffold) error {
+	for _, f := range scaffoldFiles(s) {
 		if !f.when {
 			continue
 		}
-		src, err := templates.ReadFile("templates/" + f.tmpl)
+		data, err := renderBytes(f.tmpl, s)
 		if err != nil {
-			return fmt.Errorf("reading template %s: %w", f.tmpl, err)
-		}
-		// [[ ]] delimiters: tsx legitimately contains {{ (JSX style
-		// objects), so the Go defaults would collide.
-		t, err := template.New(f.tmpl).Delims("[[", "]]").Parse(string(src))
-		if err != nil {
-			return fmt.Errorf("parsing template %s: %w", f.tmpl, err)
+			return err
 		}
 		out := filepath.Join(appDir, f.out)
 		if err := os.MkdirAll(filepath.Dir(out), 0o755); err != nil {
 			return err
 		}
-		w, err := os.Create(out)
-		if err != nil {
+		if err := os.WriteFile(out, data, 0o644); err != nil {
 			return err
 		}
-		if err := t.Execute(w, s); err != nil {
-			w.Close()
-			return fmt.Errorf("rendering %s: %w", f.tmpl, err)
-		}
-		w.Close()
 	}
 	return nil
 }

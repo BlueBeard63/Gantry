@@ -1,6 +1,6 @@
 # Command reference
 
-The gantry CLI has seven commands. dev, build, add, mobile and docs find the app by walking up from the current directory to the nearest gantry.json, so they work from anywhere inside the app tree. Progress output is coloured when the terminal supports it; piping to a file or setting `NO_COLOR` gives plain text.
+The gantry CLI has nine commands. dev, build, add, upgrade, mobile and docs find the app by walking up from the current directory to the nearest gantry.json, so they work from anywhere inside the app tree. Progress output is coloured when the terminal supports it; piping to a file or setting `NO_COLOR` gives plain text.
 
 ## gantry new <name>
 
@@ -81,6 +81,40 @@ gantry add -D @types/node
 ```
 
 (Anything after add is passed to npm install verbatim.)
+
+## gantry update
+
+Updates the gantry CLI itself to the newest release - the built-in replacement for re-running the `go install ...@latest` line. It looks up the latest tag on the Go module proxy, reinstalls when you're behind, and on Windows renames the running exe aside first (a running binary can't be overwritten; the leftover `gantry-old.exe` is cleaned up by the next update).
+
+```
+gantry update
+gantry: go install github.com/B-Commissions/Gantry/cmd/gantry@v0.3.4
+gantry: updated v0.3.3 -> v0.3.4
+gantry: run gantry upgrade inside your apps to pull the matching template and package changes
+```
+
+- `--force` reinstalls even when already up to date
+- a CLI built from a local checkout is never auto-updated; update it from the checkout with `go install ./cmd/gantry`
+
+The daily update check that dev/build/new print points here when a newer release exists. `GANTRY_NO_UPDATE_CHECK=1` silences the check; `gantry update` itself always asks the proxy.
+
+## gantry upgrade
+
+Brings the current app up to the CLI's version - run it after `gantry update` (or after pulling a new framework release). A release moves the CLI, the Go module and the gantry-web npm package in lockstep, and the synthesized frontend entry must match the installed package, so apps should follow in one step rather than piecemeal:
+
+```
+gantry upgrade [--yes] [--dry-run] [--force]
+```
+
+What it does, in order:
+
+- bumps the `github.com/B-Commissions/Gantry` requirement (`go get` + `go mod tidy`) - skipped when go.mod `replace`s it with a local checkout
+- pins `gantry-web` in package.json to the exact matching version and runs `npm install` - skipped for `file:` links; the pin is a targeted edit, your other dependencies are untouched
+- re-renders the scaffold templates with the choices recorded in gantry.json and compares each against your file: identical files are skipped, missing ones offered for creation, and changed ones shown as a diff with a per-file prompt. Tooling files (tsconfig.json, .vscode/, .gitignore, embed.go) default to **overwrite**; files you own (main.go, pages/, layouts/, components/, index.css, README) default to **keep**; go.mod, package.json and webdist/ are never re-rendered
+- regenerates the derived files (`.gantry/`, `gantry_registry.go`, `gantry_widgets.go`, `gantry_icons.go`)
+- records the framework version in gantry.json's `gantry` field and prints any release notes that apply to the versions you crossed
+
+Flags: `--yes` applies every file's default without prompting, `--dry-run` reports what would change without writing anything, `--force` re-applies even when the app is already at the CLI's version.
 
 ## gantry docs [topic]
 

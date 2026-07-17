@@ -41,4 +41,4 @@ Full docs live in [docs/](docs/README.md), or run `gantry docs` for the offline 
 - `widget` - declarative layout trees for Android home-screen widgets
 - `notification` - system notifications with actions (Android)
 - `web/` - the gantry-web npm package (TitleBar, bridge, Tea runtime, Vite plugin)
-- `cmd/gantry` - the CLI (new, dev, build, add, docs, mobile)
+- `cmd/gantry` - the CLI (new, dev, build, add, update, upgrade, docs, mobile)

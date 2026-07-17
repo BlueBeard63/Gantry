@@ -5,6 +5,8 @@
 //	gantry build            build a single exe with the frontend embedded
 //	gantry add <pkg...>     install npm packages into the app
 //	gantry gen              regenerate the registry files
+//	gantry update           update the gantry CLI to the latest release
+//	gantry upgrade          upgrade the current app to the CLI's version
 //	gantry mobile dev <os>  build + run on a plugged-in phone (android|ios)
 //	gantry docs [topic]     browse the documentation offline
 //	gantry --version        print the CLI version
@@ -25,6 +27,8 @@ var usageCommands = []struct{ cmd, desc string }{
 	{"gantry build", "build the current app into a single exe"},
 	{"gantry add <pkg...>", "install npm packages into the app"},
 	{"gantry gen", "regenerate gantry_registry.go (dev/build do this too)"},
+	{"gantry update", "update the gantry CLI itself to the latest release"},
+	{"gantry upgrade", "upgrade the current app to the CLI's version (templates + packages)"},
 	{"gantry mobile dev <os>", "build + run on a plugged-in phone with live logcat (android|ios)"},
 	{"gantry docs [topic]", "browse the documentation offline"},
 	{"gantry --version", "print the CLI version"},
@@ -64,6 +68,10 @@ func main() {
 		err = cmdAdd(os.Args[2:])
 	case "gen":
 		err = cmdGen(os.Args[2:])
+	case "update":
+		err = cmdUpdate(os.Args[2:])
+	case "upgrade":
+		err = cmdUpgrade(os.Args[2:])
 	case "mobile":
 		checkForUpdate()
 		err = cmdMobile(os.Args[2:])

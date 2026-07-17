@@ -19,6 +19,10 @@ type appConfig struct {
 	Name    string `json:"name"`
 	Title   string `json:"title"`
 	Version string `json:"version,omitempty"` // shown in installers; default 0.1.0
+	// Gantry is the framework version this app was scaffolded with (or
+	// last brought to by gantry upgrade) - the baseline upgrade reports
+	// against. Empty in apps scaffolded before it was recorded.
+	Gantry string `json:"gantry,omitempty"`
 	Port    int    `json:"port"`
 	Mode    string `json:"mode"`  // "single" | "multi"
 	Style   string `json:"style"` // "tea" | "plain"
