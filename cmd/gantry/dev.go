@@ -59,57 +59,123 @@ func cmdDev(args []string) error {
 	childEnv := append(os.Environ(), "GANTRY_MODE=development")
 	childEnv = append(childEnv, argEnv(cfg, argValues)...)
 
-	// Ctrl+C tears both children down.
+	// Ctrl+C tears every child down.
 	stop := make(chan os.Signal, 1)
 	signal.Notify(stop, os.Interrupt)
 
-	// Both children spawn real work in grandchildren (npx.cmd -> node,
-	// go run -> the app exe); the group kills whole trees, not just the
-	// wrappers.
-	group := newChildGroup()
+	// Vite and the Go app run in SEPARATE child groups so a .go edit can
+	// restart the app (kill its whole go-run -> exe tree) without
+	// disturbing vite's HMR. Each group kills whole trees, not just the
+	// npx.cmd / go run wrappers (grandchildren: node, the app exe).
+	viteGroup := newChildGroup()
 
 	vite := exec.Command(npx(), "vite", "dev", "--port", strconv.Itoa(*vitePort), "--strictPort")
 	vite.Dir = synthDir
 	vite.Env = childEnv
 	vite.Stdout = os.Stdout
 	vite.Stderr = os.Stderr
-	group.setup(vite)
+	viteGroup.setup(vite)
 	if err := vite.Start(); err != nil {
 		return gerr.Wrap("dev.vite-start", err, "starting vite").
 			WithHint("is node installed and npm install done?")
 	}
-	group.add(vite)
+	viteGroup.add(vite)
+	viteDone := make(chan error, 1)
+	go func() { viteDone <- vite.Wait() }()
 
 	devURL := fmt.Sprintf("http://localhost:%d", *vitePort)
 	// Everything after "--" goes to the app itself, e.g.
 	// gantry dev -- --no-tray
-	appArgs := append([]string{"run", "-ldflags", versionLdflag(cfg), ".",
-		"--dev-url", devURL, "--port", strconv.Itoa(cfg.Port)}, fs.Args()...)
-	app := exec.Command("go", appArgs...)
-	app.Dir = appDir
-	app.Env = childEnv
-	app.Stdout = os.Stdout
-	app.Stderr = os.Stderr
-	group.setup(app)
-	if err := app.Start(); err != nil {
-		group.kill()
+	extraArgs := fs.Args()
+
+	// startApp launches "go run . --dev-url ..." in a fresh child group,
+	// plus a goroutine reporting its exit on the returned channel. A
+	// restart is: kill the old group, drain its exit (which frees the
+	// port - appshell.Listen is the single-instance guard), start again.
+	startApp := func() (*childGroup, chan error, error) {
+		g := newChildGroup()
+		appArgs := append([]string{"run", "-ldflags", versionLdflag(cfg), ".",
+			"--dev-url", devURL, "--port", strconv.Itoa(cfg.Port)}, extraArgs...)
+		cmd := exec.Command("go", appArgs...)
+		cmd.Dir = appDir
+		cmd.Env = childEnv
+		cmd.Stdout = os.Stdout
+		cmd.Stderr = os.Stderr
+		g.setup(cmd)
+		if err := cmd.Start(); err != nil {
+			return nil, nil, err
+		}
+		g.add(cmd)
+		done := make(chan error, 1)
+		go func() { done <- cmd.Wait() }()
+		return g, done, nil
+	}
+
+	appGroup, appDone, err := startApp()
+	if err != nil {
+		viteGroup.kill()
 		return gerr.Wrap("dev.go-start", err, "starting go run").
 			WithHint("is Go installed and on PATH?")
 	}
-	group.add(app)
+	appAlive := true
 
-	appDone := make(chan error, 1)
-	go func() { appDone <- app.Wait() }()
-	viteDone := make(chan error, 1)
-	go func() { viteDone <- vite.Wait() }()
+	// Watch .go files and resources/ and signal on save. On change the Go
+	// app rebuilds+restarts; the frontend re-renders on its own when the
+	// websocket reconnects to the fresh server (web/src/socket.ts
+	// re-announces the active page on every reconnect). vite HMR keeps
+	// handling .tsx/.css - this only covers the Go half.
+	changed := make(chan struct{}, 1)
+	watchDone := make(chan struct{})
+	defer close(watchDone)
+	go watchGoSources(appDir, changed, watchDone)
 
-	select {
-	case <-stop:
-	case <-appDone: // window closed / app quit
-	case <-viteDone: // vite died
+	info("watching .go files - save to rebuild the Go app")
+
+	for {
+		select {
+		case <-stop:
+			appGroup.kill()
+			viteGroup.kill()
+			return nil
+		case exitErr := <-appDone:
+			// A clean exit (code 0) is a real quit - the window closed.
+			// A non-zero exit is a crash or a failed rebuild: keep the dev
+			// server up (like vite survives a TS error) and wait for the
+			// next save to retry, instead of tearing everything down.
+			if exitErr == nil {
+				viteGroup.kill()
+				return nil
+			}
+			appAlive = false
+			warn("app exited: %v - fix and save to reload", exitErr)
+		case <-viteDone: // vite died: nothing left to serve the frontend
+			if appAlive {
+				appGroup.kill()
+			}
+			return nil
+		case <-changed:
+			step("go change - rebuilding the app")
+			// A new page/component or resource may have appeared: refresh
+			// the Go-side generated files (writeSynth is skipped - the
+			// vite root is unaffected by .go edits and rewriting it would
+			// perturb the running vite server).
+			regenForReload(appDir, cfg)
+			if appAlive {
+				appGroup.kill()
+				<-appDone // drain the killed instance's exit
+			}
+			// go run's own build output (and, on success, the app's
+			// "serving on ..." line) reports the outcome; a failed build
+			// lands in the <-appDone case as a non-zero exit.
+			g, done, err := startApp()
+			if err != nil {
+				appAlive = false
+				warn("restart failed: %v - save to retry", err)
+				continue
+			}
+			appGroup, appDone, appAlive = g, done, true
+		}
 	}
-	group.kill()
-	return nil
 }
 
 func npx() string {
