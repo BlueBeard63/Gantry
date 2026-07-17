@@ -35,6 +35,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/B-Commissions/Gantry/gantrytest/report"
 )
 
 // launchConfig is the resolved Launch options.
@@ -158,8 +160,19 @@ type App struct {
 	// port, the CDP connection attached to it, and the screencast
 	// recorder when this run records.
 	debugPort int
-	cdp       *cdp
+	cdp       domClient
 	rec       *recorder
+
+	// Report data layer (see result.go): which surface this launch drove,
+	// its worker index and source location, when it started, the 1-based
+	// retry attempt, and a driver-raised failure captured structurally.
+	plane   report.Plane
+	worker  int
+	srcFile string
+	srcLine int
+	started time.Time
+	attempt int
+	failure *report.Failure
 }
 
 // Launch builds (or reuses) the app under test, starts it headless on
@@ -194,11 +207,15 @@ func Launch(t testing.TB, opts ...Option) *App {
 	// runs WebKitGTK (its own inspector protocol) - that lands later; the
 	// protocol plane stays fully cross-platform. The device DOM plane is
 	// adb-driven, so the host OS does not matter there.
-	if cfg.dom && !onDevice && runtime.GOOS != "windows" {
-		t.Skipf("gantrytest: the desktop DOM plane needs WebView2 (Windows-only for now; host is %s)", runtime.GOOS)
+	if cfg.dom && !onDevice && runtime.GOOS != "windows" && runtime.GOOS != "linux" {
+		t.Skipf("gantrytest: the desktop DOM plane needs WebView2 (Windows) or WebKitGTK (Linux); host is %s", runtime.GOOS)
 	}
-	dom := cfg.dom || (cfg.headed && !onDevice && runtime.GOOS == "windows")
-	record := cfg.record && dom && !onDevice // device screencast is tier 3
+	domHost := runtime.GOOS == "windows" || runtime.GOOS == "linux"
+	dom := cfg.dom || (cfg.headed && !onDevice && domHost)
+	// Recording rides the DOM plane's screencast on every backend: desktop
+	// WebView2, and - since tier 3 - the device WebView over its forwarded
+	// devtools socket (the same CDP Page.startScreencast path).
+	record := cfg.record && dom
 
 	appDir := cfg.appDir
 	if appDir == "" {
@@ -227,9 +244,13 @@ func Launch(t testing.TB, opts ...Option) *App {
 	if artRoot == "" {
 		artRoot = fmt.Sprintf("%s%ctest-results", appDir, os.PathSeparator)
 	}
+	cfg.artifactRoot = artRoot // the report layer reads it back for the run-records dir
+	// Under `gantry test --retries`, each attempt gets its own artifact
+	// subdir (test-results/<name>/attempt-k); a normal run stays flat.
+	attempt := attemptFromEnv()
 	// A recorded run keeps its artifacts - a screencast that vanishes on
 	// pass would be pointless.
-	art := newArtifacts(t, artRoot, cfg.keep || record)
+	art := newArtifacts(t, artRoot, cfg.keep || record, attempt)
 
 	// The test's env deltas, kept separate from the full process env:
 	// device backends can only inject the deltas (the shell owns the
@@ -250,11 +271,17 @@ func Launch(t testing.TB, opts ...Option) *App {
 		env = append(env, args...)
 		env = append(env, configDirEnv(configDir)...)
 		if dom {
-			// A per-instance devtools port, passed the official WebView2
-			// way; the window opens for real but parks off-screen unless
-			// the test is headed.
+			// A per-instance remote-inspector port, passed the webview's
+			// own official way: WebView2 reads a Chromium flag from an env
+			// var; WebKitGTK reads WEBKIT_INSPECTOR_SERVER=host:port
+			// natively. The window opens for real but parks off-screen
+			// unless the test is headed (Linux CI drives it under xvfb).
 			debugPort = freeTCPPort(t)
-			env = append(env, "WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS=--remote-debugging-port="+strconv.Itoa(debugPort))
+			if runtime.GOOS == "linux" {
+				env = append(env, "WEBKIT_INSPECTOR_SERVER=127.0.0.1:"+strconv.Itoa(debugPort))
+			} else {
+				env = append(env, "WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS=--remote-debugging-port="+strconv.Itoa(debugPort))
+			}
 			if !cfg.headed {
 				env = append(env, "GANTRY_WINDOW_OFFSCREEN=1")
 			}
@@ -262,12 +289,19 @@ func Launch(t testing.TB, opts ...Option) *App {
 		env = append(env, cfg.env...)
 	}
 
+	srcFile, srcLine := testSourceLoc(appDir)
 	a := &App{
 		t: t, cfg: cfg, appCfg: appCfg, appDir: appDir,
 		be:        be,
 		onDevice:  onDevice,
 		art:       art,
 		debugPort: debugPort,
+		plane:     planeFor(onDevice, dom),
+		worker:    int(workerSeq.Add(1)),
+		srcFile:   srcFile,
+		srcLine:   srcLine,
+		started:   time.Now(),
+		attempt:   attempt,
 		spec: launchSpec{
 			bin: bin, appDir: appDir, appName: appCfg.Name,
 			configDir: configDir, env: env, overrides: overrides,
@@ -332,7 +366,16 @@ func (a *App) attachDOM() {
 		}
 		debugPort = p
 	}
-	d, err := attachCDP(a.art.trace, debugPort, a.proc.webPort(), a.art.path("console.log"), 30*time.Second)
+	var d domClient
+	var err error
+	if !a.onDevice && runtime.GOOS == "linux" {
+		// Linux desktop runs WebKitGTK, which speaks the WebKit remote
+		// inspector protocol, not CDP - a different dialect behind the same
+		// seam (see webkit.go).
+		d, err = attachWebKit(a.art.trace, debugPort, a.proc.webPort(), a.art.path("console.log"), 30*time.Second)
+	} else {
+		d, err = attachCDP(a.art.trace, debugPort, a.proc.webPort(), a.art.path("console.log"), 30*time.Second)
+	}
 	if err != nil {
 		a.t.Fatalf("gantrytest: attaching the DOM plane: %v", err)
 	}
@@ -384,6 +427,10 @@ func (a *App) teardown() {
 		a.proc.stop()
 		a.art.saveFile("crash.log", a.proc.crashLogPath())
 	}
+	// The report record is written before finalize deletes a passing,
+	// non-kept artifact dir: it lives in the run-scoped dir, so the
+	// overview still lists this test with its plane, timing and worker.
+	a.writeRecord()
 	a.art.finalize(a.t)
 	if a.spec.configDir != "" {
 		removeTempDir(a.t, a.spec.configDir)

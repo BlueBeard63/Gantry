@@ -11,10 +11,12 @@ export default function Settings() {
       <h2>Settings</h2>
       <label className="settings-field">
         Display name
-        <input value={name} onChange={(e) => setName(e.target.value)} />
+        {/* data-testid gives tests (gantry test) a stable hook that survives
+            styling and copy changes - see docs/testing/dom.md */}
+        <input data-testid="name" value={name} onChange={(e) => setName(e.target.value)} />
       </label>
       <div className="settings-actions">
-        <button onClick={() => send("save", { name })}>Save</button>
+        <button data-testid="save" onClick={() => send("save", { name })}>Save</button>
       </div>
       <Example />
     </div>

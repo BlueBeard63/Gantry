@@ -78,6 +78,9 @@ gantry test [flags] [pattern]
 | `pattern` | test name filter, passed to `go test -run` |
 | `--headed` | real window instead of headless (and the [DOM plane](dom.md) with it, on Windows) |
 | `--record` | record `screencast.avi` for every DOM-plane test (implies keeping those artifacts) |
+| `--retries N` | re-run each failed test up to N times; one that then passes is reported flaky ([report](report.md)) |
+| `--show [TestX]` | open the most recent `gantry_test_report.html` instead of running (optionally deep-linked to a test) |
+| `--open` | open the report in the browser when the run finishes |
 | `--mode production` | run apps in production mode |
 | `--device android[:SERIAL]` | run the suite on a plugged-in phone or emulator instead of the desktop ([mobile](mobile.md)) |
 | `--allow-device-data` | allow the hermetic `pm clear` (wipes the app's on-device data) on a physical device; emulators always allow it |
@@ -86,6 +89,8 @@ gantry test [flags] [pattern]
 | `--update` | rewrite golden files ([widget snapshots](widgets.md)) instead of comparing |
 | `-v` | verbose go test output |
 | `--timeout` | overall suite timeout (default 10m) |
+
+Every run writes a self-contained `gantry_test_report.html` into `test-results/` - the Run Overview plus a per-test Screencast / Screenshots / Trace / Logs viewer. See [the report](report.md). `gantry new` scaffolds a first `tests/smoke_test.go` so a fresh app is testable out of the box.
 
 A bare `go test ./tests/...` also works - the driver finds the app root by walking up to `gantry.json` and builds the binary itself on first Launch. The difference: `gantry test` refreshes the frontend first, a bare `go test` embeds whatever the last `gantry dev`/`gantry build` left in `webdist/`.
 

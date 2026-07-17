@@ -8,8 +8,10 @@ import (
 	"path/filepath"
 	"runtime"
 	"strconv"
+	"strings"
 	"time"
 
+	"github.com/B-Commissions/Gantry/gantrytest/report"
 	"github.com/B-Commissions/Gantry/gerr"
 )
 
@@ -38,6 +40,9 @@ func cmdTest(args []string) error {
 	par := fs.Int("p", defaultParallel(), "test parallelism (each parallel test is a full app process)")
 	verbose := fs.Bool("v", false, "verbose go test output")
 	update := fs.Bool("update", false, "update golden files (widget snapshots) instead of comparing")
+	retries := fs.Int("retries", 0, "re-run each failed test up to N times; a test that then passes is reported flaky")
+	show := fs.Bool("show", false, "open the most recent gantry_test_report.html instead of running tests")
+	open := fs.Bool("open", false, "open gantry_test_report.html in the browser when the run finishes")
 	timeout := fs.Duration("timeout", 10*time.Minute, "overall go test timeout")
 	fs.Usage = func() {
 		fmt.Println("Usage: gantry test [flags] [pattern]")
@@ -50,6 +55,12 @@ func cmdTest(args []string) error {
 		return err
 	}
 	pattern := fs.Arg(0)
+
+	artifactRoot := filepath.Join(appDir, "test-results")
+	// --show is a viewer shortcut: open the last report, run nothing.
+	if *show {
+		return showReport(artifactRoot, pattern)
+	}
 
 	if *mode != "development" && *mode != "production" {
 		return gerr.New("test.bad-mode", "unknown --mode %q (development or production)", *mode)
@@ -104,10 +115,13 @@ func cmdTest(args []string) error {
 		}
 	}
 
+	runDir := filepath.Join(artifactRoot, ".gantry-run")
+	_ = os.RemoveAll(runDir) // a fresh run starts with no stale records
 	env := append(os.Environ(),
 		"GANTRY_TEST_APP_DIR="+appDir,
 		"GANTRY_TEST_BIN="+binPath,
-		"GANTRY_TEST_ARTIFACTS="+filepath.Join(appDir, "test-results"),
+		"GANTRY_TEST_ARTIFACTS="+artifactRoot,
+		"GANTRY_TEST_RUN_DIR="+runDir,
 		"GANTRY_TEST_MODE="+*mode,
 	)
 	if *headed {
@@ -124,30 +138,125 @@ func cmdTest(args []string) error {
 	}
 	env = append(env, deviceEnv...)
 
-	goArgs := []string{"test", "./tests/...",
+	baseArgs := []string{"./tests/...",
 		"-count=1", // e2e runs are never cacheable
 		"-parallel", strconv.Itoa(*par),
 		"-timeout", timeout.String(),
 	}
-	if *verbose {
-		goArgs = append(goArgs, "-v")
-	}
 	if pattern != "" {
-		goArgs = append(goArgs, "-run", pattern)
+		baseArgs = append(baseArgs, "-run", pattern)
 	}
 
+	started := time.Now()
 	step("running tests (go test ./tests/...)")
-	test := exec.Command("go", goArgs...)
-	test.Dir = appDir
-	test.Env = env
-	test.Stdout = os.Stdout
-	test.Stderr = os.Stderr
-	if err := test.Run(); err != nil {
-		return gerr.New("test.failed", "tests failed").
-			WithHint("failing tests keep their artifacts in %s", filepath.Join(appDir, "test-results"))
+
+	// Attempt 1 runs the whole suite. attempts[name] accumulates each
+	// test's outcome per attempt (index 0 == attempt 1).
+	attempts := map[string][]*attemptOutcome{}
+	attemptEnv := func(k int) []string {
+		if *retries == 0 {
+			return env // flat artifact dirs, as a normal run has always had
+		}
+		return append(append([]string(nil), env...), "GANTRY_TEST_ATTEMPT="+strconv.Itoa(k))
+	}
+	outs, err := runGoTest(appDir, attemptEnv(1), baseArgs, *verbose)
+	if err != nil {
+		return fmt.Errorf("running go test: %w", err)
+	}
+	for name, o := range outs {
+		attempts[name] = []*attemptOutcome{o}
+	}
+
+	// Retries: re-run each still-failing test on its own, up to N times or
+	// until it passes. Running one test per invocation keeps its artifacts
+	// isolated and the -run pattern unambiguous.
+	failing := sortedFailedNames(outs)
+	for k := 2; k <= *retries+1 && len(failing) > 0; k++ {
+		info("retry %d/%d: %d failed test(s)", k-1, *retries, len(failing))
+		var stillFailing []string
+		for _, name := range failing {
+			ra := append(append([]string(nil), baseArgs...), "-run", runPattern(name))
+			// -run above narrows to this one test; drop any suite pattern.
+			ra = stripDuplicateRun(ra)
+			ro, rerr := runGoTest(appDir, attemptEnv(k), ra, *verbose)
+			if rerr != nil {
+				return fmt.Errorf("running go test (retry): %w", rerr)
+			}
+			o := ro[name]
+			if o == nil {
+				o = &attemptOutcome{Name: name, Status: report.StatusFail}
+			}
+			attempts[name] = append(attempts[name], o)
+			if o.Status == report.StatusFail {
+				stillFailing = append(stillFailing, name)
+			}
+		}
+		failing = stillFailing
+	}
+
+	// Build the report and write the self-contained HTML.
+	command := strings.TrimSpace("gantry test " + strings.Join(args, " "))
+	target := "desktop"
+	if *device != "" {
+		target = *device
+	}
+	rep := buildRunReport(artifactRoot, runDir, command, started.Format(time.RFC3339), time.Since(started).Seconds(), target, attempts)
+	reportPath, rerr := writeReport(rep, artifactRoot)
+	if rerr != nil {
+		warn("could not write the test report: %v", rerr)
+	} else {
+		info("report: %s", reportPath)
+		if *open {
+			openInBrowser(reportPath)
+		}
+	}
+	printSummary(rep)
+
+	if rep.Counts.Failed > 0 {
+		return gerr.New("test.failed", "%d test(s) failed", rep.Counts.Failed).
+			WithHint("open the report (gantry test --show) or the artifacts in %s", artifactRoot)
 	}
 	success("tests passed")
 	return nil
+}
+
+// stripDuplicateRun keeps only the last -run flag, so a suite pattern
+// plus a per-test retry pattern don't fight (the retry pattern wins).
+func stripDuplicateRun(args []string) []string {
+	last := -1
+	for i := 0; i+1 < len(args); i++ {
+		if args[i] == "-run" {
+			last = i
+		}
+	}
+	if last < 0 {
+		return args
+	}
+	var out []string
+	for i := 0; i < len(args); i++ {
+		if args[i] == "-run" && i != last {
+			i++ // skip its value too
+			continue
+		}
+		out = append(out, args[i])
+	}
+	return out
+}
+
+// printSummary prints the final one-line tally after a run.
+func printSummary(rep report.RunReport) {
+	c := rep.Counts
+	parts := []string{fmt.Sprintf("%d passed", c.Passed)}
+	if c.Flaky > 0 {
+		parts = append(parts, fmt.Sprintf("%d flaky", c.Flaky))
+	}
+	if c.Failed > 0 {
+		parts = append(parts, fmt.Sprintf("%d failed", c.Failed))
+	}
+	if c.Skipped > 0 {
+		parts = append(parts, fmt.Sprintf("%d skipped", c.Skipped))
+	}
+	info("%s in %.1fs", strings.Join(parts, ", "), rep.Duration)
 }
 
 // defaultParallel is NumCPU/2, floored at 1 - each parallel test is a

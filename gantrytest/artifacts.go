@@ -27,10 +27,16 @@ type artifacts struct {
 var unsafePathChars = regexp.MustCompile(`[^A-Za-z0-9._-]+`)
 
 // newArtifacts creates a fresh directory for the test, replacing any
-// leftovers from a previous run.
-func newArtifacts(t testing.TB, root string, keep bool) *artifacts {
+// leftovers from a previous run. A non-zero attempt (set by
+// `gantry test --retries`) nests the run under an attempt-k subdir so
+// each retry keeps its own artifacts; attempt 0 stays flat, as a normal
+// run always has.
+func newArtifacts(t testing.TB, root string, keep bool, attempt int) *artifacts {
 	t.Helper()
 	dir := filepath.Join(root, unsafePathChars.ReplaceAllString(t.Name(), "_"))
+	if attempt > 0 {
+		dir = filepath.Join(dir, fmt.Sprintf("attempt-%d", attempt))
+	}
 	if err := os.RemoveAll(dir); err != nil {
 		t.Fatalf("gantrytest: clearing artifact dir %s: %v", dir, err)
 	}

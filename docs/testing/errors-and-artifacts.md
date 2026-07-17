@@ -56,6 +56,8 @@ Each test writes to `test-results/<TestName>/`:
 
 Passing tests keep nothing unless `gantry test --keep-artifacts` (or `gantrytest.KeepArtifacts()` per launch); recorded tests keep theirs regardless, since a screencast that vanishes on pass would be pointless. Failing tests always keep their directory, and the failure output names it.
 
+Under [`gantry test --retries`](report.md), each attempt gets its own subdirectory - `test-results/<TestName>/attempt-k/` - so a flaky test keeps the artifacts of every try. A normal run (no `--retries`) uses the flat `test-results/<TestName>/` shown above. Either way, the whole run is also rolled up into a self-contained `gantry_test_report.html` - see [the report](report.md).
+
 Every timed-out wait also embeds the last 20 protocol frames straight into the test failure message, so the common case needs no artifact spelunking at all:
 
 ```

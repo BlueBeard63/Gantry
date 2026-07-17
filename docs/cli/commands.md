@@ -74,7 +74,7 @@ Regenerates `gantry_registry.go` - the file that auto-registers every `pages/`, 
 
 ## gantry test [pattern]
 
-Runs the app's end-to-end tests: Go tests under `tests/` using the `gantrytest` driver, against the real app process. Prepares the app like a build (registries, one vite build), prebuilds the binary once for the suite, then wraps `go test ./tests/...`. `pattern` filters test names; `--headed`, `--mode production`, `-p N`, `--keep-artifacts`, `--update` and `-v` cover the rest. The [Testing docs](../testing/setup.md) walk through all of it.
+Runs the app's end-to-end tests: Go tests under `tests/` using the `gantrytest` driver, against the real app process. Prepares the app like a build (registries, one vite build), prebuilds the binary once for the suite, then wraps `go test ./tests/...`. `pattern` filters test names; `--headed`, `--record`, `--retries N`, `--mode production`, `--device android`, `-p N`, `--keep-artifacts`, `--update` and `-v` cover the rest. Every run writes a self-contained `gantry_test_report.html` you open with `gantry test --show`. The [Testing docs](../testing/setup.md) walk through all of it, and [the report](../testing/report.md) covers the viewer and retries.
 
 ## gantry add <pkg...>
 

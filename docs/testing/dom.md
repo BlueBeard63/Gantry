@@ -2,7 +2,7 @@
 
 Everything on the [driving page](driving.md) works headless against the wire protocol. The DOM plane adds the other half: what the user actually sees. The driver attaches to the real webview over its devtools protocol (CDP) and drives it like a user would - element queries, real mouse clicks, real key events, screenshots, screencasts - while the protocol plane keeps watching the same app from the Go side. A single test can click a button in the DOM and assert the push it caused in Go, which is the point of the whole system.
 
-On desktop the DOM plane is Windows-only for now (WebView2 is Chromium and speaks CDP; Linux's WebKitGTK does not). A desktop `WithDOM()` launch on another OS skips the test, so shared suites stay runnable everywhere. The same CDP client also drives the phone: Android WebView speaks the same dialect, so `WithDOM()` works under `gantry test --device android` (see [mobile](mobile.md)).
+The desktop DOM plane runs on Windows (WebView2, which is Chromium and speaks CDP) and on Linux (WebKitGTK, driven over its own remote inspector protocol - a second dialect behind the same driver seam, enabled with `WEBKIT_INSPECTOR_SERVER`; run it under `xvfb` on a headless box). A desktop `WithDOM()` launch on macOS still skips, so shared suites stay runnable everywhere. The same CDP client also drives the phone: Android WebView speaks the same dialect, so `WithDOM()` works under `gantry test --device android` (see [mobile](mobile.md)). The element API is identical on every target - only the wire dialect underneath differs.
 
 ## Enabling it
 

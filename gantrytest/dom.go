@@ -39,8 +39,8 @@ type Element struct {
 	desc  string   // for failure messages
 }
 
-// requireDOM returns the CDP connection or fails the test with the fix.
-func (a *App) requireDOM(what string) *cdp {
+// requireDOM returns the DOM-plane connection or fails the test with the fix.
+func (a *App) requireDOM(what string) domClient {
 	a.t.Helper()
 	if a.cdp == nil {
 		a.t.Fatalf("gantrytest: %s needs the DOM plane - Launch with gantrytest.WithDOM() (or run headed on Windows)", what)
@@ -502,6 +502,7 @@ func (a *App) waitDOM(what string, cond func() (bool, string)) {
 			a.client.mu.Lock()
 			dump := a.client.lastFramesLocked(20)
 			a.client.mu.Unlock()
+			a.driverFailure("waiting for "+what, "found within "+a.cfg.timeout.String(), explain)
 			a.t.Fatalf("gantrytest: timed out waiting for %s (%s)\nlast protocol frames:\n%s", what, explain, dump)
 		}
 		time.Sleep(50 * time.Millisecond)

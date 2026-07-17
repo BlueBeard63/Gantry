@@ -50,6 +50,7 @@ export default function Index() {
       <h1>Gantry + React</h1>
       <div className="card">
         <button
+          data-testid="counter" // a stable hook for `gantry test` (docs/testing/dom.md)
           onClick={() => {
             const n = count + 1;
             setCount(n);

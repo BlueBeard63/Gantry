@@ -72,9 +72,10 @@ func TestSaveNotifies(t *testing.T) {
 }
 ```
 
+`--record` works on device too: the screencast is captured over the device WebView's devtools socket (the same CDP `Page.startScreencast` path as desktop) into `screencast.avi`, and plays in the [report](report.md) like any other.
+
 ## What does not transfer yet
 
-- **Screencasts on device**: `--record` is a no-op against a device; `screenrecord` support is still to come.
 - **iOS**: waits for its scaffold to graduate - same protocol plane over a forwarded port, with WKWebView's inspector protocol behind the same driver seam.
 
 ## Running without gantry test
