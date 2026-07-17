@@ -224,6 +224,21 @@ func (a *App) Restart() {
 	}
 }
 
+// WaitExit blocks until the app process exits on its own - the fatal
+// crash scenario, where an uncatchable panic kills the app and the
+// trace lands in crash.log. Pair it with Restart so the relaunch reads
+// a complete crash.log rather than racing the dying process.
+func (a *App) WaitExit() {
+	a.t.Helper()
+	a.art.trace.action("waiting for the app process to exit")
+	select {
+	case <-a.proc.exited():
+		a.art.trace.action("app process exited")
+	case <-time.After(a.cfg.timeout):
+		a.t.Fatalf("gantrytest: timed out after %s waiting for the app process to exit", a.cfg.timeout)
+	}
+}
+
 // Port is the app's HTTP/websocket port for this launch.
 func (a *App) Port() int { return a.proc.port() }
 

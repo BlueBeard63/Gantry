@@ -4,6 +4,7 @@
 // UI, the terminal log and call("gantry","errors") react.
 import { useState } from "react";
 import { Await, Skeleton, useCall, useEnv, usePaired } from "gantry-web";
+import { TeaView } from "gantry-web/tea";
 
 function RenderBomb(): never {
   throw new Error("RenderBomb: deliberate render crash");
@@ -43,6 +44,7 @@ export default function Debug() {
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
           <button onClick={() => call("callBoom").catch(() => {})}>Go call panic</button>
           <button onClick={() => send("eventBoom")}>Go event panic</button>
+          <button onClick={() => send("goroutineBoom")}>Go goroutine panic</button>
           <button
             onClick={() => {
               throw new Error("deliberate uncaught JS error");
@@ -54,6 +56,24 @@ export default function Debug() {
           <button onClick={() => setExplode(true)}>React render crash</button>
         </div>
         {explode && <RenderBomb />}
+      </section>
+
+      <section>
+        <h3>Crash the Tea loop (on purpose)</h3>
+        <p>
+          The counter below lives in <code>debug.go</code>. Update and View panics are recovered - the counter keeps its
+          last good value and the last good tree stays on screen.
+        </p>
+        <TeaView />
+      </section>
+
+      <section>
+        <h3>Kill the process (on purpose)</h3>
+        <p>
+          A panic on a plain goroutine is uncatchable: the app dies, the trace lands in <code>crash.log</code>, and the
+          next launch reports it as a "crashed last run" notice.
+        </p>
+        <button onClick={() => send("fatalBoom")}>Fatal crash (kills the app)</button>
       </section>
     </div>
   );

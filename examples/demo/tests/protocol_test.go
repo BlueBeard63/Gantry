@@ -10,6 +10,7 @@ package tests
 
 import (
 	"encoding/json"
+	"fmt"
 	"strings"
 	"testing"
 
@@ -102,6 +103,143 @@ func TestEventPanicPipeline(t *testing.T) {
 	if len(e.Trail) == 0 {
 		t.Error("expected a non-empty breadcrumb trail on the error")
 	}
+}
+
+// teaTicks reads the debug page's Tea counter out of the newest render.
+func teaTicks(t *testing.T, n *gantrytest.Node) int {
+	t.Helper()
+	txt := n.Text()
+	i := strings.Index(txt, "tea ticks: ")
+	if i < 0 {
+		t.Fatalf("no tea ticks counter in the render: %q", txt)
+	}
+	var ticks int
+	if _, err := fmt.Sscanf(txt[i:], "tea ticks: %d", &ticks); err != nil {
+		t.Fatalf("parsing the tea ticks counter from %q: %v", txt[i:], err)
+	}
+	return ticks
+}
+
+// readyDebug mounts the Tea half of the debug page and returns its
+// first render.
+func readyDebug(t *testing.T, app *gantrytest.App) *gantrytest.Node {
+	t.Helper()
+	app.Ready("pages/debug")
+	return app.WaitTree("the debug page's first render", func(n *gantrytest.Node) bool {
+		return n.Find("button", gantrytest.Text("Tea tick")) != nil
+	})
+}
+
+func TestUpdatePanicKeepsLastGoodModel(t *testing.T) {
+	t.Parallel()
+	app := gantrytest.Launch(t)
+	tree := readyDebug(t, app)
+
+	// One benign tick, so there is a good state to preserve.
+	app.Click(tree.Find("button", gantrytest.Text("Tea tick")))
+	tree = app.WaitTree("the tick to land", func(n *gantrytest.Node) bool {
+		return teaTicks(t, n) == 1
+	})
+
+	// The Update panic discards its model...
+	app.Click(tree.Find("button", gantrytest.Text("Tea update panic")))
+	e := app.WaitError("panic.update")
+	if e.Kind != "tea-update-panic" {
+		t.Errorf("error kind = %q, want tea-update-panic", e.Kind)
+	}
+
+	// ...so the next tick steps 1 -> 2, not 2 -> 3: the panicking
+	// Update's increment never took.
+	app.Click(app.Tree().Find("button", gantrytest.Text("Tea tick")))
+	app.WaitTree("the tick after the update panic", func(n *gantrytest.Node) bool {
+		return teaTicks(t, n) == 2
+	})
+	app.ExpectNoErrors() // the panic.update was claimed above
+}
+
+func TestCmdPanicIsRecovered(t *testing.T) {
+	t.Parallel()
+	app := gantrytest.Launch(t)
+	tree := readyDebug(t, app)
+
+	app.Click(tree.Find("button", gantrytest.Text("Tea cmd panic")))
+	e := app.WaitError("panic.cmd")
+	if e.Kind != "cmd-panic" {
+		t.Errorf("error kind = %q, want cmd-panic", e.Kind)
+	}
+
+	// The command goroutine died, but the Tea loop did not: the page
+	// still folds messages and renders.
+	app.Click(app.Tree().Find("button", gantrytest.Text("Tea tick")))
+	app.WaitTree("a tick after the cmd panic", func(n *gantrytest.Node) bool {
+		return teaTicks(t, n) == 2 // the cmd panic's own click ticked first
+	})
+	app.ExpectNoErrors()
+}
+
+func TestViewPanicKeepsLastGoodRender(t *testing.T) {
+	t.Parallel()
+	app := gantrytest.Launch(t)
+	tree := readyDebug(t, app)
+
+	app.Click(tree.Find("button", gantrytest.Text("Tea view panic")))
+	e := app.WaitError("panic.view")
+	if e.Kind != "tea-view-panic" {
+		t.Errorf("error kind = %q, want tea-view-panic", e.Kind)
+	}
+
+	// Every render panics from here, so no new tree is delivered - the
+	// last good one is still what the frontend holds.
+	if got := teaTicks(t, app.Tree()); got != 0 {
+		t.Errorf("tea ticks = %d, want the last good render's 0 (a broken View must not deliver a tree)", got)
+	}
+	app.ExpectNoErrors()
+}
+
+func TestGoroutinePanicIsRecovered(t *testing.T) {
+	t.Parallel()
+	app := gantrytest.Launch(t)
+	app.Ready("pages/index")
+
+	// gantry.Go captures the panic instead of killing the app.
+	app.SendEvent("pages/debug", "goroutineBoom", nil)
+	e := app.WaitError("panic.goroutine")
+	if e.Kind != "goroutine-panic" {
+		t.Errorf("error kind = %q, want goroutine-panic", e.Kind)
+	}
+	if e.Stack == "" {
+		t.Error("expected a stack on the goroutine panic")
+	}
+
+	// The app is still alive and answering.
+	app.Call("gantry", "env", nil)
+	app.ExpectNoErrors()
+}
+
+func TestProcessCrashReportedOnNextLaunch(t *testing.T) {
+	t.Parallel()
+	app := gantrytest.Launch(t)
+	app.Ready("pages/index")
+
+	// A panic on a plain goroutine is uncatchable: the process dies and
+	// the runtime's crash output leaves the trace in crash.log.
+	app.SendEvent("pages/debug", "fatalBoom", nil)
+	app.WaitExit()
+
+	// The next launch (same config dir, so the same crash.log) reports
+	// the waiting trace through the normal error pipeline.
+	app.Restart()
+	e := app.WaitError("panic.fatal")
+	if e.Kind != "process-crash" {
+		t.Errorf("error kind = %q, want process-crash", e.Kind)
+	}
+	if !strings.Contains(e.Stack, "fatalBoom") {
+		t.Errorf("crash stack does not mention the panic:\n%s", e.Stack)
+	}
+	if len(e.Trail) != 0 {
+		t.Errorf("trail = %v, want empty (the process died before it could be snapshotted)", e.Trail)
+	}
+	app.ExpectNoErrors()
 }
 
 func TestDeclaredArgsReachTheApp(t *testing.T) {
