@@ -14,6 +14,7 @@ myapp/
   gantry.json        app settings + build targets the gantry CLI reads
   index.css          app-wide styles and the theme variables
   icons/             default icon files (icon.ico, icon.png) - swap for your art
+  resources/         optional: files embedded into the exe, reachable from Go and tsx
   layouts/
     main/
       main.tsx       optional: shared chrome (navbar etc.); pages pick
@@ -56,6 +57,28 @@ Widget and popup windows are pages too - a widget is just a small native window 
 ## Registration
 
 Automatic. `gantry dev/build` (or `gantry gen`) scan the `pages/`, `components/` and `layouts/` folders for exported Page/Component vars and regenerate gantry_registry.go; main.go just calls `gantry.Run(gantry.Config{... Pairs: gantryPairs() ...})`. Add a pair, run `gantry dev`, done. If a key ever misses (typo in the Key string), the tsx side's `send()` logs **"no handler for ..."** in the Go terminal.
+
+## Resources
+
+Anything you drop in `resources/` - images, fonts, JSON, whatever - is embedded into the exe once and reachable from **both** halves of your app by the same relative path. Create the folder, add files, run `gantry dev`. Like `pages/`, the folder is a fixed convention, and unlike `webdist/`/`dist/` it is your source, so commit it. An empty `resources/` folder is ignored; the generated `gantry_resources.go` (never edit it) appears only once the folder holds a file.
+
+From tsx, reference a resource by URL with `resourceURL()`:
+
+```tsx
+import { resourceURL } from "gantry-web";
+
+<img src={resourceURL("img/logo.png")} />;
+const cfg = await fetch(resourceURL("cfg.json")).then((r) => r.json());
+// fonts: `url(${resourceURL("fonts/inter.woff2")})`
+```
+
+From Go, read the same bytes with `gantry.Resource` (or `gantry.Resources()` for the whole `fs.FS`):
+
+```go
+b, err := gantry.Resource("cfg.json") // []byte, or fs.ErrNotExist
+```
+
+One embedded copy backs both: in a built app the Go server serves `resources/` at `/resources/...`; in `gantry dev` the Vite plugin serves the same folder live off disk, so edits show up without a rebuild. Because it rides Go's `//go:embed`, the folder travels to Android and iOS builds automatically.
 
 ## gantry.json
 

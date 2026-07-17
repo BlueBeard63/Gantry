@@ -16,6 +16,7 @@ export type { Paired } from "./paired";
 export { service, useService, useCall } from "./service";
 export type { Service, CallResult } from "./service";
 export { useGoState } from "./gostate";
+export { resourceURL } from "./resources";
 export { useAppInfo, fetchAppInfo } from "./appinfo";
 export type { AppInfo } from "./appinfo";
 export { useEnv, useMode, useArg, fetchEnv } from "./env";

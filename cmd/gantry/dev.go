@@ -47,6 +47,9 @@ func cmdDev(args []string) error {
 	if err := writeIcons(appDir, cfg); err != nil {
 		return err
 	}
+	if err := writeResources(appDir); err != nil {
+		return err
+	}
 	if err := writeArgsRegistry(appDir, cfg); err != nil {
 		return err
 	}

@@ -19,6 +19,36 @@ import path from "node:path";
 const VIRTUAL_ID = "virtual:gantry-app";
 const RESOLVED_ID = "\0" + VIRTUAL_ID;
 
+// Content types for the dev /resources/ middleware. Keep in rough sync
+// with the extensions developers drop in resources/ (images, fonts,
+// data). Unknown types fall back to a generic binary stream.
+const RESOURCE_MIME = {
+  ".png": "image/png",
+  ".jpg": "image/jpeg",
+  ".jpeg": "image/jpeg",
+  ".gif": "image/gif",
+  ".webp": "image/webp",
+  ".svg": "image/svg+xml",
+  ".ico": "image/x-icon",
+  ".avif": "image/avif",
+  ".woff": "font/woff",
+  ".woff2": "font/woff2",
+  ".ttf": "font/ttf",
+  ".otf": "font/otf",
+  ".json": "application/json",
+  ".txt": "text/plain; charset=utf-8",
+  ".css": "text/css; charset=utf-8",
+  ".wasm": "application/wasm",
+  ".mp3": "audio/mpeg",
+  ".mp4": "video/mp4",
+  ".webm": "video/webm",
+  ".pdf": "application/pdf",
+};
+
+function resourceMime(file) {
+  return RESOURCE_MIME[path.extname(file).toLowerCase()] || "application/octet-stream";
+}
+
 /**
  * @param {{ appRoot?: string, goPort?: number }} [opts]
  * @returns {import("vite").Plugin}
@@ -218,6 +248,33 @@ export function gantry(opts = {}) {
     },
 
     configureServer(server) {
+      // Serve /resources/<path> live off <appRoot>/resources during dev,
+      // the same tree the Go side embeds and serves in production. Kept
+      // off the Go server (no proxy) so edits appear without a rebuild.
+      const resourcesDir = path.join(appRoot, "resources");
+      server.middlewares.use((req, res, next) => {
+        const url = (req.url || "").split("?")[0];
+        if (!url.startsWith("/resources/")) return next();
+        const rel = decodeURIComponent(url.slice("/resources/".length));
+        const abs = path.join(resourcesDir, rel);
+        // Contain the request inside resources/ (reject ../ traversal).
+        const rootPrefix = resourcesDir + path.sep;
+        if (abs !== resourcesDir && !abs.startsWith(rootPrefix)) {
+          res.statusCode = 403;
+          return res.end("Forbidden");
+        }
+        let stat;
+        try {
+          stat = fs.statSync(abs);
+        } catch {
+          return next();
+        }
+        if (!stat.isFile()) return next();
+        res.setHeader("Content-Type", resourceMime(abs));
+        res.setHeader("Content-Length", stat.size);
+        fs.createReadStream(abs).pipe(res);
+      });
+
       server.watcher.add(appRoot);
       const refresh = (file) => {
         const f = file.split(path.sep).join("/");

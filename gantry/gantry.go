@@ -64,6 +64,37 @@ func SetDefaultIcons(png, ico []byte) {
 	defaultIconICO = ico
 }
 
+// The app's embedded resources/ tree, registered by the generated
+// gantry_resources.go when the app has a resources/ directory. Both
+// planes read the same bytes: Go code via Resource/Resources, the
+// frontend via the /resources/ HTTP route (resourceURL() in gantry-web).
+var appResources fs.FS
+
+// emptyFS is Resources' fallback when the app has no resources/ dir, so
+// Resource never panics and always returns fs.ErrNotExist.
+type emptyFS struct{}
+
+func (emptyFS) Open(string) (fs.File, error) { return nil, fs.ErrNotExist }
+
+// SetResources registers the app's embedded resources/ tree. The
+// generated gantry_resources.go calls this when the directory exists;
+// calling it by hand (with any fs.FS) works too.
+func SetResources(fsys fs.FS) { appResources = fsys }
+
+// Resources returns the embedded resources/ tree (an empty FS if the
+// app has none), for streaming or serving from Go code.
+func Resources() fs.FS {
+	if appResources == nil {
+		return emptyFS{}
+	}
+	return appResources
+}
+
+// Resource reads one embedded resource by slash path, e.g.
+// "img/logo.png". It returns fs.ErrNotExist if the app has no
+// resources/ directory or the file is absent.
+func Resource(name string) ([]byte, error) { return fs.ReadFile(Resources(), name) }
+
 // Config describes the app. Only Name, Title, Port, Dist and Pairs are
 // required; everything else has sensible defaults.
 type Config struct {
@@ -266,6 +297,13 @@ func run(cfg Config, f runFlags) error {
 			return nil, nil
 		},
 	})
+	// The embedded resources/ tree (gantry_resources.go), shared with
+	// Go's Resource/Resources. Registered before "/" so the SPA
+	// catch-all does not swallow /resources/* into index.html; the
+	// ServeMux longest-prefix match makes "/resources/" win regardless.
+	if appResources != nil {
+		mux.Handle("/resources/", http.StripPrefix("/resources/", http.FileServer(http.FS(appResources))))
+	}
 	if cfg.Setup != nil {
 		cfg.Setup(app, mux)
 	}

@@ -2,7 +2,7 @@
 // (see index.go) - TeaView renders whatever its View() returns, and the
 // layout around it is normal React.
 import { TeaView } from "gantry-web/tea";
-import { ExternalLink } from "gantry-web";
+import { ExternalLink, resourceURL } from "gantry-web";
 
 function GantryLogo() {
   return (
@@ -51,6 +51,10 @@ export default function Index() {
           Edit <code>pages/index/index.go</code> and save - the counter lives in Go
         </p>
       </div>
+      <p className="read-the-docs">
+        <img src={resourceURL("logo.svg")} width={20} height={20} alt="" style={{ verticalAlign: "-4px" }} />{" "}
+        <code>resources/logo.svg</code> - the same file the Go side reads via <code>gantry.Resource</code>
+      </p>
       <p className="read-the-docs">
         The look lives in index.tsx, the logic in index.go - run gantry docs to learn more
       </p>

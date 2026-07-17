@@ -119,6 +119,9 @@ func prepareApp(appDir string, cfg appConfig) error {
 	if err := writeIcons(appDir, cfg); err != nil {
 		return err
 	}
+	if err := writeResources(appDir); err != nil {
+		return err
+	}
 	if err := validateArgSpecs(cfg); err != nil {
 		return fmt.Errorf("gantry.json: %w", err)
 	}
