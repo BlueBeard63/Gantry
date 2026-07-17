@@ -179,6 +179,12 @@ func resolveTargets(flagVal string, cfg appConfig) ([]buildTarget, error) {
 	return out, nil
 }
 
+// versionLdflag stamps gantry.json's version into the gantry package
+// (read back by gantry.Version and the built-in appInfo service).
+func versionLdflag(cfg appConfig) string {
+	return "-X " + modulePath + "/gantry.injectedVersion=" + cfg.Version
+}
+
 func appendUnique(list []string, v string) []string {
 	for _, x := range list {
 		if x == v {
@@ -203,11 +209,13 @@ func buildOne(appDir string, cfg appConfig, t buildTarget, console, installer bo
 	outPath := filepath.Join(outDir, exeName)
 
 	step("building %s/%s (go)", t.OS, t.Arch)
-	goArgs := []string{"build", "-o", outPath}
+	// gantry.json's version is stamped into the framework so the app
+	// can show it at runtime (gantry.Version / the appInfo service).
+	ldflags := versionLdflag(cfg)
 	if t.OS == "windows" && !console {
-		goArgs = append(goArgs, "-ldflags", "-H windowsgui")
+		ldflags = "-H windowsgui " + ldflags
 	}
-	goArgs = append(goArgs, ".")
+	goArgs := []string{"build", "-o", outPath, "-ldflags", ldflags, "."}
 	cmd := exec.Command("go", goArgs...)
 	cmd.Dir = appDir
 	cmd.Env = append(os.Environ(), "GOOS="+t.goos(), "GOARCH="+t.Arch)

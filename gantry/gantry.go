@@ -22,6 +22,7 @@ package gantry
 
 import (
 	"context"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"io/fs"
@@ -192,6 +193,19 @@ func run(cfg Config, f runFlags) error {
 	mux.Handle("/gantry/ws", app.Handler())
 	mux.Handle("/gantry/widgets.json", widgetsHandler())
 	mux.Handle("/gantry/notify/action", notifyActionHandler())
+	// Built-in app identity for the frontend: useAppInfo() /
+	// call("gantry", "appInfo") resolve name, title and the version
+	// stamped from gantry.json. Registered before Setup so an app can
+	// override it.
+	app.Service("gantry", ui.Calls{
+		"appInfo": func(json.RawMessage) (any, error) {
+			return map[string]string{
+				"name":    cfg.Name,
+				"title":   cfg.Title,
+				"version": Version(),
+			}, nil
+		},
+	})
 	if cfg.Setup != nil {
 		cfg.Setup(app, mux)
 	}
@@ -262,6 +276,8 @@ func run(cfg Config, f runFlags) error {
 	shell := &appshell.App{
 		Window:  window,
 		Browser: f.browser,
+		// Read at every window close: SetCloseToTray flips it live.
+		KeepRunning: closeToTray.Load,
 	}
 	if cfg.Tray {
 		shell.Tray = &tray.Options{

@@ -67,6 +67,8 @@ Tray: &tray.Options{
 
 ## Toggling the tray without a rebuild
 
+Whether *closing the window* keeps the app in the tray is also switchable from code while the app runs - `gantry.SetCloseToTray(false)` makes close quit outright - see [Switching close behavior at runtime](close-and-lifecycle.md#switching-close-behavior-at-runtime).
+
 `gantry.Run` gives every app --tray and --no-tray runtime flags that override Config.Tray, so the tray is a launch decision, not a compile decision:
 
 ```

@@ -56,6 +56,19 @@ const auth = useService("auth");
 await auth.call("login", { user, pass });
 ```
 
+### The built-in "gantry" service: app info
+
+Every app gets one service for free: `"gantry"`, whose `appInfo` call returns the app's identity - `name`, `title` and the `version` from gantry.json (dev/build stamp it into the exe, and Go code can read it as `gantry.Version()`). The React side has a dedicated hook, so an About page or title bar version tag is one line:
+
+```tsx
+import { useAppInfo } from "gantry-web";
+
+const info = useAppInfo();      // null until loaded
+return <span>v{info?.version}</span>;
+```
+
+`fetchAppInfo()` is the non-hook variant; both cache after the first round-trip. Registering your own `"gantry"` service in Setup overrides the built-in.
+
 For read paths, useCall wraps the fetch-shaped boilerplate - it runs on mount, tracks loading/error, and re-runs when inputs change:
 
 ```tsx

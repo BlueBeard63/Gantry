@@ -172,7 +172,7 @@ The file that makes a folder an app in the CLI's eyes. It carries a `$schema` re
   "$schema": "https://raw.githubusercontent.com/B-Commissions/Gantry/main/gantry.schema.json",
   "name": "myapp",           // exe and module name
   "title": "Myapp",          // window title
-  "version": "0.1.0",        // shown by installers
+  "version": "0.1.0",        // shown by installers; stamped into the exe by dev/build - read it as gantry.Version() or useAppInfo()
   "port": 8330,              // local server + single-instance port
   "mode": "single",          // or "multi" - informational
   "style": "tea",            // or "plain" - informational

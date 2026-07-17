@@ -16,5 +16,7 @@ export type { Paired } from "./paired";
 export { service, useService, useCall } from "./service";
 export type { Service, CallResult } from "./service";
 export { useGoState } from "./gostate";
+export { useAppInfo, fetchAppInfo } from "./appinfo";
+export type { AppInfo } from "./appinfo";
 export { TeaView } from "./tea/Runtime";
 export type { TeaComponentProps, ComponentRegistry } from "./tea/Runtime";

@@ -29,6 +29,12 @@ type App struct {
 	// OnWindowClosed runs each time the main window closes while the app
 	// keeps running in the tray.
 	OnWindowClosed func()
+	// KeepRunning, when set on a tray app, is consulted each time the
+	// main window closes: return false and that close quits the whole
+	// app, tray included. nil keeps the default (a tray app stays
+	// running). It is read at close time, so a value it reports can be
+	// flipped at runtime and the next close follows it.
+	KeepRunning func() bool
 }
 
 // Run drives the app until ctx is done. Call it from main() on the main
@@ -97,6 +103,7 @@ func (a *App) Run(ctx context.Context, cancel context.CancelFunc) error {
 			return nil
 		case <-openWindow:
 			log.Printf("appshell: opening the %s window", a.Window.Title)
+			keep := hasTray
 			// Runs on the main goroutine (the webview needs it); blocks
 			// until the window closes.
 			if err := RunWindow(a.Window); err != nil {
@@ -104,15 +111,20 @@ func (a *App) Run(ctx context.Context, cancel context.CancelFunc) error {
 				if err := OpenInBrowser(a.Window.URL); err != nil {
 					log.Printf("appshell: could not open browser: %v (open %s manually)", err, a.Window.URL)
 				}
-			} else if hasTray {
+			} else if keep && a.KeepRunning != nil && !a.KeepRunning() {
+				// The app flipped close-to-tray off at runtime: this
+				// close means quit, tray and all.
+				keep = false
+			} else if keep {
 				if a.OnWindowClosed != nil {
 					a.OnWindowClosed()
 				}
 				log.Print("appshell: window closed - still running in the tray")
 				continue
 			}
-			if !hasTray {
-				// No tray to live in: window gone means app done.
+			if !keep {
+				// No tray to live in (or close-to-tray switched off):
+				// window gone means app done.
 				cancel()
 			}
 		}

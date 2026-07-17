@@ -63,6 +63,54 @@ Reopening from the tray first tries `ShowMainWindow` (instant if the window was 
 
 Pick per app; both are one line.
 
+## Switching close behavior at runtime
+
+Both models can be flipped while the app runs - the natural home for a "keep running in the tray" settings checkbox.
+
+**Window-per-open apps** (a `gantry.Run` app with `Tray: true`): call `gantry.SetCloseToTray`. It is read at every window close, so the next close follows whatever was set last - `true` (the default) keeps the app in the tray, `false` makes close quit the whole app, tray icon included. The full recipe, from a settings page checkbox down to Go:
+
+```tsx
+// pages/settings/settings.tsx
+const { send } = usePaired();
+<input type="checkbox" checked={tray}
+       onChange={(e) => { setTray(e.target.checked); send("tray", e.target.checked); }} />
+```
+
+```go
+// pages/settings/settings.go
+var Page = ui.Page{
+    Key: "pages/settings",
+    On: ui.Handlers{
+        "tray": func(p json.RawMessage) {
+            var on bool
+            _ = json.Unmarshal(p, &on)
+            gantry.SetCloseToTray(on)
+            // persist the preference and call SetCloseToTray again at
+            // startup (e.g. in Config.Setup) so it survives restarts.
+        },
+    },
+}
+```
+
+`gantry.CloseToTray()` reads the current setting. Note the limits: the toggle needs the tray to exist (`Config.Tray` or `--tray`) - a tray cannot be created at runtime - and without one, closing already exits.
+
+**Hidden-window apps** (OnCloseRequest + CloseHide): the hook is invoked fresh on every close, so close over a mutable value instead of returning a constant:
+
+```go
+var hideOnClose atomic.Bool // flip from anywhere, e.g. a settings handler
+
+Window: func(w *appshell.WindowOptions) {
+    w.OnCloseRequest = func() appshell.CloseAction {
+        if hideOnClose.Load() {
+            return appshell.CloseHide
+        }
+        return appshell.CloseAllow
+    }
+},
+```
+
+Apps driving `appshell.App` directly get the same switch as the `KeepRunning func() bool` field - consulted at each close on tray apps; return false and that close quits.
+
 ## Single instance
 
 Gantry apps bind a fixed local port for their frontend server, which doubles as the single-instance guard:

@@ -59,7 +59,8 @@ func cmdDev(args []string) error {
 	devURL := fmt.Sprintf("http://localhost:%d", *vitePort)
 	// Everything after "--" goes to the app itself, e.g.
 	// gantry dev -- --no-tray
-	appArgs := append([]string{"run", ".", "--dev-url", devURL, "--port", strconv.Itoa(cfg.Port)}, fs.Args()...)
+	appArgs := append([]string{"run", "-ldflags", versionLdflag(cfg), ".",
+		"--dev-url", devURL, "--port", strconv.Itoa(cfg.Port)}, fs.Args()...)
 	app := exec.Command("go", appArgs...)
 	app.Dir = appDir
 	app.Stdout = os.Stdout

@@ -55,7 +55,7 @@ func buildAndroid(appDir string, cfg appConfig, arches []string) (bool, error) {
 		}
 		out := filepath.Join(synthDir, "app", "src", "main", "jniLibs", abi, "libgantryapp.so")
 		step("building android/%s (go)", arch)
-		cmd := exec.Command("go", "build", "-trimpath", "-ldflags", "-s -w", "-o", out, ".")
+		cmd := exec.Command("go", "build", "-trimpath", "-ldflags", "-s -w "+versionLdflag(cfg), "-o", out, ".")
 		cmd.Dir = appDir
 		cmd.Env = append(os.Environ(),
 			"GOOS=android",
