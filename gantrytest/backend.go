@@ -2,6 +2,7 @@ package gantrytest
 
 import (
 	"bufio"
+	"errors"
 	"fmt"
 	"os/exec"
 	"path/filepath"
@@ -13,8 +14,8 @@ import (
 
 // backend is the process-control plane - the only tier that varies by
 // target, so it sits behind this seam. Tier 1 ships the local desktop
-// backend below; tier M1 adds an adb-backed one so the same tests run
-// against a phone or emulator.
+// backend below; tier M1 adds the adb-backed one in android.go, so the
+// same tests run against a phone or emulator.
 type backend interface {
 	// launch starts the app under test and returns once the server has
 	// announced its listening port.
@@ -23,14 +24,22 @@ type backend interface {
 
 // proc is one running app instance.
 type proc interface {
+	// port is where the app's HTTP/websocket server is reachable from
+	// the host (on a device backend, the adb-forwarded local port).
 	port() int
+	// token authenticates driver requests (gantry_token); empty when
+	// the server runs unguarded (desktop).
+	token() string
 	// stop kills the whole process tree, hard. Safe to call twice.
 	stop()
 	// crashLogPath is where the runtime's crash.log lives for this
-	// instance (may not exist).
+	// instance (may not exist; empty when there is none to fetch).
 	crashLogPath() string
 	// exited closes when the process has exited on its own.
 	exited() <-chan struct{}
+	// screenshot captures the target's screen at the process-control
+	// level (device backends); errors where only the DOM plane can.
+	screenshot() ([]byte, error)
 }
 
 // launchSpec is everything a backend needs to start one hermetic app
@@ -40,7 +49,8 @@ type launchSpec struct {
 	appDir    string
 	appName   string
 	configDir string   // per-test stand-in for the user config dir
-	env       []string // full environment (os.Environ() + overrides)
+	env       []string // full environment (os.Environ() + overrides); desktop only
+	overrides []string // the test's env deltas alone (mode, args, WithEnv) - what device backends inject
 	window    bool     // open the real window (headed or DOM-plane runs)
 	appLog    *syncWriter
 	timeout   time.Duration // how long to wait for GANTRY_READY
@@ -124,7 +134,12 @@ type localProc struct {
 }
 
 func (p *localProc) port() int               { return p.listenPort }
+func (p *localProc) token() string           { return "" }
 func (p *localProc) exited() <-chan struct{} { return p.done }
+
+func (p *localProc) screenshot() ([]byte, error) {
+	return nil, errors.New("process-level screenshots need a device backend (desktop captures through the DOM plane)")
+}
 
 func (p *localProc) stop() {
 	p.group.kill()

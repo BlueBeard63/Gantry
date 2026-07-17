@@ -90,13 +90,22 @@ type client struct {
 	consumed     map[string]bool // error signatures already returned by WaitError
 }
 
-func dialClient(t testing.TB, tr *trace, port int, timeout time.Duration, observer bool) (*client, error) {
+func dialClient(t testing.TB, tr *trace, port int, timeout time.Duration, observer bool, token string) (*client, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	url := fmt.Sprintf("ws://127.0.0.1:%d/gantry/ws", port)
+	var params []string
 	if observer {
 		// With a webview attached, the driver rides alongside it as an
 		// observer instead of displacing its connection.
-		url += "?observer=1"
+		params = append(params, "observer=1")
+	}
+	if token != "" {
+		// Device backends run the server token-guarded (the mobile
+		// shell's loopback protection); the runner chose the token.
+		params = append(params, "gantry_token="+token)
+	}
+	if len(params) > 0 {
+		url += "?" + strings.Join(params, "&")
 	}
 	dialCtx, dialDone := context.WithTimeout(ctx, 15*time.Second)
 	defer dialDone()

@@ -23,7 +23,11 @@ import (
 //	GANTRY_TEST_MODE            default app mode (default: development)
 //	GANTRY_TEST_HEADED          "1": launch with the real window
 //	GANTRY_TEST_KEEP_ARTIFACTS  "1": keep passing tests' artifacts too
-//	GANTRY_TEST_DEVICE          target device ("" = desktop; "android" in tier M1)
+//	GANTRY_TEST_DEVICE          target device ("" = desktop; "android" or "android:SERIAL")
+//	GANTRY_TEST_ADB             adb binary for the device target (default: PATH, then ANDROID_HOME)
+//	GANTRY_TEST_SERIAL          device serial (default: the sole connected device)
+//	GANTRY_TEST_APP_ID          installed application id (default: gantry.json mobile.id)
+//	GANTRY_TEST_ALLOW_CLEAR     "1": pm clear before each test instance (hermetic device runs)
 //	GANTRY_UPDATE_GOLDENS       "1": rewrite golden files instead of comparing
 
 // appConfig is the slice of gantry.json the driver needs: identity for
@@ -33,6 +37,9 @@ type appConfig struct {
 	Name    string             `json:"name"`
 	Version string             `json:"version"`
 	Args    map[string]argSpec `json:"args"`
+	Mobile  *struct {
+		ID string `json:"id"`
+	} `json:"mobile"`
 }
 
 type argSpec struct {

@@ -93,6 +93,14 @@ class MainActivity : Activity() {
         askPermissionsOnce()
 
         val backend = (application as GantryApp).backend
+        // gantry test --device android launches with a runner-chosen
+        // port/token/environment in intent extras; a debuggable build
+        // honors them (applyTestConfig no-ops in release builds).
+        val testPort = intent?.getIntExtra("gantry.test.port", 0) ?: 0
+        val testToken = intent?.getStringExtra("gantry.test.token")
+        if (testPort != 0 && testToken != null) {
+            backend.applyTestConfig(testPort, testToken, intent?.getStringExtra("gantry.test.env"))
+        }
         backend.onReady { port ->
             runOnUiThread {
                 // The first load carries the token; the server sets it as

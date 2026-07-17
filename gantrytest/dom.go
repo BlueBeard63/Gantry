@@ -397,8 +397,15 @@ func (e *Element) Screenshot(name string) {
 // failure.png automatically.
 func (a *App) Screenshot(name string) {
 	a.t.Helper()
-	d := a.requireDOM("Screenshot")
-	data, err := d.screenshot(nil)
+	var data []byte
+	var err error
+	if a.cdp != nil {
+		data, err = a.cdp.screenshot(nil)
+	} else if data, err = a.proc.screenshot(); err != nil {
+		// Device targets capture through adb; a headless desktop
+		// launch has no screen to shoot - point at the DOM plane.
+		a.requireDOM("Screenshot")
+	}
 	if err != nil {
 		a.t.Fatalf("gantrytest: capturing a screenshot: %v", err)
 	}

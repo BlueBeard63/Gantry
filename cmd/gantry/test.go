@@ -33,6 +33,8 @@ func cmdTest(args []string) error {
 	record := fs.Bool("record", false, "record a screencast.avi artifact for every DOM-plane test (implies keeping those artifacts)")
 	keep := fs.Bool("keep-artifacts", false, "keep passing tests' artifacts too (test-results/)")
 	mode := fs.String("mode", "development", "app mode for the suite: development or production")
+	device := fs.String("device", "", `run the suite on a device instead of the desktop: "android" (sole connected device/emulator) or "android:SERIAL"`)
+	allowDeviceData := fs.Bool("allow-device-data", false, "allow the hermetic pm clear (wipes the app's on-device data) on a physical device; emulators always allow it")
 	par := fs.Int("p", defaultParallel(), "test parallelism (each parallel test is a full app process)")
 	verbose := fs.Bool("v", false, "verbose go test output")
 	update := fs.Bool("update", false, "update golden files (widget snapshots) instead of comparing")
@@ -83,6 +85,21 @@ func cmdTest(args []string) error {
 		return fmt.Errorf("go build failed: %w", err)
 	}
 
+	// A device target (tier M1): build + install the debug APK and hand
+	// the driver the adb backend's environment. One app instance per
+	// device, so parallelism drops to 1.
+	var deviceEnv []string
+	if *device != "" {
+		deviceEnv, err = prepareDeviceTarget(appDir, cfg, *device, *allowDeviceData)
+		if err != nil {
+			return err
+		}
+		if *par != 1 {
+			info("device target: parallelism forced to 1 (one app instance per device)")
+			*par = 1
+		}
+	}
+
 	env := append(os.Environ(),
 		"GANTRY_TEST_APP_DIR="+appDir,
 		"GANTRY_TEST_BIN="+binPath,
@@ -101,6 +118,7 @@ func cmdTest(args []string) error {
 	if *update {
 		env = append(env, "GANTRY_UPDATE_GOLDENS=1")
 	}
+	env = append(env, deviceEnv...)
 
 	goArgs := []string{"test", "./tests/...",
 		"-count=1", // e2e runs are never cacheable

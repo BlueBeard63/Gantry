@@ -129,11 +129,12 @@ type App struct {
 	appCfg appConfig
 	appDir string
 
-	be     backend
-	spec   launchSpec
-	proc   proc
-	client *client
-	art    *artifacts
+	be       backend
+	onDevice bool
+	spec     launchSpec
+	proc     proc
+	client   *client
+	art      *artifacts
 
 	// DOM plane (WithDOM / headed on Windows): the webview's devtools
 	// port, the CDP connection attached to it, and the screencast
@@ -162,13 +163,24 @@ func Launch(t testing.TB, opts ...Option) *App {
 		o(&cfg)
 	}
 
+	// A device target (tier M1) launches the installed APK through the
+	// adb backend instead of a local process; the protocol plane works
+	// unchanged, the DOM plane on device is tier M2.
+	onDevice := Target() != "desktop"
+	if onDevice && Target() != "android" {
+		t.Skipf("gantrytest: unsupported device target %q (android is what tier M1 ships; ios comes later)", Target())
+	}
+	if cfg.dom && onDevice {
+		t.Skipf("gantrytest: the DOM plane on a device is tier M2 (target %s)", Target())
+	}
+
 	// The DOM plane needs a CDP-speaking webview: WebView2. Linux runs
 	// WebKitGTK (its own inspector protocol) - that lands later; the
 	// protocol plane stays fully cross-platform.
 	if cfg.dom && runtime.GOOS != "windows" {
 		t.Skipf("gantrytest: the DOM plane needs WebView2 (Windows-only for now; host is %s)", runtime.GOOS)
 	}
-	dom := cfg.dom || (cfg.headed && runtime.GOOS == "windows")
+	dom := !onDevice && (cfg.dom || (cfg.headed && runtime.GOOS == "windows"))
 	record := cfg.record && dom
 
 	appDir := cfg.appDir
@@ -187,8 +199,10 @@ func Launch(t testing.TB, opts ...Option) *App {
 		t.Fatalf("gantrytest: %v", err)
 	}
 
+	// The device runs the installed APK; only desktop targets need the
+	// host binary.
 	bin := cfg.binPath
-	if bin == "" {
+	if bin == "" && !onDevice {
 		bin = testBinary(t, appDir, appCfg)
 	}
 
@@ -200,37 +214,57 @@ func Launch(t testing.TB, opts ...Option) *App {
 	// pass would be pointless.
 	art := newArtifacts(t, artRoot, cfg.keep || record)
 
-	configDir := tempConfigDir(t)
-	env := append(os.Environ(), "GANTRY_MODE="+cfg.mode)
-	env = append(env, argEnv(t, appCfg, cfg.args)...)
-	env = append(env, configDirEnv(configDir)...)
+	// The test's env deltas, kept separate from the full process env:
+	// device backends can only inject the deltas (the shell owns the
+	// rest of the server's environment).
+	args := argEnv(t, appCfg, cfg.args)
+	overrides := append([]string{"GANTRY_MODE=" + cfg.mode}, args...)
+	overrides = append(overrides, cfg.env...)
+
+	var be backend = localBackend{}
+	var env []string
+	var configDir string
 	var debugPort int
-	if dom {
-		// A per-instance devtools port, passed the official WebView2
-		// way; the window opens for real but parks off-screen unless
-		// the test is headed.
-		debugPort = freeTCPPort(t)
-		env = append(env, "WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS=--remote-debugging-port="+strconv.Itoa(debugPort))
-		if !cfg.headed {
-			env = append(env, "GANTRY_WINDOW_OFFSCREEN=1")
+	if onDevice {
+		be = androidBackendFromEnv(t, appCfg)
+	} else {
+		configDir = tempConfigDir(t)
+		env = append(os.Environ(), "GANTRY_MODE="+cfg.mode)
+		env = append(env, args...)
+		env = append(env, configDirEnv(configDir)...)
+		if dom {
+			// A per-instance devtools port, passed the official WebView2
+			// way; the window opens for real but parks off-screen unless
+			// the test is headed.
+			debugPort = freeTCPPort(t)
+			env = append(env, "WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS=--remote-debugging-port="+strconv.Itoa(debugPort))
+			if !cfg.headed {
+				env = append(env, "GANTRY_WINDOW_OFFSCREEN=1")
+			}
 		}
+		env = append(env, cfg.env...)
 	}
-	env = append(env, cfg.env...)
 
 	a := &App{
 		t: t, cfg: cfg, appCfg: appCfg, appDir: appDir,
-		be:        localBackend{},
+		be:        be,
+		onDevice:  onDevice,
 		art:       art,
 		debugPort: debugPort,
 		spec: launchSpec{
 			bin: bin, appDir: appDir, appName: appCfg.Name,
-			configDir: configDir, env: env, window: cfg.headed || dom,
+			configDir: configDir, env: env, overrides: overrides,
+			window: cfg.headed || dom,
 			appLog: art.appLog, timeout: 60 * time.Second,
 		},
 	}
 	t.Cleanup(a.teardown)
 
-	art.trace.action("launch %s (mode=%s headed=%v dom=%v)", bin, cfg.mode, cfg.headed, dom)
+	if onDevice {
+		art.trace.action("launch %s on %s (mode=%s)", appCfg.Name, Target(), cfg.mode)
+	} else {
+		art.trace.action("launch %s (mode=%s headed=%v dom=%v)", bin, cfg.mode, cfg.headed, dom)
+	}
 	a.proc, err = a.be.launch(a.spec)
 	if err != nil {
 		t.Fatalf("gantrytest: launching the app: %v", err)
@@ -239,8 +273,9 @@ func Launch(t testing.TB, opts ...Option) *App {
 
 	// With a webview attached the driver connects as an observer, so it
 	// never displaces the frontend's connection (the server allows one
-	// real client and any number of observers).
-	a.client, err = dialClient(t, art.trace, a.proc.port(), cfg.timeout, dom)
+	// real client and any number of observers). On a device the app's
+	// own WebView is always attached, so the driver always observes.
+	a.client, err = dialClient(t, art.trace, a.proc.port(), cfg.timeout, dom || onDevice, a.proc.token())
 	if err != nil {
 		t.Fatalf("gantrytest: %v", err)
 	}
@@ -296,6 +331,14 @@ func (a *App) teardown() {
 		}
 		a.rec = nil
 	}
+	// Without a DOM plane the process-control plane may still have a
+	// screen to shoot (device backends): the same automatic failure
+	// artifact, captured before the app is stopped.
+	if a.t.Failed() && a.cdp == nil && a.proc != nil {
+		if data, err := a.proc.screenshot(); err == nil {
+			a.art.savePNG(a.t, "failure", data)
+		}
+	}
 	if a.client != nil {
 		a.client.close()
 	}
@@ -304,7 +347,9 @@ func (a *App) teardown() {
 		a.art.saveFile("crash.log", a.proc.crashLogPath())
 	}
 	a.art.finalize(a.t)
-	removeTempDir(a.t, a.spec.configDir)
+	if a.spec.configDir != "" {
+		removeTempDir(a.t, a.spec.configDir)
+	}
 }
 
 // tempConfigDir makes the per-test stand-in for the user config dir.
@@ -354,7 +399,7 @@ func (a *App) Restart() {
 		a.t.Fatalf("gantrytest: relaunching the app: %v", err)
 	}
 	a.art.trace.action("app ready on port %d after restart", a.proc.port())
-	a.client, err = dialClient(a.t, a.art.trace, a.proc.port(), a.cfg.timeout, a.spec.window)
+	a.client, err = dialClient(a.t, a.art.trace, a.proc.port(), a.cfg.timeout, a.spec.window || a.onDevice, a.proc.token())
 	if err != nil {
 		a.t.Fatalf("gantrytest: %v", err)
 	}

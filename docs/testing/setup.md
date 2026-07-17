@@ -79,7 +79,9 @@ gantry test [flags] [pattern]
 | `--headed` | real window instead of headless (and the [DOM plane](dom.md) with it, on Windows) |
 | `--record` | record `screencast.avi` for every DOM-plane test (implies keeping those artifacts) |
 | `--mode production` | run apps in production mode |
-| `-p N` | parallelism (default NumCPU/2 - each parallel test is a full app process) |
+| `--device android[:SERIAL]` | run the suite on a plugged-in phone or emulator instead of the desktop ([mobile](mobile.md)) |
+| `--allow-device-data` | allow the hermetic `pm clear` (wipes the app's on-device data) on a physical device; emulators always allow it |
+| `-p N` | parallelism (default NumCPU/2 - each parallel test is a full app process; forced to 1 with `--device`) |
 | `--keep-artifacts` | keep passing tests' artifacts too |
 | `--update` | rewrite golden files ([widget snapshots](widgets.md)) instead of comparing |
 | `-v` | verbose go test output |

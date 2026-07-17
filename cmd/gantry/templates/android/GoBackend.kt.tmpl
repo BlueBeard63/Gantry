@@ -2,6 +2,8 @@
 package [[.ID]]
 
 import android.content.Context
+import android.content.pm.ApplicationInfo
+import android.util.Base64
 import android.util.Log
 import java.io.BufferedReader
 import java.io.File
@@ -17,16 +19,85 @@ import java.security.SecureRandom
 class GoBackend(private val context: Context) {
     // token guards the loopback server: only pages opened by this shell
     // (which appends ?gantry_token= on the first load) can talk to it.
-    val token: String = ByteArray(16).let { b ->
+    // A test run (below) substitutes the runner's own token.
+    private val randomToken: String = ByteArray(16).let { b ->
         SecureRandom().nextBytes(b)
         b.joinToString("") { "%02x".format(it) }
     }
+    val token: String get() = testToken ?: randomToken
 
     private val lock = Object()
     private var port = 0
     private val listeners = mutableListOf<(Int) -> Unit>()
     private val onceListeners = mutableListOf<(Int) -> Unit>()
     @Volatile private var stopped = false
+
+    // Test overrides (gantry test --device android): a debuggable build
+    // honors a runner-chosen fixed port, token and extra server
+    // environment, so the test runner can adb-forward to a port it
+    // knows and authenticate with a token it chose. The runner writes
+    // them (base64ed: port, token, then K=V env lines) into
+    // files/.gantry-test.config through run-as before am start -
+    // readable here before the first spawn, so the crash.log handoff is
+    // never consumed by a throwaway pre-config server - and repeats
+    // them as intent extras, which applyTestConfig treats as a no-op
+    // confirmation (or a config change to restart into). A
+    // test-configured server also stays dead when it exits: the runner
+    // owns relaunches (its WaitExit/Restart semantics), so the
+    // supervisor restart below is suspended.
+    @Volatile private var testPort = 0
+    @Volatile private var testToken: String? = null
+    @Volatile private var testEnv: Map<String, String> = emptyMap()
+    @Volatile private var current: Process? = null
+
+    private fun debuggable() =
+        (context.applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE) != 0
+
+    private fun parseTestEnv(lines: List<String>): Map<String, String> {
+        val env = HashMap<String, String>()
+        for (line in lines) {
+            val i = line.indexOf('=')
+            if (i > 0) env[line.substring(0, i)] = line.substring(i + 1)
+        }
+        return env
+    }
+
+    private fun loadTestConfig() {
+        if (!debuggable()) return
+        val f = File(context.filesDir, ".gantry-test.config")
+        val b64 = try {
+            f.readText().trim()
+        } catch (e: Exception) {
+            return
+        }
+        if (b64.isEmpty()) return
+        val lines = String(Base64.decode(b64, Base64.DEFAULT)).split('\n')
+        if (lines.size < 2) return
+        val filePort = lines[0].toIntOrNull() ?: 0
+        if (filePort == 0 || lines[1].isEmpty()) return
+        testPort = filePort
+        testToken = lines[1]
+        testEnv = parseTestEnv(lines.drop(2))
+        Log.i(TAG, "test config from ${f.name}: port=$filePort")
+    }
+
+    fun applyTestConfig(newPort: Int, newToken: String, envB64: String?) {
+        if (!debuggable()) return
+        val env = if (envB64.isNullOrEmpty()) {
+            emptyMap()
+        } else {
+            parseTestEnv(String(Base64.decode(envB64, Base64.DEFAULT)).split('\n'))
+        }
+        synchronized(lock) {
+            if (testPort == newPort && testToken == newToken && testEnv == env) return
+            testPort = newPort
+            testToken = newToken
+            testEnv = env
+            port = 0
+        }
+        Log.i(TAG, "test config: port=$newPort - restarting the server")
+        current?.destroy()
+    }
 
     // onReady runs cb (on a backend thread) with the server's port -
     // immediately if it is already up, and again with the new port after
@@ -51,12 +122,14 @@ class GoBackend(private val context: Context) {
     }
 
     fun start() {
+        loadTestConfig()
         Thread(::runLoop, "gantry-backend").apply { isDaemon = true }.start()
     }
 
     private fun runLoop() {
         var backoffMs = 500L
         while (!stopped) {
+            val cfgPort = testPort
             val startedAt = System.currentTimeMillis()
             try {
                 runOnce()
@@ -64,6 +137,11 @@ class GoBackend(private val context: Context) {
                 Log.e(TAG, "backend failed", e)
             }
             if (stopped) return
+            // A test config landing mid-run means this run was the
+            // pre-config spawn: relaunch with the overrides right away.
+            if (testPort != cfgPort) continue
+            // A test-configured server stays dead; the runner relaunches.
+            if (cfgPort != 0) return
             // A run that survived a while was healthy: reset the backoff.
             if (System.currentTimeMillis() - startedAt > 30_000) backoffMs = 500L
             Log.w(TAG, "backend exited, restarting in ${backoffMs}ms")
@@ -77,16 +155,23 @@ class GoBackend(private val context: Context) {
     }
 
     private fun runOnce() {
+        val cfgPort = testPort
+        val cfgToken = token
         val exe = File(context.applicationInfo.nativeLibraryDir, "libgantryapp.so")
         val pb = ProcessBuilder(
             exe.absolutePath,
-            "--port", "0", "--no-open", "--announce-ready",
-            "--token", token,
+            "--port", cfgPort.toString(), "--no-open", "--announce-ready",
+            "--token", cfgToken,
         )
         pb.environment()["HOME"] = context.filesDir.absolutePath
         pb.environment()["TMPDIR"] = context.cacheDir.absolutePath
+        pb.environment().putAll(testEnv)
         pb.redirectErrorStream(true)
         val p = pb.start()
+        current = p
+        // A test config that raced in between the snapshot above and
+        // start: kill the stale spawn, the loop relaunches with it.
+        if (testPort != cfgPort || token != cfgToken) p.destroy()
         BufferedReader(InputStreamReader(p.inputStream)).useLines { lines ->
             for (line in lines) {
                 // Control lines let the server drive shell-side Android
