@@ -27,6 +27,7 @@ type scaffold struct {
 	Tray       bool
 	Multi      bool
 	Tea        bool
+	Tailwind   bool
 	BtnMin     bool
 	BtnMax     bool
 	BtnClose   bool
@@ -72,6 +73,8 @@ func cmdNew(args []string) error {
 	multi := fs.Bool("multi", false, "multi-page app (skips the prompt)")
 	tea := fs.Bool("tea", false, "Tea-style page (Go Model/Update/View; skips the prompt)")
 	plain := fs.Bool("plain", false, "plain React page with paired handlers (skips the prompt)")
+	tailwind := fs.Bool("tailwind", false, "set up Tailwind v4 with theme tokens (skips the prompt)")
+	noTailwind := fs.Bool("no-tailwind", false, "plain css theme, no Tailwind (skips the prompt)")
 	port := fs.Int("port", 8330, "local server port")
 	gantryDir := fs.String("gantry-dir", "", "path to the local Gantry checkout (default: $GANTRY_DIR or auto-detect)")
 	noReplace := fs.Bool("no-replace", false, "force the published module even when a local Gantry checkout is detected")
@@ -146,6 +149,16 @@ func cmdNew(args []string) error {
 		s.Tea = askYesNo(in, "Tea-style pages (UI logic in Go)?", true)
 	}
 
+	// Tailwind.
+	switch {
+	case *tailwind:
+		s.Tailwind = true
+	case *noTailwind:
+		s.Tailwind = false
+	default:
+		s.Tailwind = askYesNo(in, "Tailwind CSS (utility classes + theme tokens)?", false)
+	}
+
 	// Default: depend on the PUBLISHED module and npm package (latest).
 	// A local checkout is used only when explicitly given (--gantry-dir
 	// or GANTRY_DIR) or silently detected by walking up from here -
@@ -177,6 +190,7 @@ func cmdNew(args []string) error {
 	cfg.Gantry = strings.TrimPrefix(taggedVersion(), "v")
 	cfg.Mode = map[bool]string{true: "multi", false: "single"}[s.Multi]
 	cfg.Style = map[bool]string{true: "tea", false: "plain"}[s.Tea]
+	cfg.Tailwind = s.Tailwind
 	cfg.Buttons.Minimize = s.BtnMin
 	cfg.Buttons.Maximize = s.BtnMax
 	cfg.Buttons.Close = s.BtnClose
@@ -259,6 +273,10 @@ func scaffoldFiles(s scaffold) []scaffoldFile {
 	if s.Tea {
 		pageStyle = "tea"
 	}
+	cssStyle := "plain"
+	if s.Tailwind {
+		cssStyle = "tailwind"
+	}
 	return []scaffoldFile{
 		{"go.mod.tmpl", "go.mod", true, false},
 		{"main.go.tmpl", "main.go", true, true},
@@ -267,7 +285,7 @@ func scaffoldFiles(s scaffold) []scaffoldFile {
 		{"tsconfig.json.tmpl", "tsconfig.json", true, false},
 		{"gitignore.tmpl", ".gitignore", true, false},
 		{"README.md.tmpl", "README.md", true, true},
-		{"index.css.tmpl", "index.css", true, true},
+		{"index-" + cssStyle + ".css.tmpl", "index.css", true, true},
 		{"dist-placeholder.html.tmpl", "webdist/index.html", true, false},
 		{"vscode-settings.json.tmpl", ".vscode/settings.json", true, false},
 		{"vscode-extensions.json.tmpl", ".vscode/extensions.json", true, false},

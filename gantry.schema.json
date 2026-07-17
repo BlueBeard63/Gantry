@@ -48,6 +48,11 @@
       "enum": ["tea", "plain"],
       "description": "Informational: the page style the scaffold generated - Tea (UI logic in Go) or plain React with paired handlers."
     },
+    "tailwind": {
+      "type": "boolean",
+      "default": false,
+      "description": "Adds the @tailwindcss/vite plugin to the synthesized Vite config. Set by gantry new --tailwind or gantry install --tailwind; the tailwindcss + @tailwindcss/vite packages must be in package.json."
+    },
     "tray": {
       "type": "boolean",
       "description": "Informational: whether the scaffold wired a system tray. The live switch is gantry.Config.Tray in main.go, and any built app can be launched with --tray or --no-tray."

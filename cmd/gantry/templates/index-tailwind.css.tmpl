@@ -1,0 +1,67 @@
+/* App-wide styles. This file loads first and applies everywhere.
+   Theme lives in the @theme block: every token is both a Tailwind
+   utility (bg-surface, text-primary, border-subtle, ...) and a real
+   CSS custom property (var(--color-surface)). The --gantry-* variables
+   the window chrome and Tea built-ins read alias those tokens, so the
+   whole app - TitleBar included - follows one palette. */
+
+@import "tailwindcss";
+@source "./pages";
+@source "./components";
+@source "./layouts";
+@source "./widgets";
+
+@theme {
+  /* Backgrounds */
+  --color-base: #101012;
+  --color-surface: #1a1a1e;
+  --color-raised: #232329;
+  --color-inset: #0b0b0d;
+  --color-hover: rgba(255, 255, 255, 0.08);
+
+  /* Borders */
+  --color-border-subtle: #2a2a2e;
+  --color-border-default: #34343a;
+  --color-border-strong: #45454d;
+
+  /* Text */
+  --color-primary: #e8e8ea;
+  --color-secondary: #9a9aa0;
+  --color-muted: #6b6b73;
+
+  /* Accent */
+  --color-accent: #6ea8fe;
+  --color-accent-hover: #8ebbfe;
+  --color-accent-press: #5590e8;
+  --color-accent-dim: #1a2333;
+  --color-accent-on: #0f1116;
+
+  /* Status */
+  --color-success: #6fce8f;
+  --color-success-dim: #17251b;
+  --color-danger: #c42b1c;
+  --color-danger-hover: #d94a3c;
+  --color-danger-dim: #2a1614;
+  --color-warning: #d9a441;
+  --color-warning-dim: #292113;
+  --color-info: #6ea8fe;
+  --color-info-dim: #1a2333;
+
+  --font-sans: "Segoe UI", system-ui, -apple-system, sans-serif;
+}
+
+/* Gantry chrome + built-ins, bridged to the theme tokens (Tailwind
+   emits @theme entries as custom properties on :root). */
+:root {
+  --gantry-bg: var(--color-base);
+  --gantry-fg: var(--color-primary);
+  --gantry-fg-dim: var(--color-secondary);
+  --gantry-accent: var(--color-accent);
+  --gantry-border: var(--color-border-subtle);
+  --gantry-titlebar-bg: transparent;
+  --gantry-btn-hover: var(--color-hover);
+  --gantry-close-hover: var(--color-danger);
+  --gantry-control-bg: var(--color-surface);
+  --gantry-control-border: var(--color-border-default);
+  --gantry-radius: 6px;
+}

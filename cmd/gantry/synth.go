@@ -43,16 +43,23 @@ import * as app from "virtual:gantry-app";
 createApp(app, { title: %q });
 `, cfg.Title)
 
-	viteConfig := `// Synthesized by gantry - regenerated on every dev/build run.
+	// Tailwind is first-class: gantry.json's "tailwind" flag adds the
+	// vite plugin here, so apps never need to own this file for it.
+	twImport, twPlugin := "", ""
+	if cfg.Tailwind {
+		twImport = "import tailwindcss from \"@tailwindcss/vite\";\n"
+		twPlugin = "tailwindcss(), "
+	}
+	viteConfig := fmt.Sprintf(`// Synthesized by gantry - regenerated on every dev/build run.
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
-import { gantry } from "gantry-web/vite";
+%simport { gantry } from "gantry-web/vite";
 
 export default defineConfig({
-  plugins: [react(), gantry({ appRoot: ".." })],
+  plugins: [%sreact(), gantry({ appRoot: ".." })],
   build: { outDir: "../webdist", emptyOutDir: true },
 });
-`
+`, twImport, twPlugin)
 
 	files := map[string]string{
 		"index.html":     indexHTML,

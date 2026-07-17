@@ -1,6 +1,6 @@
 # Command reference
 
-The gantry CLI has nine commands. dev, build, add, upgrade, mobile and docs find the app by walking up from the current directory to the nearest gantry.json, so they work from anywhere inside the app tree. Progress output is coloured when the terminal supports it; piping to a file or setting `NO_COLOR` gives plain text.
+The gantry CLI has ten commands. dev, build, add, install, upgrade, mobile and docs find the app by walking up from the current directory to the nearest gantry.json, so they work from anywhere inside the app tree. Progress output is coloured when the terminal supports it; piping to a file or setting `NO_COLOR` gives plain text.
 
 ## gantry new <name>
 
@@ -14,6 +14,7 @@ gantry new myapp [flags]
 - `--tray / --no-tray` - include a system tray or not
 - `--single / --multi` - one page, or index + settings + an example component
 - `--tea / --plain` - page style: logic in Go (Tea) or plain React with paired handlers
+- `--tailwind / --no-tailwind` - set up Tailwind v4: index.css becomes an `@theme` token file (utilities like `bg-surface`, `text-primary`) with the `--gantry-*` chrome variables bridged to the tokens, and the synthesized vite config gains `@tailwindcss/vite`
 - `--port N` - the local server port (default **8330**); also the single-instance guard
 - `--dir D` - parent directory for the app (default: **current directory**)
 - `--gantry-dir D` - path to the local Gantry checkout; default comes from `$GANTRY_DIR`, then auto-detection
@@ -81,6 +82,22 @@ gantry add -D @types/node
 ```
 
 (Anything after add is passed to npm install verbatim.)
+
+## gantry install --tailwind
+
+Retrofits an optional feature into an existing app - today that means Tailwind v4:
+
+```
+gantry install --tailwind [--yes] [--dry-run]
+```
+
+What it does:
+
+- migrates `index.css` into the Tailwind structure and shows you the diff before writing (a `index.css.bak` backup is kept). A stock scaffold file is replaced with the standard `@theme` token template; a file with your own colors keeps everything and gains an `@theme` block exposing each custom token as a utility (`--bg-base` becomes `bg-base` via `--color-base`), and any `--gantry-*` variable still holding its scaffold default is re-pointed at your matching token (`--gantry-bg: var(--bg-base)`) so the chrome follows your palette
+- installs `tailwindcss` + `@tailwindcss/vite` as devDependencies
+- sets `"tailwind": true` in gantry.json and regenerates `.gantry/vite.config.ts` with the plugin - no need to own the vite config
+
+Flags: `--yes` skips the diff confirmation, `--dry-run` prints the diff and steps without writing anything.
 
 ## gantry update
 

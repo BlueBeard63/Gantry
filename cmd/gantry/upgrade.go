@@ -183,6 +183,7 @@ func scaffoldFromConfig(cfg appConfig) scaffold {
 		Tray:     cfg.Tray,
 		Multi:    cfg.Mode == "multi",
 		Tea:      cfg.Style == "tea",
+		Tailwind: cfg.Tailwind,
 		BtnMin:   cfg.Buttons.Minimize,
 		BtnMax:   cfg.Buttons.Maximize,
 		BtnClose: cfg.Buttons.Close,

@@ -97,4 +97,9 @@ Variables cascade, so built-ins inside that page pick the override up automatica
 
 ## Tailwind and friends
 
-Nothing in gantry-web requires Tailwind - the chrome ships plain css. If you want Tailwind, add it to the app (`gantry add tailwindcss @tailwindcss/vite`) and note you would need to extend the synthesized vite config, which means graduating to [Without the CLI](../advanced/without-the-cli.md). For most apps the variables + plain css convention carries a long way.
+Nothing in gantry-web requires Tailwind - the chrome ships plain css, and the variables + plain css convention carries a long way. Tailwind v4 is supported first-class when you want it:
+
+- **New app**: `gantry new myapp --tailwind`. index.css becomes a Tailwind `@theme` token file - every color is both a utility class (`bg-surface`, `text-primary`, `border-border-subtle`) and a real CSS custom property, and the `--gantry-*` chrome variables are bridged to the tokens (`--gantry-bg: var(--color-base)`), so retheming the app and retheming the chrome is one edit.
+- **Existing app**: `gantry install --tailwind`. Installs the packages, migrates your index.css (custom colors are pulled into an `@theme` block and wired to the chrome; you review the diff first), sets `"tailwind": true` in gantry.json and regenerates the synthesized vite config with `@tailwindcss/vite` included.
+
+The `"tailwind"` flag in gantry.json is what makes `gantry dev`/`build` emit the plugin into `.gantry/vite.config.ts` - you never need to own the vite config for Tailwind. [Without the CLI](../advanced/without-the-cli.md) remains the path for other build customizations.

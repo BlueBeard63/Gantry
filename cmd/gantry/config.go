@@ -27,6 +27,9 @@ type appConfig struct {
 	Mode    string `json:"mode"`  // "single" | "multi"
 	Style   string `json:"style"` // "tea" | "plain"
 	Tray    bool   `json:"tray"`
+	// Tailwind adds @tailwindcss/vite to the synthesized vite config;
+	// set by gantry new --tailwind or gantry install --tailwind.
+	Tailwind bool `json:"tailwind,omitempty"`
 	Buttons struct {
 		Minimize bool `json:"minimize"`
 		Maximize bool `json:"maximize"`
