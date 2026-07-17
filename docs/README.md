@@ -40,6 +40,15 @@ Mobile (the same app on a phone)
 - [Notifications](mobile/notifications.md) - system notifications with actions from Go
 - [iOS](mobile/ios.md) - the experimental Xcode scaffold
 
+Testing (end-to-end tests against the real app)
+
+- [Setup](testing/setup.md) - the gantrytest driver, your first test, the gantry test command
+- [Driving the app](testing/driving.md) - pages, trees, events, calls, state, pushes, restarts
+- [Errors and artifacts](testing/errors-and-artifacts.md) - error assertions, traces, per-test recordings
+- [Widget snapshots](testing/widgets.md) - host-side widget tests and golden files
+- [Mobile testing](testing/mobile.md) - where the device story is going
+- [CI](testing/ci.md) - running the suite in a pipeline
+
 The CLI
 
 - [Command reference](cli/commands.md) - new, dev, build, add, docs, mobile

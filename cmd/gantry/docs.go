@@ -90,7 +90,7 @@ func loadDocs() ([]docPage, error) {
 		return nil, fmt.Errorf("no docs embedded (build the CLI from the Gantry repo)")
 	}
 	// README first, then category order matching the reading order.
-	rank := map[string]int{"": 0, "getting-started": 1, "shell": 2, "ui": 3, "mobile": 4, "cli": 5, "advanced": 6}
+	rank := map[string]int{"": 0, "getting-started": 1, "shell": 2, "ui": 3, "mobile": 4, "testing": 5, "cli": 6, "advanced": 7}
 	sort.SliceStable(pages, func(i, j int) bool {
 		ri, rj := rank[pages[i].category], rank[pages[j].category]
 		if ri != rj {

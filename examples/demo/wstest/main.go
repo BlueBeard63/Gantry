@@ -2,6 +2,10 @@
 // frontend would, mounts pages/index, clicks the counter button twice,
 // and checks the re-renders. Run: go run ./wstest (with demo --no-open
 // --port 8331 running).
+//
+// Superseded by the gantrytest-driven suite in ../tests (run with
+// `gantry test`), which covers everything here against an app process
+// it launches itself. Kept as a minimal raw-protocol reference.
 package main
 
 import (
