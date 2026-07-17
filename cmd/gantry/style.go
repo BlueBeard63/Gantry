@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/B-Commissions/Gantry/gerr"
 	"github.com/charmbracelet/lipgloss"
 )
 
@@ -22,6 +23,7 @@ var (
 	failStyle    = stderrStyles.NewStyle().Foreground(lipgloss.Color("196"))
 	promptQStyle = stdoutStyles.NewStyle().Bold(true)
 	hintStyle    = stdoutStyles.NewStyle().Foreground(lipgloss.Color("245"))
+	errHintStyle = stderrStyles.NewStyle().Foreground(lipgloss.Color("245"))
 )
 
 // step prints a blue progress line: what the CLI is doing right now.
@@ -49,6 +51,18 @@ func warn(format string, a ...any) {
 // caller.
 func fail(format string, a ...any) {
 	fmt.Fprintln(os.Stderr, failStyle.Render("gantry: "+fmt.Sprintf(format, a...)))
+}
+
+// failErr prints a command's final error: the message (a gerr code
+// rides inside it), plus the hint line when the error carries one.
+func failErr(err error) {
+	fail("%v", err)
+	if hint := gerr.HintOf(err); hint != "" {
+		fmt.Fprintln(os.Stderr, errHintStyle.Render("  hint: "+hint))
+	}
+	if code := gerr.CodeOf(err); code != "" {
+		fmt.Fprintln(os.Stderr, errHintStyle.Render("  see: gantry docs errors ("+code+")"))
+	}
 }
 
 // promptStr returns a styled wizard question ("Question? [Y/n] ") for

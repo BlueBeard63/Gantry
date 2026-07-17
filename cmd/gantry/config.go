@@ -2,10 +2,11 @@ package main
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
+
+	"github.com/B-Commissions/Gantry/gerr"
 )
 
 // schemaURL points editors at the gantry.json schema for validation
@@ -40,6 +41,10 @@ type appConfig struct {
 	// Linux tray). Baked into the exe at build time; code-level Icon
 	// settings override them.
 	Icons string `json:"icons,omitempty"`
+	// Args declares the app's custom arguments: gantry dev validates
+	// them on its command line and hands them to the app as environment
+	// variables; production binaries read the same variables directly.
+	Args map[string]argSpec `json:"args,omitempty"`
 	// Build configures gantry build.
 	Build struct {
 		// Targets like "windows/amd64", "linux/arm64", "mac/arm64",
@@ -53,6 +58,17 @@ type appConfig struct {
 	} `json:"build,omitempty"`
 	// Mobile is required by the android and ios build targets.
 	Mobile *mobileConfig `json:"mobile,omitempty"`
+}
+
+// argSpec declares one custom app argument in gantry.json's "args"
+// map, keyed by the flag name (lowercase-kebab). The value reaches the
+// app as an environment variable: the explicit "env" name, or
+// GANTRY_ARG_<UPPER_SNAKE> derived from the flag name.
+type argSpec struct {
+	Type        string          `json:"type,omitempty"` // "string" (default) | "bool" | "int"
+	Default     json.RawMessage `json:"default,omitempty"`
+	Description string          `json:"description,omitempty"`
+	Env         string          `json:"env,omitempty"`
 }
 
 // mobileConfig is gantry.json's "mobile" section: app identity,
@@ -118,7 +134,7 @@ func findApp() (dir string, cfg appConfig, err error) {
 		data, readErr := os.ReadFile(filepath.Join(dir, "gantry.json"))
 		if readErr == nil {
 			if err := json.Unmarshal(data, &cfg); err != nil {
-				return "", cfg, fmt.Errorf("parsing %s: %w", filepath.Join(dir, "gantry.json"), err)
+				return "", cfg, gerr.Wrap("config.parse", err, "parsing %s", filepath.Join(dir, "gantry.json"))
 			}
 			if cfg.Port == 0 {
 				cfg.Port = 8330
@@ -141,7 +157,8 @@ func findApp() (dir string, cfg appConfig, err error) {
 		}
 		parent := filepath.Dir(dir)
 		if parent == dir {
-			return "", cfg, errors.New("no gantry.json found in this directory or any parent (run inside a gantry app, or create one with gantry new)")
+			return "", cfg, gerr.New("config.not-found", "no gantry.json found in this directory or any parent").
+				WithHint("run inside a gantry app, or create one with gantry new")
 		}
 		dir = parent
 	}

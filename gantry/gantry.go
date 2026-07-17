@@ -94,6 +94,12 @@ type Config struct {
 	// Roles adds custom child-window kinds (widgets) invoked with
 	// --shellrole <name>; the "popup" role is built in.
 	Roles map[string]func(a RoleArgs) error
+
+	// Errors configures crash detection and interception. The zero
+	// value is on-by-default: panics and frontend errors are captured
+	// with the page and action trail, recorded, and shown by the
+	// built-in error UI. See ErrorOptions.
+	Errors ErrorOptions
 }
 
 // Run parses flags, dispatches helper roles, and drives the app until
@@ -115,6 +121,12 @@ func Run(cfg Config) {
 		position  = flag.String("position", "bottom", "internal: popup position top|bottom")
 	)
 	flag.Parse()
+
+	// --dev-url is the development signal when GANTRY_MODE is absent
+	// (a plain `go run . --dev-url ...` without the CLI).
+	if *devURL != "" {
+		setDevURLSeen()
+	}
 
 	// The tray is toggleable at RUN time, no rebuild: Config.Tray is
 	// just the default.
@@ -188,6 +200,15 @@ func run(cfg Config, f runFlags) error {
 	defer cancel()
 
 	app := ui.NewApp(cfg.Pairs...)
+	wireErrors(app, cfg.Errors)
+	// Uncatchable crashes (a panic on a plain goroutine) leave their
+	// trace in crash.log; a waiting trace from the last run enters the
+	// pipeline now and reaches the frontend via the errors call.
+	if !cfg.Errors.Disable {
+		if trace := setupCrashLog(cfg.Name); trace != "" {
+			reportLastCrash(app, trace)
+		}
+	}
 
 	mux := http.NewServeMux()
 	mux.Handle("/gantry/ws", app.Handler())
@@ -205,6 +226,45 @@ func run(cfg Config, f runFlags) error {
 				"version": Version(),
 			}, nil
 		},
+		// useEnv() / call("gantry", "env"): the mode and every declared
+		// arg, so the frontend can gate pages and features.
+		"env": func(json.RawMessage) (any, error) {
+			return map[string]any{
+				"mode": Mode(),
+				"args": Args(),
+			}, nil
+		},
+		// The error pipeline's frontend surface: fetch what was
+		// captured (including errors that fired while disconnected and
+		// last-run crashes), clear it, and report JS-side errors so
+		// every crash - Go or JS - lands in one place.
+		"errors": func(json.RawMessage) (any, error) {
+			return app.RecentErrors(), nil
+		},
+		"clearErrors": func(json.RawMessage) (any, error) {
+			app.ClearErrors()
+			return nil, nil
+		},
+		"reportError": func(p json.RawMessage) (any, error) {
+			var e ui.ErrorInfo
+			if err := json.Unmarshal(p, &e); err != nil {
+				return nil, err
+			}
+			log.Printf("frontend error [%s] %s: %s", e.Kind, e.Source, e.Message)
+			app.ReportErrorFromClient(e)
+			return nil, nil
+		},
+		// addBreadcrumb(): app-specific context in the error trail.
+		"breadcrumb": func(p json.RawMessage) (any, error) {
+			var c struct {
+				Detail string `json:"detail"`
+			}
+			if err := json.Unmarshal(p, &c); err != nil {
+				return nil, err
+			}
+			app.Breadcrumb(c.Detail)
+			return nil, nil
+		},
 	})
 	if cfg.Setup != nil {
 		cfg.Setup(app, mux)
@@ -218,7 +278,7 @@ func run(cfg Config, f runFlags) error {
 	// --port 0 binds an ephemeral port; everything downstream needs
 	// the real one.
 	port := ln.Addr().(*net.TCPAddr).Port
-	server := &http.Server{Handler: tokenHandler(f.token, mux)}
+	server := &http.Server{Handler: tokenHandler(f.token, recoverHandler(app, mux))}
 	errCh := make(chan error, 1)
 	go func() { errCh <- server.Serve(ln) }()
 	go func() {

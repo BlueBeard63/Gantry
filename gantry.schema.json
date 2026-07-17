@@ -81,6 +81,38 @@
       "default": "icons",
       "description": "Directory (relative to the app root) holding the default icon files: icon.ico (Windows exe + tray) and icon.png (window, Linux tray). gantry build bakes icon.ico into the exe; gantry gen embeds both as runtime defaults. Code-level Icon settings override them."
     },
+    "args": {
+      "type": "object",
+      "description": "Custom app arguments, keyed by flag name (lowercase-kebab). gantry dev validates them on its command line (gantry dev --api-host=10.0.0.5) and passes each to the app as an environment variable: the explicit \"env\" name, or GANTRY_ARG_<UPPER_SNAKE> derived from the flag name. A production binary reads the same variables at launch, falling back to the declared default - so a shipped exe needs nothing set. Read them with gantry.Arg/ArgBool/ArgInt in Go and useEnv()/useArg() in React.",
+      "additionalProperties": false,
+      "patternProperties": {
+        "^[a-z][a-z0-9-]*$": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "type": {
+              "type": "string",
+              "enum": ["string", "bool", "int"],
+              "default": "string",
+              "description": "The arg's type. Bool flags are passed as --name or --name=false (stdlib flag syntax); string and int take --name=value or --name value."
+            },
+            "default": {
+              "type": ["string", "boolean", "integer"],
+              "description": "Value when the flag/env var is absent. Must match the declared type. Defaults to the type's zero value (\"\", false, 0)."
+            },
+            "description": {
+              "type": "string",
+              "description": "One-line help shown by gantry dev --help."
+            },
+            "env": {
+              "type": "string",
+              "pattern": "^[A-Z][A-Z0-9_]*$",
+              "description": "Explicit environment variable name; defaults to GANTRY_ARG_<UPPER_SNAKE> derived from the flag name (api-host -> GANTRY_ARG_API_HOST)."
+            }
+          }
+        }
+      }
+    },
     "build": {
       "type": "object",
       "additionalProperties": false,

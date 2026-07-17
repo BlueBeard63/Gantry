@@ -62,10 +62,16 @@ A paired push from `app.Push`. Pushes named `state` feed `usePaired().state`; ev
 
 ```json
 {"t":"reply","id":"c3","ok":true,"p":{"name":"jack"}}
-{"t":"reply","id":"c3","ok":false,"err":"bad password"}
+{"t":"reply","id":"c3","ok":false,"err":"bad password","code":"auth.expired"}
 ```
 
-The answer to a call: **resolves** or **rejects** the **awaiting promise**. The client times a call out after 30 seconds if no reply lands.
+The answer to a call: **resolves** or **rejects** the **awaiting promise**. A failed reply carries the `gerr` code of the returned error when it has one (`"panic.call"` for a panicked handler), surfaced as `GantryCallError.code` / `useCall`'s `code`. The client times a call out after 30 seconds if no reply lands.
+
+```json
+{"t":"error","p":{"kind":"call-panic","code":"panic.call","source":"pages/index.save","message":"boom","stack":"...","time":"...","page":"pages/index","trail":[{"time":"...","type":"event","detail":"pages/index.increment","ok":true}]}}
+```
+
+A captured Go-side error (see [Errors](errors.md)): a recovered panic or a crash recovered from the previous run, with the page the user was on and the breadcrumb trail of recent actions. Drives the frontend error UI.
 
 ```json
 {"t":"state","key":"volume","p":0.8}

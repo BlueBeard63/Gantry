@@ -7,6 +7,7 @@ package main
 import (
 	c_example "demo/components/example"
 	p_account_profile "demo/pages/account/profile"
+	p_debug "demo/pages/debug"
 	p_index "demo/pages/index"
 	p_settings "demo/pages/settings"
 )
@@ -16,6 +17,7 @@ func gantryPairs() []any {
 	return []any{
 		c_example.Component,
 		p_account_profile.Page,
+		p_debug.Page,
 		p_index.Page,
 		p_settings.Page,
 	}

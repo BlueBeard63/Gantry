@@ -6,9 +6,11 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"runtime/debug"
 	"sync"
 	"time"
 
+	"github.com/B-Commissions/Gantry/gerr"
 	"github.com/coder/websocket"
 )
 
@@ -40,6 +42,10 @@ type replyMsg struct {
 	OK  bool   `json:"ok"`
 	P   any    `json:"p,omitempty"`
 	Err string `json:"err,omitempty"`
+	// Code carries the gerr code of a failed call ("panic.call", or the
+	// code of the error the handler returned), so the frontend can
+	// switch on it.
+	Code string `json:"code,omitempty"`
 }
 
 type renderMsg struct {
@@ -192,6 +198,15 @@ func (a *App) readLoop(c *conn) {
 			c.mu.Lock()
 			c.page = msg.Page
 			c.mu.Unlock()
+			a.mu.Lock()
+			samePage := a.activePage == msg.Page
+			a.activePage = msg.Page
+			a.mu.Unlock()
+			// Reconnects re-announce the same page; only real
+			// navigation belongs in the error trail.
+			if !samePage {
+				a.recordCrumb("navigate", msg.Page, true)
+			}
 			if prog := a.program(msg.Page); prog != nil {
 				prog.setDeliver(c.sendRender)
 			}
@@ -203,6 +218,7 @@ func (a *App) readLoop(c *conn) {
 				c.mu.Lock()
 				page := c.page
 				c.mu.Unlock()
+				a.recordCrumb("event", page+" tea:"+msg.H, true)
 				a.mu.Lock()
 				prog := a.programs[page]
 				a.mu.Unlock()
@@ -211,11 +227,19 @@ func (a *App) readLoop(c *conn) {
 				}
 			case msg.Key != "":
 				// Paired event for a page or component.
+				a.recordCrumb("event", msg.Key+"."+msg.Name, true)
 				if fn := a.pairedHandler(msg.Key, msg.Name); fn != nil {
 					func() {
 						defer func() {
 							if r := recover(); r != nil {
 								log.Printf("ui: %s.%s handler panicked: %v", msg.Key, msg.Name, r)
+								a.ReportError(ErrorInfo{
+									Kind:    "event-panic",
+									Code:    "panic.event",
+									Source:  msg.Key + "." + msg.Name,
+									Message: fmt.Sprint(r),
+									Stack:   string(debug.Stack()),
+								})
 							}
 						}()
 						fn(msg.P)
@@ -236,22 +260,42 @@ func (a *App) readLoop(c *conn) {
 				continue
 			}
 			payload := msg.P
+			key, name := msg.Key, msg.Name
 			go func() {
 				defer func() {
 					if r := recover(); r != nil {
-						log.Printf("ui: call %s.%s panicked: %v", msg.Key, msg.Name, r)
-						c.write(replyMsg{T: "reply", ID: id, OK: false, Err: "internal error"})
+						log.Printf("ui: call %s.%s panicked: %v", key, name, r)
+						a.recordCrumb("call", key+"."+name+" -> panic", false)
+						a.ReportError(ErrorInfo{
+							Kind:    "call-panic",
+							Code:    "panic.call",
+							Source:  key + "." + name,
+							Message: fmt.Sprint(r),
+							Stack:   string(debug.Stack()),
+						})
+						c.write(replyMsg{T: "reply", ID: id, OK: false,
+							Err: fmt.Sprintf("panic in %s.%s: %v", key, name, r), Code: "panic.call"})
 					}
 				}()
 				result, err := fn(payload)
 				if err != nil {
-					c.write(replyMsg{T: "reply", ID: id, OK: false, Err: err.Error()})
+					// A returned error is control flow, not a crash: it
+					// rejects the awaiting call (with its gerr code) and
+					// marks the trail, but never hits the error pipeline.
+					if key != "gantry" {
+						a.recordCrumb("call", key+"."+name+" -> err: "+err.Error(), false)
+					}
+					c.write(replyMsg{T: "reply", ID: id, OK: false, Err: err.Error(), Code: gerr.CodeOf(err)})
 					return
+				}
+				if key != "gantry" {
+					a.recordCrumb("call", key+"."+name+" -> ok", true)
 				}
 				c.write(replyMsg{T: "reply", ID: id, OK: true, P: result})
 			}()
 
 		case "setstate":
+			a.recordCrumb("state", msg.Key, true)
 			a.applyFrontendState(msg.Key, msg.P)
 		}
 	}

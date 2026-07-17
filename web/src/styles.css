@@ -307,3 +307,250 @@
   min-height: 0;
   overflow: auto;
 }
+
+/* ---- error UI (ErrorScreen.tsx) ---- */
+
+.gantry-error-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9998;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: color-mix(in srgb, var(--gantry-bg) 82%, black);
+}
+
+.gantry-error-card {
+  max-width: 720px;
+  max-height: 80vh;
+  overflow: auto;
+  padding: 20px 24px;
+  border: 1px solid color-mix(in srgb, var(--gantry-fg) 15%, transparent);
+  border-radius: 10px;
+  background: var(--gantry-bg);
+  color: var(--gantry-fg);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.35);
+}
+
+.gantry-error-title {
+  font-size: 17px;
+  font-weight: 600;
+  color: #e5484d;
+  margin-bottom: 8px;
+}
+
+.gantry-error-message {
+  font-size: 14px;
+  margin-bottom: 12px;
+  word-break: break-word;
+}
+
+.gantry-error-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 10px;
+  font-size: 11px;
+}
+
+.gantry-error-meta > span {
+  padding: 2px 7px;
+  border-radius: 99px;
+  background: color-mix(in srgb, var(--gantry-fg) 8%, transparent);
+  opacity: 0.85;
+}
+
+.gantry-error-code {
+  font-family: var(--gantry-mono, ui-monospace, monospace);
+}
+
+.gantry-error-heading {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  opacity: 0.6;
+  margin: 12px 0 6px;
+}
+
+.gantry-error-stack {
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--gantry-fg) 6%, transparent);
+  font-family: var(--gantry-mono, ui-monospace, monospace);
+  font-size: 11.5px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 260px;
+  overflow: auto;
+}
+
+.gantry-error-trail {
+  margin-top: 4px;
+}
+
+.gantry-error-crumb {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+  padding: 2px 0;
+  font-size: 12px;
+}
+
+.gantry-error-crumb-failed .gantry-error-crumb-detail,
+.gantry-error-crumb-failed .gantry-error-crumb-type {
+  color: #e5484d;
+}
+
+.gantry-error-crumb-time {
+  min-width: 64px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  opacity: 0.5;
+  font-size: 11px;
+}
+
+.gantry-error-crumb-type {
+  min-width: 62px;
+  font-size: 11px;
+  opacity: 0.65;
+}
+
+.gantry-error-crumb-detail {
+  font-family: var(--gantry-mono, ui-monospace, monospace);
+  word-break: break-word;
+}
+
+.gantry-error-actions {
+  margin-top: 16px;
+  display: flex;
+  gap: 8px;
+}
+
+.gantry-error-button {
+  padding: 6px 16px;
+  border: 1px solid color-mix(in srgb, var(--gantry-fg) 20%, transparent);
+  border-radius: 6px;
+  background: var(--gantry-accent);
+  color: white;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.gantry-error-banner {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  z-index: 9999;
+  width: min(520px, calc(100vw - 32px));
+  max-height: 45vh;
+  overflow: auto;
+  padding: 12px 14px;
+  border: 1px solid #e5484d;
+  border-radius: 8px;
+  background: var(--gantry-bg);
+  color: var(--gantry-fg);
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.3);
+}
+
+.gantry-error-banner + .gantry-error-banner {
+  display: none; /* stacked banners: newest wins, dismiss reveals the next */
+}
+
+.gantry-error-banner-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  justify-content: space-between;
+}
+
+.gantry-error-banner-title {
+  font-size: 13px;
+  font-weight: 500;
+  word-break: break-word;
+}
+
+.gantry-error-dismiss {
+  border: none;
+  background: none;
+  color: var(--gantry-fg);
+  opacity: 0.6;
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0 2px;
+}
+
+.gantry-error-dismiss:hover {
+  opacity: 1;
+}
+
+/* ---- loading states (Await.tsx) ---- */
+
+.gantry-skeleton {
+  height: 14px;
+  border-radius: 4px;
+  background: linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--gantry-fg) 7%, transparent) 25%,
+    color-mix(in srgb, var(--gantry-fg) 13%, transparent) 50%,
+    color-mix(in srgb, var(--gantry-fg) 7%, transparent) 75%
+  );
+  background-size: 200% 100%;
+  animation: gantry-skeleton-shimmer 1.4s ease-in-out infinite;
+}
+
+.gantry-skeleton-lines {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+@keyframes gantry-skeleton-shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gantry-skeleton {
+    animation: none;
+  }
+}
+
+.gantry-await-error {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid color-mix(in srgb, #e5484d 40%, transparent);
+  border-radius: 6px;
+  font-size: 13px;
+}
+
+.gantry-await-error-code {
+  font-family: var(--gantry-mono, ui-monospace, monospace);
+  font-size: 11px;
+  opacity: 0.6;
+}
+
+.gantry-await-retry {
+  margin-left: auto;
+  padding: 3px 12px;
+  border: 1px solid color-mix(in srgb, var(--gantry-fg) 20%, transparent);
+  border-radius: 5px;
+  background: none;
+  color: var(--gantry-fg);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.gantry-await-retry:hover {
+  border-color: var(--gantry-accent);
+}

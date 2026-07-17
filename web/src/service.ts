@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { callGo, connect } from "./socket";
+import { callGo, connect, GantryCallError } from "./socket";
 
 export interface Service {
   /** call awaits a Go function registered on this service (ui.Calls). */
@@ -35,6 +35,8 @@ export function useService(name: string): Service {
 export interface CallResult<T> {
   data: T | undefined;
   error: string | null;
+  /** The gerr code of a failed call ("panic.call", "auth.expired", ...). */
+  code: string | null;
   loading: boolean;
   /** reload re-runs the call. */
   reload: () => void;
@@ -48,6 +50,7 @@ export interface CallResult<T> {
 export function useCall<T = unknown>(key: string, name: string, payload?: unknown): CallResult<T> {
   const [data, setData] = useState<T | undefined>(undefined);
   const [error, setError] = useState<string | null>(null);
+  const [code, setCode] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [tick, setTick] = useState(0);
   const alive = useRef(true);
@@ -57,6 +60,7 @@ export function useCall<T = unknown>(key: string, name: string, payload?: unknow
     alive.current = true;
     setLoading(true);
     setError(null);
+    setCode(null);
     callGo(key, name, payload)
       .then((v) => {
         if (alive.current) {
@@ -67,6 +71,7 @@ export function useCall<T = unknown>(key: string, name: string, payload?: unknow
       .catch((e: Error) => {
         if (alive.current) {
           setError(e.message);
+          if (e instanceof GantryCallError && e.code) setCode(e.code);
           setLoading(false);
         }
       });
@@ -78,5 +83,5 @@ export function useCall<T = unknown>(key: string, name: string, payload?: unknow
   }, [key, name, payloadKey, tick]);
 
   const reload = useCallback(() => setTick((t) => t + 1), []);
-  return { data, error, loading, reload };
+  return { data, error, code, loading, reload };
 }

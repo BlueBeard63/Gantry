@@ -91,7 +91,7 @@ func main() {
 		os.Exit(2)
 	}
 	if err != nil {
-		fail("%v", err)
+		failErr(err)
 		os.Exit(1)
 	}
 }

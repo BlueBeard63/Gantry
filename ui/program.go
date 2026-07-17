@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"runtime/debug"
 	"sync"
 	"time"
 )
@@ -67,17 +68,35 @@ type program struct {
 	// deliver sends a serialized tree to the active client; swapped by
 	// the server as connections and pages change. nil = page inactive.
 	deliver func(tree wireNode)
+	// report feeds recovered panics into the app's error pipeline.
+	report func(ErrorInfo)
 }
 
-func newProgram(key string, model Model) *program {
+func newProgram(key string, model Model, report func(ErrorInfo)) *program {
 	p := &program{
-		key:   key,
-		msgs:  make(chan Msg, 64),
-		stop:  make(chan struct{}),
-		model: model,
+		key:    key,
+		msgs:   make(chan Msg, 64),
+		stop:   make(chan struct{}),
+		model:  model,
+		report: report,
 	}
 	go p.loop()
 	return p
+}
+
+// reportPanic logs a recovered panic and feeds it to the error
+// pipeline.
+func (p *program) reportPanic(kind, code string, r any) {
+	log.Printf("ui: %s: %s: %v", p.key, kind, r)
+	if p.report != nil {
+		p.report(ErrorInfo{
+			Kind:    kind,
+			Code:    code,
+			Source:  p.key,
+			Message: fmt.Sprint(r),
+			Stack:   string(debug.Stack()),
+		})
+	}
 }
 
 // loop is the single goroutine that touches the model.
@@ -115,8 +134,9 @@ func (p *program) loop() {
 }
 
 // apply folds one message into the model; reports whether a render is
-// due.
-func (p *program) apply(msg Msg) bool {
+// due. An Update panic is recovered (the model keeps its last good
+// state) instead of killing the page's loop goroutine.
+func (p *program) apply(msg Msg) (changed bool) {
 	if batch, ok := msg.(batchMsg); ok {
 		for _, c := range batch {
 			p.runCmd(c)
@@ -126,6 +146,12 @@ func (p *program) apply(msg Msg) bool {
 	if _, ok := msg.(rerenderMsg); ok {
 		return true
 	}
+	defer func() {
+		if r := recover(); r != nil {
+			p.reportPanic("tea-update-panic", "panic.update", r)
+			changed = false
+		}
+	}()
 	model, cmd := p.model.Update(msg)
 	p.model = model
 	p.runCmd(cmd)
@@ -139,7 +165,7 @@ func (p *program) runCmd(cmd Cmd) {
 	go func() {
 		defer func() {
 			if r := recover(); r != nil {
-				log.Printf("ui: %s: command panicked: %v", p.key, r)
+				p.reportPanic("cmd-panic", "panic.cmd", r)
 			}
 		}()
 		if msg := cmd(); msg != nil {
@@ -161,7 +187,7 @@ func (p *program) send(msg Msg) {
 func (p *program) render() {
 	defer func() {
 		if r := recover(); r != nil {
-			log.Printf("ui: %s: View panicked: %v", p.key, r)
+			p.reportPanic("tea-view-panic", "panic.view", r)
 		}
 	}()
 	tree := p.model.View()

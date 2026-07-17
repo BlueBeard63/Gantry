@@ -1,12 +1,15 @@
 /// <reference path="../types/index.d.ts" />
-import { StrictMode, useEffect, type FC, type ReactNode } from "react";
+import { Component, StrictMode, useEffect, type ErrorInfo as ReactErrorInfo, type FC, type ReactNode } from "react";
 import { createRoot } from "react-dom/client";
 import { TitleBar, type TitleBarProps } from "./TitleBar";
 import { ResizeFrame } from "./ResizeFrame";
 import { installZoomGuard } from "./zoom";
-import { connect, ready } from "./socket";
+import { connect, ready, callGo } from "./socket";
 import { useRoute, redirect } from "./router";
 import { setRegistry, type ComponentRegistry, type TeaComponentProps } from "./tea/Runtime";
+import { installErrorHandlers, reportError, useGantryErrors, dismissNotice, clearFatal, setDevMode, type ErrorHandlingOptions, type GantryErrorInfo } from "./errors";
+import { ErrorScreen, type ErrorScreenProps } from "./ErrorScreen";
+import { fetchEnv, useMode } from "./env";
 
 /** The shape of a page module (a pages/<name>/<name>.tsx file). */
 export interface GantryPageModule {
@@ -72,6 +75,14 @@ export interface CreateAppOptions {
   socketURL?: string;
   /** Hide the TitleBar on every page (pages can also export chrome = false). */
   chrome?: boolean;
+  /**
+   * Crash detection and interception - on by default. A React render
+   * crash shows a full-screen error (full detail in development, a
+   * friendly card in production) instead of a white screen; Go panics
+   * and unhandled JS errors show dismissible notices in development.
+   * Replace the UI (screen), intercept (onError), or turn it off.
+   */
+  errors?: ErrorHandlingOptions & { screen?: FC<ErrorScreenProps> };
 }
 
 function keyClass(key: string): string {
@@ -134,6 +145,51 @@ function layoutsFor(page: GantryPage, chrome: boolean): FC<{ children?: ReactNod
   return out;
 }
 
+// ErrorBoundary catches render crashes below it. It wraps the page
+// content only - ResizeFrame and TitleBar stay outside, so a crashed
+// page keeps its drag and close controls.
+class ErrorBoundary extends Component<{ children: ReactNode }, { crashed: boolean }> {
+  state = { crashed: false };
+  static getDerivedStateFromError() {
+    return { crashed: true };
+  }
+  componentDidCatch(error: Error, info: ReactErrorInfo) {
+    reportError({
+      kind: "react-render",
+      code: "react.render",
+      message: error.message,
+      stack: error.stack,
+      componentStack: info.componentStack ?? undefined,
+      time: new Date().toISOString(),
+      origin: "js",
+    });
+  }
+  render() {
+    // The fatal overlay renders from the store (ErrorHost); the crashed
+    // subtree just goes away.
+    return this.state.crashed ? null : this.props.children;
+  }
+}
+
+// ErrorHost renders the (default or custom) error UI from the store:
+// the fatal overlay and the notice banners.
+function ErrorHost({ options }: { options: CreateAppOptions }) {
+  const { fatal, notices } = useGantryErrors();
+  const mode = useMode();
+  if (options.errors?.enabled === false) return null;
+  const Screen = options.errors?.screen ?? ErrorScreen;
+  return (
+    <>
+      {fatal && <Screen error={fatal} mode={mode} variant="fatal" onDismiss={clearFatal} />}
+      {notices.map((e, i) => (
+        // Newest first: the CSS shows only the first banner, dismissing
+        // it reveals the next.
+        <Screen key={i} error={e} mode={mode} variant="notice" onDismiss={() => dismissNotice(i)} />
+      )).reverse()}
+    </>
+  );
+}
+
 function AppRoot({ options }: { options: CreateAppOptions }) {
   const path = useRoute();
   const page = match(path);
@@ -155,11 +211,15 @@ function AppRoot({ options }: { options: CreateAppOptions }) {
   for (const Layout of layoutsFor(page, chrome).reverse()) {
     content = <Layout>{content}</Layout>;
   }
+  // The boundary wraps the page and layouts only: a render crash takes
+  // the content down, never the window chrome - the error overlay
+  // appears and the TitleBar keeps drag/close working.
   return (
     <div className="gantry-app">
       <ResizeFrame prefix={options.prefix} />
       {chrome && <TitleBar title={options.title} prefix={options.prefix} {...options.titleBar} />}
-      {content}
+      <ErrorBoundary>{content}</ErrorBoundary>
+      <ErrorHost options={options} />
     </div>
   );
 }
@@ -180,7 +240,22 @@ export function createApp(app: GantryAppModule, options: CreateAppOptions = {}):
     options = { ...options, ...reg.appConfig.default };
   }
   installZoomGuard();
+  installErrorHandlers(options.errors ?? {});
   connect(options.socketURL);
+  // Resolve the mode for the error UI (dev shows full detail), and
+  // surface a crash from the previous run if Go recorded one.
+  if (options.errors?.enabled !== false) {
+    fetchEnv()
+      .then((env) => setDevMode(env.mode === "development"))
+      .catch(() => {});
+    callGo("gantry", "errors")
+      .then((list) => {
+        const errs = (list ?? []) as (Omit<GantryErrorInfo, "origin"> & { kind: string })[];
+        const crash = errs.filter((e) => e.kind === "process-crash").at(-1);
+        if (crash) reportError({ ...crash, origin: "go" });
+      })
+      .catch(() => {});
+  }
 
   const registry: ComponentRegistry = {};
   for (const [key, mod] of Object.entries(reg.components)) {

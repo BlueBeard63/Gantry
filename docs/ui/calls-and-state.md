@@ -72,8 +72,33 @@ return <span>v{info?.version}</span>;
 For read paths, useCall wraps the fetch-shaped boilerplate - it runs on mount, tracks loading/error, and re-runs when inputs change:
 
 ```tsx
-const { data: me, loading, error, reload } = useCall<User>("auth", "me");
+const { data: me, loading, error, code, reload } = useCall<User>("auth", "me");
 ```
+
+`code` is the [gerr code](../advanced/errors.md) of a failed call ("auth.expired", "panic.call") so error handling can switch on identity instead of message text.
+
+## Loading states: Await and Skeleton
+
+While a Go call is in flight you usually want a placeholder, not a blank area. `Await` is the declarative wrapper around a `useCall` result: it renders your fallback while loading, an error card with a Retry button on failure (replaceable via `renderError`), and your content once data lands:
+
+```tsx
+import { Await, Skeleton, useCall } from "gantry-web";
+
+function Users() {
+  const users = useCall<User[]>("api", "listUsers");
+  return (
+    <Await call={users} fallback={<Skeleton lines={4} />}>
+      {(list) => (
+        <ul>
+          {list.map((u) => <li key={u.id}>{u.name}</li>)}
+        </ul>
+      )}
+    </Await>
+  );
+}
+```
+
+The fallback is any JSX - a spinner, custom skeleton markup shaped like your real layout, or the built-in `Skeleton`: `<Skeleton lines={4}/>` renders shimmering text lines, `<Skeleton width={240} height={120}/>` a sized block (a chart area), `<Skeleton circle/>` an avatar. It respects prefers-reduced-motion. Nothing about `Await` is mandatory - `loading` from `useCall` is right there for hand-rolled arrangements.
 
 And that is everything a custom app hook needs:
 

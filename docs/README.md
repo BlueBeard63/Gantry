@@ -47,6 +47,9 @@ The CLI
 Advanced
 
 - [Architecture](advanced/architecture.md) - processes, transport, embedding
+- [App args](advanced/args.md) - declared args, gantry dev flags, env vars
+- [Modes](advanced/modes.md) - development vs production gating
+- [Errors and crash handling](advanced/errors.md) - the error pipeline, interception, gerr codes
 - [The wire protocol](advanced/protocol.md) - what travels over the websocket
 - [Win32 notes](advanced/win32-notes.md) - hard-won Windows lessons
 - [Without the CLI](advanced/without-the-cli.md) - manual build wiring

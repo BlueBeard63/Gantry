@@ -3,6 +3,25 @@
 // backoff (webview reloads, dev server restarts, HMR) and re-announces
 // the active page on every connect so the server always re-renders.
 
+/** GantryCallError rejects a failed callGo with the gerr code the Go
+ * side attached ("panic.call", or the code of the returned error), so
+ * callers can switch on it. */
+export class GantryCallError extends Error {
+  code?: string;
+  constructor(message: string, code?: string) {
+    super(message);
+    this.name = "GantryCallError";
+    this.code = code;
+  }
+}
+
+/** The (single) consumer of server {"t":"error"} frames; errors.ts
+ * subscribes. Registered lazily to keep this module UI-free. */
+let errorListener: ((p: unknown) => void) | null = null;
+export function onServerError(fn: (p: unknown) => void): void {
+  errorListener = fn;
+}
+
 export type WireNode = {
   type: string;
   key?: string;
@@ -63,6 +82,7 @@ function open(): void {
       id?: string;
       ok?: boolean;
       err?: string;
+      code?: string;
     };
     try {
       msg = JSON.parse(e.data as string);
@@ -79,11 +99,13 @@ function open(): void {
         pending.delete(msg.id);
         clearTimeout(p.timer);
         if (msg.ok) p.resolve(msg.p);
-        else p.reject(new Error(msg.err ?? "call failed"));
+        else p.reject(new GantryCallError(msg.err ?? "call failed", msg.code));
       }
     } else if (msg.t === "state" && msg.key) {
       stateValues.set(msg.key, msg.p);
       stateListeners.get(msg.key)?.forEach((fn) => fn());
+    } else if (msg.t === "error") {
+      errorListener?.(msg.p);
     }
   };
   sock.onclose = () => {

@@ -31,7 +31,7 @@ Runs the app with live reload:
 2. starts the Vite dev server (frontend, HMR)
 3. runs `go run . --dev-url http://localhost:5173`, so the native window loads from Vite while `/api` and `/gantry/ws` proxy back to the Go port
 
-Frontend edits apply instantly in the open window. Go edits need a dev restart (Ctrl+C, `gantry dev` again). Flags: `--vite-port N` (default **5173**).
+Frontend edits apply instantly in the open window. Go edits need a dev restart (Ctrl+C, `gantry dev` again). Flags: `--vite-port N` (default **5173**), plus every arg the app declares in `gantry.json` (`gantry dev --mock-data --api-host=10.0.0.5` - validated, listed by `gantry dev --help`, and handed to the app as environment variables; see [App args](../advanced/args.md)). The app runs with `GANTRY_MODE=development` (see [Modes](../advanced/modes.md)). Everything after `--` goes to the app process unchanged (`gantry dev -- --no-tray`).
 
 ## gantry build
 

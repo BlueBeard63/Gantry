@@ -12,6 +12,18 @@
     "maximize": true,
     "close": true
   },
+  "args": {
+    "mock-data": {
+      "type": "bool",
+      "default": false,
+      "description": "serve fake data instead of the real backend"
+    },
+    "api-host": {
+      "type": "string",
+      "default": "localhost",
+      "description": "backend host the app talks to"
+    }
+  },
   "mobile": {
     "id": "ec.morrison.demo",
     "widgets": [

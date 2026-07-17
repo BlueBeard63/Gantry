@@ -79,6 +79,14 @@ type App struct {
 	states   map[string]*stateEntry // shared state vars (ui.NewState)
 	programs map[string]*program    // lazily created per Model page
 	conn     *conn                  // the active client (a desktop app has one)
+
+	// Error pipeline (errors.go): captured errors, the breadcrumb
+	// trail, the page the user is on, and the app-level hook.
+	errors      []ErrorInfo
+	crumbs      []Crumb
+	activePage  string
+	errHook     func(*ErrorInfo) bool
+	errDisabled bool
 }
 
 // NewApp registers pages and components (pass ui.Page and ui.Component
@@ -147,7 +155,7 @@ func (a *App) program(key string) *program {
 	if page == nil || page.Model == nil {
 		return nil
 	}
-	p := newProgram(key, page.Model())
+	p := newProgram(key, page.Model(), a.ReportError)
 	a.programs[key] = p
 	return p
 }
