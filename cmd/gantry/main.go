@@ -6,6 +6,7 @@
 //	gantry add <pkg...>     install npm packages into the app
 //	gantry install --<feat> add an optional feature to the app (tailwind)
 //	gantry gen              regenerate the registry files
+//	gantry test [pattern]   run the app's end-to-end tests
 //	gantry update           update the gantry CLI to the latest release
 //	gantry upgrade          upgrade the current app to the CLI's version
 //	gantry mobile dev <os>  build + run on a plugged-in phone (android|ios)
@@ -29,6 +30,7 @@ var usageCommands = []struct{ cmd, desc string }{
 	{"gantry add <pkg...>", "install npm packages into the app"},
 	{"gantry install --tailwind", "add Tailwind v4 to an existing app (theme tokens migrated)"},
 	{"gantry gen", "regenerate gantry_registry.go (dev/build do this too)"},
+	{"gantry test [pattern]", "run the app's end-to-end tests (tests/)"},
 	{"gantry update", "update the gantry CLI itself to the latest release"},
 	{"gantry upgrade", "upgrade the current app to the CLI's version (templates + packages)"},
 	{"gantry mobile dev <os>", "build + run on a plugged-in phone with live logcat (android|ios)"},
@@ -72,6 +74,9 @@ func main() {
 		err = cmdInstall(os.Args[2:])
 	case "gen":
 		err = cmdGen(os.Args[2:])
+	case "test":
+		checkForUpdate()
+		err = cmdTest(os.Args[2:])
 	case "update":
 		err = cmdUpdate(os.Args[2:])
 	case "upgrade":

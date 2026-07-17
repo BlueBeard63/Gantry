@@ -23,14 +23,24 @@ var androidABI = map[string]string{"arm64": "arm64-v8a", "amd64": "x86_64"}
 // coloured warning + skip, so desktop targets in the same run still
 // build. Returns whether the APK was actually produced.
 func buildAndroid(appDir string, cfg appConfig, arches []string) (bool, error) {
+	_, ok, err := buildAndroidAPK(appDir, cfg, arches, false)
+	return ok, err
+}
+
+// buildAndroidAPK is buildAndroid with the variant exposed: a debug
+// build (what gantry test --device android installs) is debuggable -
+// so it honors the test runner's intent extras and allows run-as - and
+// signed with the debug key; the release build is what gantry build
+// ships. Returns the dist APK path.
+func buildAndroidAPK(appDir string, cfg appConfig, arches []string, debug bool) (string, bool, error) {
 	if cfg.Mobile == nil || cfg.Mobile.ID == "" {
-		return false, fmt.Errorf(`the android target needs a "mobile" section with an "id" in gantry.json, e.g. "mobile": {"id": "com.example.%s"}`, cfg.Name)
+		return "", false, fmt.Errorf(`the android target needs a "mobile" section with an "id" in gantry.json, e.g. "mobile": {"id": "com.example.%s"}`, cfg.Name)
 	}
 	if _, err := androidPermissions(cfg.Mobile.Permissions); err != nil {
-		return false, err
+		return "", false, err
 	}
 	if _, err := cfg.versionCode(); err != nil {
-		return false, err
+		return "", false, err
 	}
 
 	tools, missing := findAndroidTools()
@@ -38,12 +48,12 @@ func buildAndroid(appDir string, cfg appConfig, arches []string) (bool, error) {
 		for _, m := range missing {
 			warn("skipping android: missing %s", m)
 		}
-		return false, nil
+		return "", false, nil
 	}
 
 	synthDir, err := writeAndroidSynth(appDir, cfg)
 	if err != nil {
-		return false, err
+		return "", false, err
 	}
 
 	// Cross-compile the Go server (frontend embedded via webdist) into
@@ -51,11 +61,16 @@ func buildAndroid(appDir string, cfg appConfig, arches []string) (bool, error) {
 	for _, arch := range arches {
 		abi, ok := androidABI[arch]
 		if !ok {
-			return false, fmt.Errorf("unknown android arch %q", arch)
+			return "", false, fmt.Errorf("unknown android arch %q", arch)
 		}
 		out := filepath.Join(synthDir, "app", "src", "main", "jniLibs", abi, "libgantryapp.so")
 		step("building android/%s (go)", arch)
-		cmd := exec.Command("go", "build", "-trimpath", "-ldflags", "-s -w "+versionLdflag(cfg), "-o", out, ".")
+		// 16 KB page-size devices (Android 15+ hardware) reject ELFs
+		// whose LOAD segments are 4 KB-aligned; the NDK's clang only
+		// aligns to 16 KB by default from r28, so pass it explicitly.
+		cmd := exec.Command("go", "build", "-trimpath",
+			"-ldflags", "-s -w "+versionLdflag(cfg)+" -extldflags=-Wl,-z,max-page-size=16384",
+			"-o", out, ".")
 		cmd.Dir = appDir
 		cmd.Env = append(os.Environ(),
 			"GOOS=android",
@@ -66,42 +81,46 @@ func buildAndroid(appDir string, cfg appConfig, arches []string) (bool, error) {
 		cmd.Stdout = os.Stdout
 		cmd.Stderr = os.Stderr
 		if err := cmd.Run(); err != nil {
-			return false, fmt.Errorf("go build android/%s failed: %w", arch, err)
+			return "", false, fmt.Errorf("go build android/%s failed: %w", arch, err)
 		}
 	}
 
 	if err := writeAndroidIcons(appDir, cfg, synthDir); err != nil {
-		return false, err
+		return "", false, err
 	}
 
 	// local.properties points Gradle at this machine's SDK; regenerated
 	// every build like the rest of the synth dir.
 	lp := "# Synthesized by gantry build - regenerated every run.\nsdk.dir=" + filepath.ToSlash(tools.SDK) + "\n"
 	if err := os.WriteFile(filepath.Join(synthDir, "local.properties"), []byte(lp), 0o644); err != nil {
-		return false, err
+		return "", false, err
 	}
 
-	step("assembling APK (gradle - the first run downloads Gradle itself)")
+	variant, suffix := "release", ""
+	if debug {
+		variant, suffix = "debug", "-debug"
+	}
+	step("assembling %s APK (gradle - the first run downloads Gradle itself)", variant)
 	gradlew := filepath.Join(synthDir, "gradlew")
 	if runtime.GOOS == "windows" {
 		gradlew += ".bat"
 	}
-	gradle := exec.Command(gradlew, ":app:assembleRelease", "--no-daemon")
+	gradle := exec.Command(gradlew, ":app:assemble"+title(variant), "--no-daemon")
 	gradle.Dir = synthDir
 	gradle.Env = append(os.Environ(), "JAVA_HOME="+tools.JavaHome, "ANDROID_HOME="+tools.SDK)
 	gradle.Stdout = os.Stdout
 	gradle.Stderr = os.Stderr
 	if err := gradle.Run(); err != nil {
-		return false, fmt.Errorf("gradle build failed: %w", err)
+		return "", false, fmt.Errorf("gradle build failed: %w", err)
 	}
 
-	apk := filepath.Join(synthDir, "app", "build", "outputs", "apk", "release", "app-release.apk")
-	dest := filepath.Join(appDir, "dist", "android", fmt.Sprintf("%s-%s.apk", cfg.Name, cfg.Version))
+	apk := filepath.Join(synthDir, "app", "build", "outputs", "apk", variant, "app-"+variant+".apk")
+	dest := filepath.Join(appDir, "dist", "android", fmt.Sprintf("%s-%s%s.apk", cfg.Name, cfg.Version, suffix))
 	if err := copyFile(apk, dest); err != nil {
-		return false, fmt.Errorf("copying APK to dist: %w", err)
+		return "", false, fmt.Errorf("copying APK to dist: %w", err)
 	}
 	success("android APK - %s", dest)
-	return true, nil
+	return dest, true, nil
 }
 
 // writeAndroidIcons writes the launcher icon at every mipmap density,

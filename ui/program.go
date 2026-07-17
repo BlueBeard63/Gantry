@@ -65,9 +65,12 @@ type program struct {
 	handlers map[string]handlerFn // current render generation
 	prev     map[string]handlerFn // previous generation - an event racing a re-render still resolves
 	nextID   int
-	// deliver sends a serialized tree to the active client; swapped by
-	// the server as connections and pages change. nil = page inactive.
+	// deliver sends a serialized tree to the active client (and any
+	// observers); swapped by the server as connections and pages
+	// change. nil = page inactive. owner is the conn the delivery
+	// belongs to, so a departing observer can't cut off the webview.
 	deliver func(tree wireNode)
+	owner   *conn
 	// report feeds recovered panics into the app's error pipeline.
 	report func(ErrorInfo)
 }
@@ -240,10 +243,11 @@ func (p *program) handleEvent(id string, payload json.RawMessage) {
 	}
 }
 
-// setDeliver activates (or deactivates, with nil) render delivery and
-// pushes a full render immediately on activation.
-func (p *program) setDeliver(deliver func(wireNode)) {
+// setDeliver activates render delivery on behalf of owner and pushes a
+// full render immediately.
+func (p *program) setDeliver(owner *conn, deliver func(wireNode)) {
 	p.mu.Lock()
+	p.owner = owner
 	p.deliver = deliver
 	p.mu.Unlock()
 	if deliver != nil {
@@ -252,6 +256,26 @@ func (p *program) setDeliver(deliver func(wireNode)) {
 		p.send(rerenderMsg{})
 	}
 }
+
+// clearDeliver deactivates delivery, but only when owner still owns it.
+func (p *program) clearDeliver(owner *conn) {
+	p.mu.Lock()
+	if p.owner == owner {
+		p.owner = nil
+		p.deliver = nil
+	}
+	p.mu.Unlock()
+}
+
+// hasDeliverer reports whether anyone currently receives renders.
+func (p *program) hasDeliverer() bool {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	return p.deliver != nil
+}
+
+// rerender requests a fresh render without changing delivery.
+func (p *program) rerender() { p.send(rerenderMsg{}) }
 
 // rerenderMsg makes the loop emit a render without changing the model.
 type rerenderMsg struct{}

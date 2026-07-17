@@ -79,6 +79,10 @@ type App struct {
 	states   map[string]*stateEntry // shared state vars (ui.NewState)
 	programs map[string]*program    // lazily created per Model page
 	conn     *conn                  // the active client (a desktop app has one)
+	// observers are extra ?observer=1 connections (the test driver's
+	// protocol tap while the webview drives): every outbound frame fans
+	// out to them, and their events/calls work like the real client's.
+	observers map[*conn]struct{}
 
 	// Error pipeline (errors.go): captured errors, the breadcrumb
 	// trail, the page the user is on, and the app-level hook.
@@ -135,13 +139,9 @@ func (a *App) Send(msg Msg) {
 // Push sends a named event to the paired tsx of a page or component
 // (received via usePaired().on). No-op when no client is connected.
 func (a *App) Push(key, event string, payload any) {
-	a.mu.Lock()
-	c := a.conn
-	a.mu.Unlock()
-	if c == nil {
-		return
+	for _, c := range a.allClients() {
+		c.push(key, event, payload)
 	}
-	c.push(key, event, payload)
 }
 
 // program returns (creating if needed) the program for a Model page.

@@ -1,0 +1,29 @@
+// Your app's first end-to-end test. `gantry test` builds the real app,
+// runs it, and drives it through the gantrytest driver - the real Go
+// process and websocket, not a mock. See docs/testing/ for the full API
+// (element-level DOM driving, screenshots, screencasts, error assertions,
+// and the gantry_test_report.html viewer).
+package tests
+
+import (
+	"testing"
+
+	"github.com/B-Commissions/Gantry/gantrytest"
+)
+
+func TestIndexSmoke(t *testing.T) {
+	t.Parallel()
+	app := gantrytest.Launch(t) // builds + starts the app, cleans up after
+	app.Ready("pages/index")    // mount the index page
+
+	app.ExpectNoErrors() // the app launched and mounted with no errors
+
+	// Grow this into a real test: drive the DOM with the counter button
+	// (data-testid="counter") once you launch with gantrytest.WithDOM():
+	//
+	//   app := gantrytest.Launch(t, gantrytest.WithDOM())
+	//   page := app.Page("/")
+	//   page.Find(`[data-testid="counter"]`).Click()
+	//
+	// See docs/testing/dom.md.
+}

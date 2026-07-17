@@ -1,0 +1,29 @@
+// Your app's first end-to-end test. `gantry test` builds the real app,
+// runs it, and drives it through the gantrytest driver - the real Go
+// process and websocket, not a mock. See docs/testing/ for the full API
+// (element-level DOM driving, screenshots, screencasts, error assertions,
+// and the gantry_test_report.html viewer).
+package tests
+
+import (
+	"strings"
+	"testing"
+
+	"github.com/B-Commissions/Gantry/gantrytest"
+)
+
+func TestIndexCounter(t *testing.T) {
+	t.Parallel()
+	app := gantrytest.Launch(t) // builds + starts the app, cleans up after
+	app.Ready("pages/index")    // mount the page, like the frontend would
+
+	tree := app.WaitTree("first render", func(n *gantrytest.Node) bool {
+		return strings.Contains(n.Text(), "count is 0")
+	})
+	app.Click(tree.Find("button")) // fire the button's Tea click handler
+	app.WaitTree("count advanced", func(n *gantrytest.Node) bool {
+		return strings.Contains(n.Text(), "count is 1")
+	})
+
+	app.ExpectNoErrors() // nothing landed in the error pipeline
+}

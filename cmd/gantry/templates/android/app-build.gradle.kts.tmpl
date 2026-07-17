@@ -26,6 +26,13 @@ android {
         }
     }
 [[end]]    buildTypes {
+        debug {
+            // The debug variant is what gantry test --device installs:
+            // the suffixed id keeps the test app side-by-side with a
+            // real install of the app, and cleanly removable after the
+            // suite (the runner uninstalls it).
+            applicationIdSuffix = ".test"
+        }
         release {
             isMinifyEnabled = false
             signingConfig = signingConfigs.getByName([[if .Keystore]]"release"[[else]]"debug"[[end]])

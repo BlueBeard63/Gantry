@@ -72,6 +72,10 @@ The phone equivalent of `gantry dev`. For android: checks the toolchain (offerin
 
 Regenerates `gantry_registry.go` - the file that auto-registers every `pages/`, `components/` and `layouts/` Go half (their exported Page and Component vars) so `main.go` never lists them. dev and build run it automatically; call it by hand before a plain go build after adding or removing pairs.
 
+## gantry test [pattern]
+
+Runs the app's end-to-end tests: Go tests under `tests/` using the `gantrytest` driver, against the real app process. Prepares the app like a build (registries, one vite build), prebuilds the binary once for the suite, then wraps `go test ./tests/...`. `pattern` filters test names; `--headed`, `--record`, `--retries N`, `--mode production`, `--device android`, `-p N`, `--keep-artifacts`, `--update` and `-v` cover the rest. Every run writes a self-contained `gantry_test_report.html` you open with `gantry test --show`. The [Testing docs](../testing/setup.md) walk through all of it, and [the report](../testing/report.md) covers the viewer and retries.
+
 ## gantry add <pkg...>
 
 `npm install`, aimed at the app root regardless of where you run it. Frontend dependencies always belong to the app, never to the framework:

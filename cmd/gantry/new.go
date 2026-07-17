@@ -292,6 +292,7 @@ func scaffoldFiles(s scaffold) []scaffoldFile {
 		{"pages/index-" + pageStyle + ".go.tmpl", "pages/index/index.go", true, true},
 		{"pages/index-" + pageStyle + ".tsx.tmpl", "pages/index/index.tsx", true, true},
 		{"pages/index.css.tmpl", "pages/index/index.css", true, true},
+		{"tests/smoke_test-" + pageStyle + ".go.tmpl", "tests/smoke_test.go", true, true},
 		{"layouts/main.tsx.tmpl", "layouts/main/main.tsx", s.Multi, true},
 		{"layouts/main.css.tmpl", "layouts/main/main.css", s.Multi, true},
 		{"pages/settings.go.tmpl", "pages/settings/settings.go", s.Multi, true},

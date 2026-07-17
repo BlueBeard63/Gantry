@@ -2,6 +2,7 @@ node_modules/
 webdist/
 dist/
 .gantry/
+test-results/
 *.syso
 *.exe
 *.log
