@@ -85,15 +85,19 @@ func cmdTest(args []string) error {
 		return fmt.Errorf("go build failed: %w", err)
 	}
 
-	// A device target (tier M1): build + install the debug APK and hand
-	// the driver the adb backend's environment. One app instance per
-	// device, so parallelism drops to 1.
+	// A device target (tier M1): build + install the debug APK (as
+	// <id>.test, beside any real install) and hand the driver the adb
+	// backend's environment. One app instance per device, so
+	// parallelism drops to 1; the test app is uninstalled again when
+	// the suite finishes.
 	var deviceEnv []string
 	if *device != "" {
-		deviceEnv, err = prepareDeviceTarget(appDir, cfg, *device, *allowDeviceData)
+		env, cleanup, err := prepareDeviceTarget(appDir, cfg, *device, *allowDeviceData)
 		if err != nil {
 			return err
 		}
+		defer cleanup()
+		deviceEnv = env
 		if *par != 1 {
 			info("device target: parallelism forced to 1 (one app instance per device)")
 			*par = 1

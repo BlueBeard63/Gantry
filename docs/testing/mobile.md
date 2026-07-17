@@ -11,7 +11,7 @@ gantry test --device android          # sole connected device or emulator
 gantry test --device android:SERIAL   # pin one
 ```
 
-The runner builds the **debug APK** for the device's ABI (reusing the `gantry build` android pipeline), installs it with `adb install -r`, and runs the suite through an adb-backed backend. Parallelism drops to one - each test is a full app instance and the device runs one at a time.
+The runner builds the **debug APK** for the device's ABI (reusing the `gantry build` android pipeline), installs it as **`<id>.test`** - the debug variant carries an `applicationIdSuffix`, so the test app lives beside a real install of the app and never touches its data - and runs the suite through an adb-backed backend. Parallelism drops to one - each test is a full app instance and the device runs one at a time. When the suite finishes the runner uninstalls the test app again, leaving the device as it found it.
 
 Per launch, the backend:
 
@@ -48,7 +48,7 @@ Artifacts follow the [desktop layout](errors-and-artifacts.md): `app.log` is the
 
 ## Running without gantry test
 
-`gantry test --device` is the paved road: it builds and installs the debug APK and hands the driver its environment (`GANTRY_TEST_DEVICE`, `GANTRY_TEST_ADB`, `GANTRY_TEST_SERIAL`, `GANTRY_TEST_APP_ID`, `GANTRY_TEST_ALLOW_CLEAR`). A bare `GANTRY_TEST_DEVICE=android go test ./tests/...` also works against an already-installed debug APK: the driver finds adb on PATH (or under `ANDROID_HOME`), picks the sole connected device, and reads the application id from gantry.json's `mobile.id`.
+`gantry test --device` is the paved road: it builds and installs the debug APK and hands the driver its environment (`GANTRY_TEST_DEVICE`, `GANTRY_TEST_ADB`, `GANTRY_TEST_SERIAL`, `GANTRY_TEST_APP_ID`, `GANTRY_TEST_ACTIVITY`, `GANTRY_TEST_ALLOW_CLEAR`), then uninstalls the test app when the suite is done. A bare `GANTRY_TEST_DEVICE=android go test ./tests/...` also works against an already-installed debug APK (which stays installed - only `gantry test` cleans up): the driver finds adb on PATH (or under `ANDROID_HOME`), picks the sole connected device, and derives the test application id (`<mobile.id>.test`) from gantry.json.
 
 ## Widgets
 

@@ -35,7 +35,8 @@ import (
 type androidBackend struct {
 	adb        string
 	serial     string
-	appID      string
+	appID      string // the installed test app (the real id + ".test")
+	activity   string // fully-qualified MainActivity class (the namespace keeps the real id)
 	appName    string
 	allowClear bool
 
@@ -61,14 +62,22 @@ func androidBackendFromEnv(t testing.TB, appCfg appConfig) *androidBackend {
 		adb:        os.Getenv("GANTRY_TEST_ADB"),
 		serial:     os.Getenv("GANTRY_TEST_SERIAL"),
 		appID:      os.Getenv("GANTRY_TEST_APP_ID"),
+		activity:   os.Getenv("GANTRY_TEST_ACTIVITY"),
 		appName:    appCfg.Name,
 		allowClear: os.Getenv("GANTRY_TEST_ALLOW_CLEAR") == "1",
 	}
 	if b.appID == "" && appCfg.Mobile != nil {
-		b.appID = appCfg.Mobile.ID
+		// The test install carries the ".test" suffix so it lives
+		// beside a real install of the app.
+		b.appID = appCfg.Mobile.ID + ".test"
 	}
 	if b.appID == "" {
 		t.Fatalf(`gantrytest: no application id for the device target (gantry.json needs a "mobile" section with an "id")`)
+	}
+	if b.activity == "" {
+		// The Kotlin namespace is the real id, so the activity class
+		// does not carry the ".test" suffix the install id does.
+		b.activity = strings.TrimSuffix(b.appID, ".test") + ".MainActivity"
 	}
 	if b.adb == "" {
 		if p, err := exec.LookPath("adb"); err == nil {
@@ -207,15 +216,16 @@ func (b *androidBackend) launch(spec launchSpec) (proc, error) {
 	// port, token, then the env deltas (mode, declared args, WithEnv).
 	cfgB64 := base64.StdEncoding.EncodeToString([]byte(
 		strconv.Itoa(devicePort) + "\n" + token + "\n" + strings.Join(spec.overrides, "\n")))
+	// mkdir first: a freshly installed app has no files/ until it runs.
 	write := exec.Command(b.adb, "-s", b.serial, "shell",
-		"run-as "+b.appID+" sh -c 'cat > files/.gantry-test.config'")
+		"run-as "+b.appID+" sh -c 'mkdir -p files && cat > files/.gantry-test.config'")
 	write.Stdin = strings.NewReader(cfgB64)
 	if out, err := write.CombinedOutput(); err != nil {
 		stopLogcat()
 		return nil, fmt.Errorf("writing the test config through run-as: %w\n%s", err, bytes.TrimSpace(out))
 	}
 	envB64 := base64.StdEncoding.EncodeToString([]byte(strings.Join(spec.overrides, "\n")))
-	if _, err := b.adbOut("shell", "am", "start", "-n", b.appID+"/.MainActivity",
+	if _, err := b.adbOut("shell", "am", "start", "-n", b.appID+"/"+b.activity,
 		"--ei", "gantry.test.port", strconv.Itoa(devicePort),
 		"--es", "gantry.test.token", token,
 		"--es", "gantry.test.env", envB64,
@@ -271,8 +281,11 @@ func (p *androidProc) exited() <-chan struct{} { return p.done }
 // watchExit polls for the server process. A test-configured server
 // stays dead once it exits (the debug shell suspends its supervisor
 // restart), so a vanished pid is the fatal-crash signal WaitExit
-// waits on. Two consecutive empty polls guard against one adb hiccup
-// reading as an exit.
+// waits on. The pidof runs inside the test app's sandbox via run-as:
+// Android hides other apps' /proc entries from an app, so a real
+// install of the same app running its own libgantryapp.so cannot mask
+// the test server's death. Two consecutive empty polls guard against
+// one adb hiccup reading as an exit.
 func (p *androidProc) watchExit() {
 	misses := 0
 	for {
@@ -281,7 +294,7 @@ func (p *androidProc) watchExit() {
 			return
 		case <-time.After(300 * time.Millisecond):
 		}
-		out, _ := exec.Command(p.b.adb, "-s", p.b.serial, "shell", "pidof", "libgantryapp.so").Output()
+		out, _ := exec.Command(p.b.adb, "-s", p.b.serial, "shell", "run-as", p.b.appID, "pidof", "libgantryapp.so").Output()
 		if len(bytes.TrimSpace(out)) == 0 {
 			if misses++; misses >= 2 {
 				p.doneOnce.Do(func() { close(p.done) })
