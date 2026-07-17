@@ -328,10 +328,13 @@ func pickUSBDevice(adb string) (string, error) {
 			unauthorized = append(unauthorized, serial)
 		case state != "device":
 			continue
-		case strings.Contains(line, "usb:") || strings.HasPrefix(serial, "emulator-"):
-			usb = append(usb, serial)
-		default:
+		case strings.Contains(serial, ":") || strings.HasPrefix(serial, "adb-"):
+			// ip:port (adb connect) or mdns wireless-debugging serial;
+			// the usb: field in `adb devices -l` is absent on Windows,
+			// so USB is detected by not looking like a network serial.
 			network = append(network, serial)
+		default:
+			usb = append(usb, serial)
 		}
 	}
 	switch {
