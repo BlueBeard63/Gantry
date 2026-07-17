@@ -27,6 +27,11 @@ type proc interface {
 	// port is where the app's HTTP/websocket server is reachable from
 	// the host (on a device backend, the adb-forwarded local port).
 	port() int
+	// webPort is the port the webview itself connects to - what
+	// location.host shows and the CDP target URL contains. Desktop: the
+	// same as port(). Device: the on-device server port, which differs
+	// from the adb-forwarded host port port() returns.
+	webPort() int
 	// token authenticates driver requests (gantry_token); empty when
 	// the server runs unguarded (desktop).
 	token() string
@@ -54,6 +59,8 @@ type launchSpec struct {
 	window    bool     // open the real window (headed or DOM-plane runs)
 	appLog    *syncWriter
 	timeout   time.Duration // how long to wait for GANTRY_READY
+	grant     []string      // permissions to pm-grant before launch (device only)
+	revoke    []string      // permissions to pm-revoke before launch (device only)
 }
 
 // localBackend runs the app as a local process, the way gantry dev
@@ -134,6 +141,7 @@ type localProc struct {
 }
 
 func (p *localProc) port() int               { return p.listenPort }
+func (p *localProc) webPort() int            { return p.listenPort }
 func (p *localProc) token() string           { return "" }
 func (p *localProc) exited() <-chan struct{} { return p.done }
 

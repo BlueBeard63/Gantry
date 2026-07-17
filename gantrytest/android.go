@@ -144,7 +144,22 @@ func (b *androidBackend) adbOut(args ...string) (string, error) {
 	return string(out), nil
 }
 
+// wakeDevice keeps the screen on and unlocked for the run. A dark or
+// dozing screen pauses the WebView: Chromium throttles a hidden page, so
+// CDP Runtime.evaluate stops replying, taps land nowhere, and
+// screenshots come back black. svc power stayon holds the screen on
+// while USB-powered; the wake + dismiss-keyguard handle a screen that
+// already slept. Best-effort - a secure lock screen cannot be dismissed
+// this way, which the run surfaces as the usual black-screen symptoms.
+func (b *androidBackend) wakeDevice() {
+	_, _ = b.adbOut("shell", "svc", "power", "stayon", "true")
+	_, _ = b.adbOut("shell", "input", "keyevent", "KEYCODE_WAKEUP")
+	_, _ = b.adbOut("shell", "wm", "dismiss-keyguard")
+}
+
 func (b *androidBackend) launch(spec launchSpec) (proc, error) {
+	b.wakeDevice()
+
 	// Hermetic start: wipe the app's data once per test instance when
 	// allowed (pm clear also kills the app); otherwise just make sure
 	// it is stopped. Restarts land in the else branch and keep data.
@@ -158,6 +173,20 @@ func (b *androidBackend) launch(spec launchSpec) (proc, error) {
 	} else {
 		if _, err := b.adbOut("shell", "am", "force-stop", b.appID); err != nil {
 			return nil, err
+		}
+	}
+
+	// Pre-grant/revoke permissions the test declared, before the app
+	// starts, so runtime-permission flows can be asserted both ways
+	// without UI automation.
+	for _, perm := range spec.grant {
+		if _, err := b.adbOut("shell", "pm", "grant", b.appID, perm); err != nil {
+			return nil, fmt.Errorf("pm grant %s: %w", perm, err)
+		}
+	}
+	for _, perm := range spec.revoke {
+		if _, err := b.adbOut("shell", "pm", "revoke", b.appID, perm); err != nil {
+			return nil, fmt.Errorf("pm revoke %s: %w", perm, err)
 		}
 	}
 
@@ -263,11 +292,13 @@ func (b *androidBackend) launch(spec launchSpec) (proc, error) {
 // local port, the runner-chosen token, and the logcat stream feeding
 // app.log.
 type androidProc struct {
-	b          *androidBackend
-	localPort  int
-	devicePort int
-	tok        string
-	stopLogcat func()
+	b            *androidBackend
+	localPort    int
+	devicePort   int
+	devtoolsPort int // host port forwarded to the WebView devtools socket (0 until the DOM plane attaches)
+	tok          string
+	stopLogcat   func()
+	insetTop     int // status-bar height (device px), cached
 
 	done     chan struct{}
 	doneOnce sync.Once
@@ -275,8 +306,52 @@ type androidProc struct {
 }
 
 func (p *androidProc) port() int               { return p.localPort }
+func (p *androidProc) webPort() int            { return p.devicePort }
 func (p *androidProc) token() string           { return p.tok }
 func (p *androidProc) exited() <-chan struct{} { return p.done }
+
+// appPID returns the app's main (WebView-hosting) process pid - the pid
+// the devtools socket is named after. It is the package process, not the
+// libgantryapp.so server child; the ".test" suffix disambiguates it from
+// any real install, and the sandboxed renderer runs under a different
+// process name, so pidof of the exact id returns just the main process.
+// The WebView is created just after server-ready, so this retries.
+func (p *androidProc) appPID() (string, error) {
+	var last string
+	for i := 0; i < 20; i++ {
+		out, _ := exec.Command(p.b.adb, "-s", p.b.serial, "shell", "pidof", p.b.appID).Output()
+		if fields := strings.Fields(string(out)); len(fields) > 0 {
+			return fields[0], nil
+		}
+		last = strings.TrimSpace(string(out))
+		time.Sleep(200 * time.Millisecond)
+	}
+	return "", fmt.Errorf("no pid for %s (is the app running? last pidof: %q)", p.b.appID, last)
+}
+
+// forwardDevtools discovers the app's main process pid and adb-forwards
+// its devtools abstract socket to a host port for the CDP client. Cached:
+// rotation recreates the Activity but keeps the process, so the pid and
+// the forward stay valid across a DOM re-attach.
+func (p *androidProc) forwardDevtools() (int, error) {
+	if p.devtoolsPort != 0 {
+		return p.devtoolsPort, nil
+	}
+	pid, err := p.appPID()
+	if err != nil {
+		return 0, err
+	}
+	fw, err := p.b.adbOut("forward", "tcp:0", "localabstract:webview_devtools_remote_"+pid)
+	if err != nil {
+		return 0, err
+	}
+	local, err := strconv.Atoi(strings.TrimSpace(fw))
+	if err != nil {
+		return 0, fmt.Errorf("parsing the devtools adb forward port from %q: %v", fw, err)
+	}
+	p.devtoolsPort = local
+	return local, nil
+}
 
 // watchExit polls for the server process. A test-configured server
 // stays dead once it exits (the debug shell suspends its supervisor
@@ -310,6 +385,9 @@ func (p *androidProc) stop() {
 	p.stopOnce.Do(func() {
 		_, _ = p.b.adbOut("shell", "am", "force-stop", p.b.appID)
 		_, _ = p.b.adbOut("forward", "--remove", "tcp:"+strconv.Itoa(p.localPort))
+		if p.devtoolsPort != 0 {
+			_, _ = p.b.adbOut("forward", "--remove", "tcp:"+strconv.Itoa(p.devtoolsPort))
+		}
 		// Remove the sandbox config so a manual app launch later does
 		// not pick it up (the next test launch rewrites it).
 		_, _ = p.b.adbOut("shell", "run-as", p.b.appID, "rm", "-f", "files/.gantry-test.config")
@@ -336,6 +414,53 @@ func (p *androidProc) crashLogPath() string {
 	_, _ = f.Write(out)
 	_ = f.Close()
 	return f.Name()
+}
+
+// statusBarRe pulls the status-bar height (device px) out of the
+// InsetsSource line dumpsys emits, e.g.
+// `type=statusBars frame=[0,0][1080,132]` -> 132.
+var statusBarRe = regexp.MustCompile(`type=statusBars frame=\[\d+,\d+\]\[\d+,(\d+)\]`)
+
+// contentInset returns the WebView content's top-left offset on screen
+// in device px: the status-bar height for the top, 0 for the left in
+// portrait (the shell insets the WebView by the system bars). Cached.
+func (p *androidProc) contentInset() (left, top int, err error) {
+	if p.insetTop != 0 {
+		return 0, p.insetTop, nil
+	}
+	out, err := p.b.adbOut("shell", "dumpsys window | grep statusBars")
+	if err != nil {
+		return 0, 0, err
+	}
+	m := statusBarRe.FindStringSubmatch(out)
+	if m == nil {
+		return 0, 0, fmt.Errorf("could not find the status-bar inset in dumpsys window")
+	}
+	p.insetTop, _ = strconv.Atoi(m[1])
+	return 0, p.insetTop, nil
+}
+
+// tap sends a real touch at device-screen coordinates. CDP synthetic
+// input is unreliable on Android WebView (dispatchTouchEvent hangs,
+// dispatchMouseEvent lands in the wrong coordinate space, dispatchKeyEvent
+// does not reach the input), so device element actions go through adb's
+// native input instead.
+func (p *androidProc) tap(x, y int) error {
+	_, err := p.b.adbOut("shell", "input", "tap", strconv.Itoa(x), strconv.Itoa(y))
+	return err
+}
+
+// inputText types into the currently-focused field. Spaces need escaping
+// for `input text`; other whitespace is rare in test input.
+func (p *androidProc) inputText(s string) error {
+	_, err := p.b.adbOut("shell", "input", "text", strings.ReplaceAll(s, " ", "%s"))
+	return err
+}
+
+// keyEvent sends a named key (e.g. "KEYCODE_DEL", "KEYCODE_ENTER").
+func (p *androidProc) keyEvent(code string) error {
+	_, err := p.b.adbOut("shell", "input", "keyevent", code)
+	return err
 }
 
 // screenshot captures the device screen; screencap already emits PNG.

@@ -98,10 +98,24 @@ func TestDOMJSErrorReachesGo(t *testing.T) {
 func TestDOMCapabilities(t *testing.T) {
 	t.Parallel()
 	app := gantrytest.Launch(t, gantrytest.WithDOM())
-	if !app.Supports(gantrytest.DOM) || !app.Supports(gantrytest.Hover) {
-		t.Error("a DOM-plane launch must report the DOM and Hover capabilities")
+	if !app.Supports(gantrytest.DOM) {
+		t.Error("a DOM-plane launch must report the DOM capability")
 	}
-	if app.Supports(gantrytest.Touch) {
-		t.Error("a desktop launch must not report Touch")
+	if gantrytest.Target() == "desktop" {
+		// Desktop drives via mouse: hover, no touch.
+		if !app.Supports(gantrytest.Hover) {
+			t.Error("a desktop DOM launch must report Hover")
+		}
+		if app.Supports(gantrytest.Touch) {
+			t.Error("a desktop launch must not report Touch")
+		}
+	} else {
+		// A phone drives via real taps: touch, no hover.
+		if !app.Supports(gantrytest.Touch) {
+			t.Error("a device DOM launch must report Touch")
+		}
+		if app.Supports(gantrytest.Hover) {
+			t.Error("a device launch must not report Hover")
+		}
 	}
 }

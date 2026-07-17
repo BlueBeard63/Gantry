@@ -2,7 +2,7 @@
 
 Everything on the [driving page](driving.md) works headless against the wire protocol. The DOM plane adds the other half: what the user actually sees. The driver attaches to the real webview over its devtools protocol (CDP) and drives it like a user would - element queries, real mouse clicks, real key events, screenshots, screencasts - while the protocol plane keeps watching the same app from the Go side. A single test can click a button in the DOM and assert the push it caused in Go, which is the point of the whole system.
 
-The DOM plane is Windows-only for now (WebView2 is Chromium and speaks CDP; Linux's WebKitGTK does not). A `WithDOM()` launch on another OS skips the test, so shared suites stay runnable everywhere. The same CDP client is the one the Android tier reuses - Android WebView speaks the same dialect.
+On desktop the DOM plane is Windows-only for now (WebView2 is Chromium and speaks CDP; Linux's WebKitGTK does not). A desktop `WithDOM()` launch on another OS skips the test, so shared suites stay runnable everywhere. The same CDP client also drives the phone: Android WebView speaks the same dialect, so `WithDOM()` works under `gantry test --device android` (see [mobile](mobile.md)).
 
 ## Enabling it
 
@@ -87,4 +87,4 @@ if app.Supports(gantrytest.DOM) { ... }   // true on a WithDOM/headed launch
 if app.Supports(gantrytest.Hover) { ... } // mouse targets only; mobile reports false
 ```
 
-Shared suites gate on capabilities instead of forking per target - a protocol-only launch reports false for both, and the device tiers will flip `Touch` and `Notifications` on without changing test code.
+Shared suites gate on capabilities instead of forking per target - a protocol-only launch reports false for both, and a device launch reports `Touch` and `Notifications` (and not `Hover`, since a phone has no hover) without changing test code.

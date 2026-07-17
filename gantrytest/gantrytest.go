@@ -50,6 +50,8 @@ type launchConfig struct {
 	args         map[string]any
 	env          []string
 	artifactRoot string
+	grant        []string // permissions to pm-grant before launch (device only)
+	revoke       []string // permissions to pm-revoke before launch (device only)
 }
 
 // Option configures Launch.
@@ -75,12 +77,13 @@ func WithHeaded() Option {
 	return func(c *launchConfig) { c.headed = true }
 }
 
-// WithDOM enables the DOM plane (tier 2): the app opens a real webview
-// window - parked off-screen unless headed - with a per-instance
-// devtools port, and the driver attaches over CDP. Unlocks App.Page,
-// Find, element actions and screenshots. Windows-only for now (the
-// Linux webview is WebKitGTK, which does not speak CDP); the test is
-// skipped elsewhere.
+// WithDOM enables the DOM plane: the app opens a real webview - parked
+// off-screen unless headed - and the driver attaches over CDP. Unlocks
+// App.Page, Find, element actions and screenshots. On desktop this is
+// WebView2 (Windows-only for now; the Linux webview is WebKitGTK, which
+// does not speak CDP, so the test is skipped there). On a device target
+// (tier M2) it attaches to the Android WebView's devtools socket, and
+// clicks map to real touch events.
 func WithDOM() Option {
 	return func(c *launchConfig) { c.dom = true }
 }
@@ -96,6 +99,21 @@ func WithRecording() Option {
 // WithEnv adds one environment variable to the app process.
 func WithEnv(key, value string) Option {
 	return func(c *launchConfig) { c.env = append(c.env, key+"="+value) }
+}
+
+// WithGrantedPermissions pre-grants Android runtime permissions before
+// the app launches, so a test can assert a granted flow without driving
+// the system permission prompt. Device-only (a no-op on desktop). Names
+// are full Android permission strings, e.g.
+// "android.permission.POST_NOTIFICATIONS".
+func WithGrantedPermissions(perms ...string) Option {
+	return func(c *launchConfig) { c.grant = append(c.grant, perms...) }
+}
+
+// WithDeniedPermissions pre-revokes Android runtime permissions before
+// the app launches, so a test can assert a denied flow. Device-only.
+func WithDeniedPermissions(perms ...string) Option {
+	return func(c *launchConfig) { c.revoke = append(c.revoke, perms...) }
 }
 
 // WithBinary launches a prebuilt binary instead of building the app.
@@ -163,25 +181,24 @@ func Launch(t testing.TB, opts ...Option) *App {
 		o(&cfg)
 	}
 
-	// A device target (tier M1) launches the installed APK through the
-	// adb backend instead of a local process; the protocol plane works
-	// unchanged, the DOM plane on device is tier M2.
+	// A device target launches the installed APK through the adb backend
+	// instead of a local process; both planes transfer - the protocol
+	// plane since tier M1, the DOM plane (over the device WebView's
+	// devtools socket) since tier M2.
 	onDevice := Target() != "desktop"
 	if onDevice && Target() != "android" {
 		t.Skipf("gantrytest: unsupported device target %q (android is what tier M1 ships; ios comes later)", Target())
 	}
-	if cfg.dom && onDevice {
-		t.Skipf("gantrytest: the DOM plane on a device is tier M2 (target %s)", Target())
-	}
 
-	// The DOM plane needs a CDP-speaking webview: WebView2. Linux runs
-	// WebKitGTK (its own inspector protocol) - that lands later; the
-	// protocol plane stays fully cross-platform.
-	if cfg.dom && runtime.GOOS != "windows" {
-		t.Skipf("gantrytest: the DOM plane needs WebView2 (Windows-only for now; host is %s)", runtime.GOOS)
+	// The desktop DOM plane needs a CDP-speaking webview: WebView2. Linux
+	// runs WebKitGTK (its own inspector protocol) - that lands later; the
+	// protocol plane stays fully cross-platform. The device DOM plane is
+	// adb-driven, so the host OS does not matter there.
+	if cfg.dom && !onDevice && runtime.GOOS != "windows" {
+		t.Skipf("gantrytest: the desktop DOM plane needs WebView2 (Windows-only for now; host is %s)", runtime.GOOS)
 	}
-	dom := !onDevice && (cfg.dom || (cfg.headed && runtime.GOOS == "windows"))
-	record := cfg.record && dom
+	dom := cfg.dom || (cfg.headed && !onDevice && runtime.GOOS == "windows")
+	record := cfg.record && dom && !onDevice // device screencast is tier 3
 
 	appDir := cfg.appDir
 	if appDir == "" {
@@ -256,6 +273,7 @@ func Launch(t testing.TB, opts ...Option) *App {
 			configDir: configDir, env: env, overrides: overrides,
 			window: cfg.headed || dom,
 			appLog: art.appLog, timeout: 60 * time.Second,
+			grant: cfg.grant, revoke: cfg.revoke,
 		},
 	}
 	t.Cleanup(a.teardown)
@@ -288,13 +306,33 @@ func Launch(t testing.TB, opts ...Option) *App {
 	return a
 }
 
+// domForwarder is a device proc that can expose its webview's devtools
+// socket on a host port (adb forward); desktop resolves its debug port
+// up front via the WebView2 launch env instead.
+type domForwarder interface {
+	forwardDevtools() (int, error)
+}
+
 // attachDOM connects the CDP client to the webview (and starts the
 // screencast when this run records). The deadline is generous: the
-// first attach includes a cold WebView2 start and the frontend's
-// initial load.
+// first attach includes a cold WebView start and the frontend's initial
+// load. On a device the devtools socket is reached through a second adb
+// forward resolved here; desktop uses the port set at launch.
 func (a *App) attachDOM() {
 	a.t.Helper()
-	d, err := attachCDP(a.art.trace, a.debugPort, a.proc.port(), a.art.path("console.log"), 30*time.Second)
+	debugPort := a.debugPort
+	if a.onDevice {
+		fwd, ok := a.proc.(domForwarder)
+		if !ok {
+			a.t.Fatalf("gantrytest: the device backend cannot forward a devtools socket")
+		}
+		p, err := fwd.forwardDevtools()
+		if err != nil {
+			a.t.Fatalf("gantrytest: forwarding the device devtools socket: %v", err)
+		}
+		debugPort = p
+	}
+	d, err := attachCDP(a.art.trace, debugPort, a.proc.webPort(), a.art.path("console.log"), 30*time.Second)
 	if err != nil {
 		a.t.Fatalf("gantrytest: attaching the DOM plane: %v", err)
 	}
@@ -753,21 +791,31 @@ const (
 	// DOM is element-level driving over the webview's devtools
 	// protocol (tier 2).
 	DOM Capability = "dom"
-	// Hover is mouse hover; mobile backends report false.
+	// Hover is mouse hover; device backends report false (a phone has no
+	// hover).
 	Hover Capability = "hover"
-	// Touch is touch input; desktop backends report false.
+	// Touch is touch input. A device delivers real taps (native adb
+	// input, since Android WebView's CDP touch dispatch hangs); desktop
+	// is mouse and reports false.
 	Touch Capability = "touch"
-	// Notifications is system-notification inspection (tier M2).
+	// Notifications is system-notification inspection, available on a
+	// device target.
 	Notifications Capability = "notifications"
 )
 
 // Supports reports whether this launch provides the capability: DOM
-// and Hover when the CDP plane is attached (WithDOM / headed on
-// Windows); Touch and Notifications arrive with the device tiers.
+// when the CDP plane is attached (WithDOM / headed on Windows / device);
+// Hover on desktop only; Touch and Notifications on a device target.
 func (a *App) Supports(c Capability) bool {
 	switch c {
-	case DOM, Hover:
+	case DOM:
 		return a.cdp != nil
+	case Hover:
+		return a.cdp != nil && !a.onDevice // a phone has no hover
+	case Touch:
+		return a.onDevice
+	case Notifications:
+		return a.onDevice
 	}
 	return false
 }

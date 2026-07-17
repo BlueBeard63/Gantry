@@ -44,6 +44,12 @@ class MainActivity : Activity() {
         }
 
         web = WebView(this)
+        // gantry test --device drives the DOM plane over the WebView's
+        // devtools socket (webview_devtools_remote_<pid>); a debuggable
+        // build exposes it, release builds never do.
+        if ((applicationInfo.flags and android.content.pm.ApplicationInfo.FLAG_DEBUGGABLE) != 0) {
+            WebView.setWebContentsDebuggingEnabled(true)
+        }
         web.settings.javaScriptEnabled = true
         web.settings.domStorageEnabled = true
         web.settings.mediaPlaybackRequiresUserGesture = false
@@ -90,8 +96,6 @@ class MainActivity : Activity() {
         }
         setContentView(frame)
 
-        askPermissionsOnce()
-
         val backend = (application as GantryApp).backend
         // gantry test --device android launches with a runner-chosen
         // port/token/environment in intent extras; a debuggable build
@@ -101,6 +105,10 @@ class MainActivity : Activity() {
         if (testPort != 0 && testToken != null) {
             backend.applyTestConfig(testPort, testToken, intent?.getStringExtra("gantry.test.env"))
         }
+
+        // A test controls permissions explicitly (adb pm grant/revoke);
+        // the first-launch prompt would occlude and pause the WebView.
+        if (!backend.isTestConfigured) askPermissionsOnce()
         backend.onReady { port ->
             runOnUiThread {
                 // The first load carries the token; the server sets it as

@@ -50,6 +50,13 @@ class GoBackend(private val context: Context) {
     @Volatile private var testEnv: Map<String, String> = emptyMap()
     @Volatile private var current: Process? = null
 
+    // isTestConfigured reports whether this launch is under gantry test
+    // (a runner-chosen port was injected). The activity uses it to skip
+    // the first-launch permission prompt: a test controls permissions
+    // explicitly (adb pm grant/revoke), and a prompt would occlude the
+    // WebView and pause it.
+    val isTestConfigured: Boolean get() = testPort != 0
+
     private fun debuggable() =
         (context.applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE) != 0
 

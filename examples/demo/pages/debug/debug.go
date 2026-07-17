@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/B-Commissions/Gantry/gantry"
+	"github.com/B-Commissions/Gantry/notification"
 	"github.com/B-Commissions/Gantry/ui"
 )
 
@@ -23,6 +24,17 @@ var Page = ui.Page{
 		// event-panic notice with the action trail.
 		"eventBoom": func(json.RawMessage) {
 			panic("eventBoom: deliberate panic from a paired event handler")
+		},
+		// Posts a system notification (mobile only; a logged no-op on
+		// desktop). The M2 device tests click this and assert the posted
+		// notification via app.Notifications().
+		"notify": func(json.RawMessage) {
+			_ = notification.Post(notification.Notification{
+				ID:      "demo-saved",
+				Title:   "Saved",
+				Body:    "Your settings were saved.",
+				Actions: []notification.Action{{ID: "undo", Label: "Undo"}},
+			})
 		},
 		// A panic on a gantry.Go goroutine: recovered into the error
 		// pipeline as "panic.goroutine" - the app survives.

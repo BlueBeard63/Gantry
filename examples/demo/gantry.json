@@ -26,6 +26,7 @@
   },
   "mobile": {
     "id": "ec.morrison.demo",
+    "permissions": ["notifications"],
     "widgets": [
       {
         "name": "status",

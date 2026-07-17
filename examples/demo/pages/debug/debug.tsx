@@ -59,6 +59,12 @@ export default function Debug() {
       </section>
 
       <section>
+        <h3>Notifications (mobile)</h3>
+        <p>Posts a system notification on device; a logged no-op on desktop.</p>
+        <button onClick={() => send("notify")}>Notify</button>
+      </section>
+
+      <section>
         <h3>Crash the Tea loop (on purpose)</h3>
         <p>
           The counter below lives in <code>debug.go</code>. Update and View panics are recovered - the counter keeps its

@@ -62,7 +62,7 @@ func (a *App) Page(route string) *Page {
 
 	// The webview may still be booting: wait for the app document
 	// before navigating into it.
-	host := fmt.Sprintf("127.0.0.1:%d", a.proc.port())
+	host := fmt.Sprintf("127.0.0.1:%d", a.proc.webPort())
 	a.waitDOM("the app frontend to load", func() (bool, string) {
 		raw, err := d.eval(fmt.Sprintf(`(() => location.host === %q && !!document.getElementById("root"))()`, host))
 		if err != nil {
@@ -167,6 +167,7 @@ type elemInfo struct {
 	Visible bool    `json:"visible"`
 	Text    string  `json:"text"`
 	Value   *string `json:"value"`
+	Dpr     float64 `json:"dpr"` // device-pixel ratio (device input coord translation)
 }
 
 func (i elemInfo) explain() string {
@@ -219,6 +220,7 @@ func (e *Element) resolve(scroll, focus, selectAll bool) (elemInfo, error) {
 			visible: !!(el.getClientRects().length && cs.visibility !== "hidden" && cs.display !== "none"),
 			text: (el.innerText !== undefined ? el.innerText : el.textContent) || "",
 			value: ("value" in el) ? String(el.value) : null,
+			dpr: window.devicePixelRatio,
 		};
 	})()`, scopeExpr, e.sel, texts, scroll, focus, selectAll)
 
@@ -263,36 +265,68 @@ func (e *Element) actionable(verb string, focus, selectAll bool) elemInfo {
 	return info
 }
 
-// Click dispatches a real mouse click (move, press, release) at the
-// element's center.
+// Click activates the element's center: a CDP mouse click on desktop, a
+// real screen tap on a device. Android WebView's CDP synthetic input is
+// unreliable (dispatchTouchEvent hangs, dispatchMouseEvent lands in the
+// wrong coordinate space, dispatchKeyEvent never reaches the input), so
+// device actions go through adb's native input, with element coordinates
+// translated from the viewport (CSS px) to the screen (device px).
 func (e *Element) Click() {
 	e.app.t.Helper()
 	info := e.actionable("click", false, false)
 	e.app.art.trace.action("click %s", e.desc)
-	if err := e.app.cdp.mouseClick(info.X+info.W/2, info.Y+info.H/2); err != nil {
+	if e.app.onDevice {
+		e.app.deviceTap(info)
+	} else if err := e.app.cdp.mouseClick(info.X+info.W/2, info.Y+info.H/2); err != nil {
 		e.app.t.Fatalf("gantrytest: clicking %s: %v", e.desc, err)
 	}
 	e.app.snapRecording()
 }
 
-// Type focuses the element (caret at the end) and types the text with
-// real per-character key events.
+// Type focuses the element and types the text: real per-character key
+// events on desktop; on a device it taps the field (to establish the
+// input connection) then sends the text with adb input.
 func (e *Element) Type(text string) {
 	e.app.t.Helper()
-	e.actionable("type into", true, false)
+	info := e.actionable("type into", true, false)
 	e.app.art.trace.action("type %q into %s", text, e.desc)
-	if err := e.app.cdp.typeText(text); err != nil {
+	if e.app.onDevice {
+		e.app.deviceTap(info)
+		if err := e.app.android().inputText(text); err != nil {
+			e.app.t.Fatalf("gantrytest: typing into %s: %v", e.desc, err)
+		}
+	} else if err := e.app.cdp.typeText(text); err != nil {
 		e.app.t.Fatalf("gantrytest: typing into %s: %v", e.desc, err)
 	}
 	e.app.snapRecording()
 }
 
-// Fill replaces the element's content: select-all, then commit the text
-// in one edit (empty text clears the field).
+// Fill replaces the element's content: on desktop, select-all then commit
+// in one edit; on a device, tap to focus, clear the existing value with
+// backspaces, then type the new text (empty text just clears).
 func (e *Element) Fill(text string) {
 	e.app.t.Helper()
-	e.actionable("fill", true, true)
+	info := e.actionable("fill", true, true)
 	e.app.art.trace.action("fill %s with %q", e.desc, text)
+	if e.app.onDevice {
+		p := e.app.android()
+		e.app.deviceTap(info)
+		_ = p.keyEvent("KEYCODE_MOVE_END")
+		existing := ""
+		if info.Value != nil {
+			existing = *info.Value
+		}
+		for range existing {
+			_ = p.keyEvent("KEYCODE_DEL")
+		}
+		if text != "" {
+			if err := p.inputText(text); err != nil {
+				e.app.t.Fatalf("gantrytest: filling %s: %v", e.desc, err)
+			}
+		}
+		e.app.snapRecording()
+		return
+	}
 	var err error
 	if text == "" {
 		err = e.app.cdp.pressKey("Backspace", 8)
@@ -303,6 +337,32 @@ func (e *Element) Fill(text string) {
 		e.app.t.Fatalf("gantrytest: filling %s: %v", e.desc, err)
 	}
 	e.app.snapRecording()
+}
+
+// deviceTap translates an element's viewport point (CSS px) into a
+// device-screen point and taps it there. The WebView sits below the
+// status bar (the shell insets it) and fills the width, so a CSS point
+// maps to the screen as (inset.left + cssX*dpr, inset.top + cssY*dpr) -
+// dpr converts CSS px to device px directly. Android WebView reports 0
+// for innerWidth/clientWidth, so dpr (reliable) plus the system-bar
+// insets are used rather than a viewport fraction.
+func (a *App) deviceTap(info elemInfo) {
+	a.t.Helper()
+	p := a.android()
+	dpr := info.Dpr
+	if dpr <= 0 {
+		a.t.Fatalf("gantrytest: could not read the device-pixel ratio for a tap")
+	}
+	left, top, err := p.contentInset()
+	if err != nil {
+		a.t.Fatalf("gantrytest: reading the device insets for a tap: %v", err)
+	}
+	cssX, cssY := info.X+info.W/2, info.Y+info.H/2
+	dx := left + int(cssX*dpr)
+	dy := top + int(cssY*dpr)
+	if err := p.tap(dx, dy); err != nil {
+		a.t.Fatalf("gantrytest: tapping at %d,%d: %v", dx, dy, err)
+	}
 }
 
 // Text waits for the element and returns its rendered text.

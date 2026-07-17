@@ -1,6 +1,6 @@
 # Testing: setup
 
-Gantry ships an end-to-end testing system that drives the real app - the real Go process, the real websocket, and (in later tiers) the real window - not a simulation of the wire protocol against mocked pages. Tests live in your app repo, are written as plain Go tests with the `gantrytest` driver, and run with one command:
+Gantry ships an end-to-end testing system that drives the real app - the real Go process, the real websocket, and the real window - not a simulation of the wire protocol against mocked pages. Tests live in your app repo, are written as plain Go tests with the `gantrytest` driver, and run with one command:
 
 ```
 gantry test
