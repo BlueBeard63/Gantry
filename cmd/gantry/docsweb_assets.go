@@ -25,7 +25,7 @@ const docsShellHTML = `<!DOCTYPE html>
 :root {
   --bg:#ffffff; --surface:#f7f8fa; --fg:#1a1a1e; --fg-dim:#55555f; --fg-muted:#8a8a92;
   --accent:#2563eb; --accent-soft:#eaf1fe; --border:#e6e6ea; --code-bg:#f4f5f7;
-  --header-h:60px; --side-w:264px; --toc-w:248px; --content-max:720px;
+  --header-h:60px; --side-w:264px; --toc-w:248px; --content-max:860px;
   --font:"Segoe UI",system-ui,-apple-system,sans-serif;
   --mono:"Cascadia Code","Consolas",ui-monospace,monospace;
 }
@@ -125,7 +125,7 @@ header {
 .nav-group.expanded > .nav-group-children { display:block; }
 
 .content { flex:1; min-width:0; margin-left:var(--side-w); margin-right:var(--toc-w); }
-.content-inner { max-width:var(--content-max); margin:0 auto; padding:34px 40px 80px; }
+.content-inner { max-width:var(--content-max); padding:36px 56px 80px; }
 .breadcrumb { font-size:13px; color:var(--fg-muted); margin-bottom:18px; }
 .breadcrumb span + span::before { content:none; }
 
