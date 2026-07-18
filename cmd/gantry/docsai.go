@@ -9,6 +9,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"os/exec"
 	"sort"
 	"strings"
 	"time"
@@ -273,6 +274,68 @@ func (s *docsSite) handleAsk(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	sse(map[string]bool{"done": true})
+}
+
+// ensureOllamaModel makes `gantry docs --ai` self-provisioning for the
+// common case: if the backend is a local Ollama and the `ollama` CLI is
+// installed but the configured model isn't pulled yet, it pulls it (the CLI
+// starts the server if needed and there are no interactive prompts). It runs
+// in the background so the docs serve immediately; progress streams to the
+// terminal. It is a no-op for non-Ollama backends (llama.cpp, LM Studio, a
+// hosted provider) and when the CLI isn't found - the widget's offline hint
+// covers those.
+func ensureOllamaModel(cfg aiConfig) {
+	if !strings.Contains(cfg.baseURL, "11434") { // not the Ollama default
+		return
+	}
+	bin, err := exec.LookPath("ollama")
+	if err != nil {
+		return // Ollama not installed; nothing to auto-pull
+	}
+	if ollamaHasModel(cfg) {
+		return // already pulled
+	}
+	info("docs assistant: model %q not found locally; pulling it with ollama (this downloads several GB)...", cfg.model)
+	cmd := exec.Command(bin, "pull", cfg.model)
+	cmd.Stdout = os.Stderr // stream pull progress to the terminal
+	cmd.Stderr = os.Stderr
+	if err := cmd.Run(); err != nil {
+		info("docs assistant: `ollama pull %s` failed: %v (pull it manually, or set GANTRY_DOCS_AI_MODEL to one you have)", cfg.model, err)
+		return
+	}
+	info("docs assistant: model %q is ready", cfg.model)
+}
+
+// ollamaHasModel asks the running Ollama server whether the configured model
+// is already present. If the server isn't running it returns false, so the
+// subsequent `ollama pull` (which starts the server) still fires.
+func ollamaHasModel(cfg aiConfig) bool {
+	root := strings.TrimSuffix(cfg.baseURL, "/v1")
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, root+"/api/tags", nil)
+	if err != nil {
+		return false
+	}
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return false
+	}
+	defer resp.Body.Close()
+	var out struct {
+		Models []struct {
+			Name string `json:"name"`
+		} `json:"models"`
+	}
+	if json.NewDecoder(resp.Body).Decode(&out) != nil {
+		return false
+	}
+	for _, m := range out.Models {
+		if m.Name == cfg.model || strings.HasPrefix(m.Name, cfg.model+":") {
+			return true
+		}
+	}
+	return false
 }
 
 // handleAIStatus reports whether a model server is answering, so the widget

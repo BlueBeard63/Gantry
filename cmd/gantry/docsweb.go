@@ -32,6 +32,12 @@ func serveDocsWeb(pages []docPage, start int, aiOn bool) error {
 		return err
 	}
 
+	// With --ai, self-provision the model in the background (Ollama only):
+	// the docs serve immediately; the pull progress streams to the terminal.
+	if aiOn {
+		go ensureOllamaModel(site.aiCfg)
+	}
+
 	ln, err := appshell.Listen(0) // 0 -> the OS hands us a free loopback port
 	if err != nil {
 		return err
