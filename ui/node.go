@@ -109,7 +109,7 @@ func Progress(v float64) Node {
 // Custom renders a React component registered with the runtime - by a
 // paired components/ folder (use its key, e.g.
 // Custom("components/gauge", ...)) or registered explicitly via
-// createTeaApp. Children render into the component's children prop.
+// createApp. Children render into the component's children prop.
 func Custom(component string, props map[string]any, children ...Node) Node {
 	return Node{Type: component, Props: props, Children: children}
 }

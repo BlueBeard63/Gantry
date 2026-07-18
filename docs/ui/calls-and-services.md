@@ -1,6 +1,6 @@
 # Calls and services
 
-[Paired handlers](pairs.md) are fire-and-forget. This page covers the two ways React asks Go a question and gets an answer: **awaited calls** on a pair (ask this one pair and get a result), and **services** (app-wide call groups, the machinery behind hooks like useAuth). For a live value both sides read and write, see [State](state.md).
+[Paired handlers](pairs.md) are fire-and-forget. This page covers the ways React asks Go a question and gets an answer back: **awaited calls** on a pair (ask this one pair), **services** (app-wide call groups, the machinery behind hooks like `useAuth`), and the read-path helpers - `useCall`, `Await`, `Skeleton`. For a live value both sides read and write, see [State](state.md).
 
 ## Awaited calls on a pair
 
@@ -28,11 +28,11 @@ const { call } = usePaired();
 const files = await call<string[]>("list");
 ```
 
-Calls run on their own goroutine (slow work is fine), a returned error rejects the promise, and an unanswered call times out after 30 seconds instead of hanging forever.
+`ui.Calls` is `map[string]func(json.RawMessage) (any, error)`. Each call runs on **its own goroutine** off the read loop, so slow work is fine. The returned value must be JSON-serializable and resolves the promise; a returned error rejects it (and is treated as control flow, not a crash - it never hits the [error pipeline](../advanced/errors.md)). A panic in a call is recovered, reported as `panic.call`, and rejects the promise. An unanswered call times out after **30 seconds** on the frontend instead of hanging forever. Go resolves a call by looking at pair keys first (a page's or component's `Call`) and then services, so a pair's own `Call` always answers before an identically named service.
 
 ## Services: app-level call groups
 
-Some functionality belongs to the whole app, not one page - auth, settings, file dialogs. Register it as a service in main.go:
+Some functionality belongs to the whole app, not one page - auth, settings, file dialogs. Register it as a service in `main.go`:
 
 ```go
 app.Service("auth", ui.Calls{
@@ -49,28 +49,34 @@ app.Service("auth", ui.Calls{
 })
 ```
 
-Reach it from any component with `useService`, or from non-hook code with `service()`:
+A service is just a named `ui.Calls` group not tied to any pair's folder. Reach it from any component with `useService`, or from non-hook code with `service()`:
 
 ```tsx
 const auth = useService("auth");
 await auth.call("login", { user, pass });
 ```
 
-For read paths, `useCall` wraps the fetch-shaped boilerplate - it runs on mount, tracks loading/error, and re-runs when its inputs change:
+Both `useService(name)` and `service(name)` return a handle with a single method, `call<T>(name, payload?)`, that awaits and resolves with `T`. `useService` is the memoized hook form; `service` is a plain function usable anywhere (event handlers, module scope).
+
+## useCall: the read-path helper
+
+For read paths, `useCall` wraps the fetch-shaped boilerplate - it runs the call on mount, tracks loading/error, and **re-runs whenever its key, name, or payload change**:
 
 ```tsx
 const { data: me, loading, error, code, reload } = useCall<User>("auth", "me");
 ```
 
+The result is `{ data, error, code, loading, reload }`: `data` is `T | undefined`, `error` is the failure message (or `null`), `code` is the [gerr code](../advanced/errors.md) of a failed call (or `null`), `loading` is `true` until the first response, and `reload()` re-runs the call. It works against a pair key or a service name identically (both are just `key`, `name`, `payload`).
+
 That is everything a custom app hook needs:
 
 ```tsx
-// hooks/useAuth.ts - your own hook, three lines of glue
+// hooks/useAuth.ts - your own hook, a few lines of glue
 export function useAuth() {
   const auth = useService("auth");
   const me = useCall<User>("auth", "me");
   return {
-    ...me, // data, loading, error, reload
+    ...me, // data, loading, error, code, reload
     login: (user: string, pass: string) =>
       auth.call("login", { user, pass }).then(me.reload),
   };
@@ -98,17 +104,19 @@ function Users() {
 }
 ```
 
-The fallback is any JSX - a spinner, custom skeleton markup shaped like your real layout, or the built-in `Skeleton`: `<Skeleton lines={4}/>` renders shimmering text lines, `<Skeleton width={240} height={120}/>` a sized block, `<Skeleton circle/>` an avatar (it respects prefers-reduced-motion). Nothing about `Await` is mandatory - `loading` from `useCall` is right there for hand-rolled arrangements, and you can replace the error card with `renderError`.
+`Await`'s props: `call` (any `CallResult`-shaped object), `fallback` (JSX shown while loading - defaults to `<Skeleton lines={3}/>`), `renderError` (`(error, code, reload) => ReactNode` to replace the default error card), and `children` (`(data) => ReactNode`, called once data is present).
+
+`Skeleton` renders shimmering placeholder blocks sized like the content they stand in for: `<Skeleton lines={4}/>` renders text lines (the last shorter), `<Skeleton width={240} height={120}/>` a sized block, `<Skeleton circle/>` an avatar. It respects `prefers-reduced-motion`. Nothing about `Await` is mandatory - `loading` from `useCall` is right there for hand-rolled arrangements.
 
 ## Picking between the data paths
 
-- One-way notification ("this happened"): usePaired().send + `Handlers` ([Pairs](pairs.md)).
-- Question with an answer ("give me X", "do this and tell me how it went"): call / useService / useCall + `Calls`.
-- A live value both sides own: useGoState + ui.NewState ([State](state.md)).
+- One-way notification ("this happened"): `usePaired().send` + `ui.Handlers` ([Pairs](pairs.md)).
+- Question with an answer ("give me X", "do this and tell me how it went"): `call` / `useService` / `useCall` + `ui.Calls`.
+- A live value both sides own: `useGoState` + `ui.NewState` ([State](state.md)).
 - Continuous Go-driven UI: a Tea Model ([The Tea model](tea.md)).
 
 ## Notes
 
-- **Error codes.** `code` on a `useCall` result (and the second arg to `renderError`) is the [gerr code](../advanced/errors.md) of a failed call ("auth.expired", "panic.call"), so error handling can switch on identity instead of message text.
-- **The built-in "gantry" service.** Every app gets one service for free - `"gantry"`, whose `appInfo` call returns the app's identity (`name`, `title`, and the `version` from gantry.json, which Go can also read as `gantry.Version()`). The React side has a dedicated hook so an About page or version tag is one line: `const info = useAppInfo();` returns `{ name, title, version }` or null until loaded. `fetchAppInfo()` is the non-hook variant; both cache after the first round-trip. Registering your own `"gantry"` service overrides the built-in.
+- **Error codes.** `code` on a `useCall` result (and the second arg to `renderError`) is the [gerr code](../advanced/errors.md) of a failed call (`auth.expired`, `panic.call`), carried on the `GantryCallError` a rejected `call` throws, so error handling can switch on identity instead of message text.
+- **The built-in "gantry" service.** Every app gets one service for free - `"gantry"`. Its `appInfo` call returns the app's identity (`name`, `title`, and the `version` from `gantry.json`, which Go can also read as `gantry.Version()`), and its `errors` call returns any crash recorded on the previous run. The React side has a dedicated hook so an About page or version tag is one line: `const info = useAppInfo();` returns `{ name, title, version }` or `null` until loaded. `fetchAppInfo()` is the non-hook variant; both cache after the first round-trip. Registering your own `"gantry"` service overrides the built-in.
 - **Your own HTTP endpoints.** Calls and services ride the websocket. When you need a plain HTTP endpoint instead - a file download, a webhook target, something a non-Gantry client hits - register it on the `*http.ServeMux` in `Config.Setup`. See [Serving HTTP routes](http-endpoints.md).

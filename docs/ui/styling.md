@@ -1,25 +1,26 @@
 # Styling
 
-CSS in Gantry follows the same convention as everything else: files live next to what they style, and one root file owns the theme.
+CSS in Gantry follows the same convention as everything else: files live next to what they style, one root file owns the theme, and the chrome and Tea built-ins read that theme from CSS variables so a retheme is new values, not new components.
 
 ## The three levels
 
-1. **Root index.css** - app-wide. Loaded first, applies everywhere. This is where the theme variables live.
-2. **pages/&lt;name&gt;/&lt;name&gt;.css** - one page's styles.
-3. **components/&lt;name&gt;/&lt;name&gt;.css** - one component's styles.
+1. **Root `index.css`** - app-wide. Loaded first, applies everywhere. This is where the theme variables live.
+2. **`pages/<name>/<name>.css`** - one page's styles.
+3. **`components/<name>/<name>.css`** and **`layouts/<name>/<name>.css`** - one component's or layout's styles.
 
-Colocated css is imported automatically by the Vite plugin - no import statement in the tsx, no central stylesheet list to maintain. Create the file next to the tsx and it is live (gantry dev picks up new files on the fly).
+Colocated CSS is imported automatically by the Vite plugin - no `import` statement in the `.tsx`, no central stylesheet list to maintain. Create the file next to the `.tsx` and it is live (`gantry dev` picks up new files on the fly).
 
 ## Scoping by convention
 
-All css is globally loaded (that is how css works), so scope your selectors. Every page renders inside an element with a stable class derived from its key:
+All CSS is loaded globally (that is how CSS works), so scope your selectors. Every page renders inside a wrapper element carrying two classes: the shared `gantry-page` and a stable per-page class derived from its key by replacing every run of non-alphanumeric characters with a hyphen:
 
 ```
 pages/index      -> .gantry-pages-index
 pages/settings   -> .gantry-pages-settings
+pages/account/settings -> .gantry-pages-account-settings   (key "pages/account/settings")
 ```
 
-Start page rules with that class:
+Start a page's rules with that class:
 
 ```css
 .gantry-pages-settings .field-row {
@@ -28,7 +29,7 @@ Start page rules with that class:
 }
 ```
 
-Components wrap themselves: give your component's root element a class named after it and scope under that (the scaffold's example component shows the pattern):
+Components and layouts are not wrapped in a framework-generated class, so give the component's own root element a class named after it and scope under that (the scaffold's example component shows the pattern):
 
 ```css
 .example-card { /* ... */ }
@@ -36,26 +37,30 @@ Components wrap themselves: give your component's root element a class named aft
 
 ## The theme variables
 
-The window chrome and the Tea built-ins read their colors and metrics from CSS variables, all prefixed `--gantry-`. Redefine them in your root index.css and the whole app rethemes - TitleBar included, no component changes:
+The window chrome and the Tea built-ins read their colors and metrics from CSS custom properties, all prefixed `--gantry-`. They are defined in `:root` inside gantry-web's `styles.css`; redefine any of them in your root `index.css` and the whole app rethemes - TitleBar included, no component changes. The full set:
 
 ```css
 :root {
-  --gantry-bg: #101012;            /* app background */
-  --gantry-fg: #e8e8ea;            /* text */
-  --gantry-fg-dim: #9a9aa0;        /* secondary text */
-  --gantry-accent: #6ea8fe;        /* focus, highlights, progress */
-  --gantry-border: #2a2a2e;        /* dividers, outlines */
-  --gantry-titlebar-bg: transparent;
-  --gantry-btn-hover: rgba(255, 255, 255, 0.08);
-  --gantry-close-hover: #c42b1c;   /* close button hover */
-  --gantry-control-bg: #1a1a1e;    /* buttons, inputs */
+  --gantry-bg: #101012;              /* app background */
+  --gantry-fg: #e8e8ea;              /* primary text */
+  --gantry-fg-dim: #9a9aa0;          /* secondary / dimmed text */
+  --gantry-accent: #6ea8fe;          /* focus, highlights, progress fill */
+  --gantry-border: #2a2a2e;          /* dividers, outlines */
+  --gantry-titlebar-h: 40px;         /* default caption height (var form) */
+  --gantry-titlebar-bg: transparent; /* titlebar background */
+  --gantry-titlebar-fg: var(--gantry-fg); /* titlebar text + window buttons */
+  --gantry-btn-hover: rgba(255,255,255,0.08); /* window/tb button hover */
+  --gantry-close-hover: #c42b1c;     /* close button hover */
+  --gantry-control-bg: #1a1a1e;      /* buttons, inputs, selects */
   --gantry-control-border: #34343a;
   --gantry-radius: 6px;
-  --gantry-font: "Segoe UI", system-ui, sans-serif;
+  --gantry-font: "Segoe UI", system-ui, -apple-system, sans-serif;
 }
 ```
 
-Your own styles can (and should) use the same variables so custom UI follows the theme:
+A few more variables are *consumed with fallbacks* but not defined in `:root`, so they exist only if you set them: `--gantry-mono` (monospace family for error stacks and codes, falls back to `ui-monospace, monospace`) and the titlebar-button variables `--gantry-tbbtn-w`, `--gantry-tbbtn-bg`, `--gantry-tbbtn-fg`, `--gantry-tbbtn-hover` (see [TitleBar](titlebar.md)).
+
+Your own styles can - and should - use the same variables so custom UI tracks the theme:
 
 ```css
 .gantry-pages-index .stat-card {
@@ -65,9 +70,13 @@ Your own styles can (and should) use the same variables so custom UI follows the
 }
 ```
 
+## Plain elements are themed for free
+
+Inside the app scaffold (`.gantry-app`), gantry-web already styles ordinary `<input>`, `<textarea>`, `<select>`, and `<button>` (excluding the window and titlebar buttons) with the control variables above, plus `accent-color` on checkboxes and a pointer cursor on `Link`'s hrefless anchors. So a page can write plain HTML controls and get the app look with no per-page CSS - the Tea built-ins carry the same values, so the two match.
+
 ## Styling Tea built-ins
 
-Every built-in carries a stable class: `.gantry-tea-button`, `.gantry-tea-input`, `.gantry-tea-checkbox`, `.gantry-tea-select`, `.gantry-tea-progress`, `.gantry-tea-column`, `.gantry-tea-row`, and so on. Combine with the Go-side `"class"` prop for targeted styling:
+Every [Tea built-in](tea.md) carries a stable class: `.gantry-tea-column`, `.gantry-tea-row`, `.gantry-tea-text`, `.gantry-tea-heading`, `.gantry-tea-button`, `.gantry-tea-input`, `.gantry-tea-checkbox`, `.gantry-tea-select`, `.gantry-tea-divider`, `.gantry-tea-spacer`, `.gantry-tea-progress` (with an inner `.gantry-tea-progress-fill`), and `.gantry-tea-unknown` for an unresolved `Custom` name. Add your own hook with the Go-side `"class"` prop and scope under the page:
 
 ```go
 ui.Button("Save", saveMsg{}).WithProps("class", "primary")
@@ -80,26 +89,26 @@ ui.Button("Save", saveMsg{}).WithProps("class", "primary")
 }
 ```
 
-Layout hints from Go (`"gap"`, `"pad"`, `"grow"`) become inline styles; use them for one-offs and css classes for anything reused.
+The other Go-side layout hints become inline styles: `"gap"` -> `gap` (px), `"pad"` -> `padding` (px), `"grow": true` -> `flex-grow: 1`. Use those for one-offs and CSS classes for anything reused.
 
-## Load order
+## Overriding variables per page
 
-Root index.css loads first, then every colocated css. Since page css comes later, a page can override root values - including the variables:
+Variables cascade, so a page (or any element) can override a `--gantry-*` value and every built-in inside it picks the override up automatically - no component change:
 
 ```css
-/* pages/zen/zen.css - this page only, calmer accent */
+/* pages/zen/zen.css - this page only, a calmer accent */
 .gantry-pages-zen {
   --gantry-accent: #8bc48a;
 }
 ```
 
-Variables cascade, so built-ins inside that page pick the override up automatically.
+Root `index.css` loads before the colocated files, so a page's CSS comes later in the cascade and can override root values - including these variables - for its own subtree.
 
 ## Advanced: Tailwind
 
-Nothing in gantry-web requires Tailwind - the chrome ships plain css, and the variables + plain css convention carries a long way. Tailwind v4 is supported first-class when you want it:
+Nothing in gantry-web requires Tailwind - the chrome ships plain CSS, and the variables-plus-plain-CSS convention carries a long way. Tailwind v4 is supported first-class when you want it:
 
-- **New app**: `gantry new myapp --tailwind`. index.css becomes a Tailwind `@theme` token file - every color is both a utility class (`bg-surface`, `text-primary`, `border-border-subtle`) and a real CSS custom property, and the `--gantry-*` chrome variables are bridged to the tokens (`--gantry-bg: var(--color-base)`), so retheming the app and retheming the chrome is one edit.
-- **Existing app**: `gantry install --tailwind`. Installs the packages, migrates your index.css (custom colors are pulled into an `@theme` block and wired to the chrome; you review the diff first), sets `"tailwind": true` in gantry.json, and regenerates the synthesized vite config with `@tailwindcss/vite` included.
+- **New app**: `gantry new myapp --tailwind`. The generated `index.css` becomes a Tailwind `@theme` token file: every color is both a utility class (`bg-surface`, `text-primary`, `border-border-subtle`, ...) and a real CSS custom property (`var(--color-surface)`), and the `--gantry-*` chrome variables alias those tokens (`--gantry-bg: var(--color-base)`), so retheming the app and retheming the chrome are one edit.
+- **Existing app**: `gantry install --tailwind` installs the packages, migrates your `index.css` into that shape (you review the diff), sets `"tailwind": true` in `gantry.json`, and regenerates the synthesized Vite config with `@tailwindcss/vite` included.
 
-The `"tailwind"` flag in gantry.json is what makes `gantry dev`/`build` emit the plugin into `.gantry/vite.config.ts` - you never need to own the vite config for Tailwind. [Without the CLI](../advanced/without-the-cli.md) remains the path for other build customizations.
+The `"tailwind"` flag in `gantry.json` is what makes `gantry dev`/`build` emit the plugin into `.gantry/vite.config.ts` - you never own the Vite config for Tailwind. [Without the CLI](../advanced/without-the-cli.md) is the path for other build customizations.

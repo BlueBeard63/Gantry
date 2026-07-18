@@ -82,8 +82,8 @@ func WithHeaded() Option {
 // WithDOM enables the DOM plane: the app opens a real webview - parked
 // off-screen unless headed - and the driver attaches over CDP. Unlocks
 // App.Page, Find, element actions and screenshots. On desktop this is
-// WebView2 (Windows-only for now; the Linux webview is WebKitGTK, which
-// does not speak CDP, so the test is skipped there). On a device target
+// WebView2 on Windows (validated) or WebKitGTK on Linux (experimental -
+// inspector-based and WebKit-version-dependent). On a device target
 // (tier M2) it attaches to the Android WebView's devtools socket, and
 // clicks map to real touch events.
 func WithDOM() Option {
