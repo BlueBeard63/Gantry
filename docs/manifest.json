@@ -5,106 +5,283 @@
       "id": "getting-started",
       "title": "Getting started",
       "entries": [
-        { "path": "getting-started/installation.md", "title": "Installation" },
-        { "path": "getting-started/go-primer.md", "title": "A Go primer" },
-        { "path": "getting-started/tsx-primer.md", "title": "A TSX primer" },
-        { "path": "getting-started/first-app.md", "title": "Your first app" },
-        { "path": "getting-started/project-structure.md", "title": "Project structure" }
+        {
+          "path": "getting-started/installation.md",
+          "title": "Installation"
+        },
+        {
+          "path": "getting-started/go-primer.md",
+          "title": "A Go primer"
+        },
+        {
+          "path": "getting-started/tsx-primer.md",
+          "title": "A TSX primer"
+        },
+        {
+          "path": "getting-started/first-app.md",
+          "title": "Your first app"
+        },
+        {
+          "path": "getting-started/project-structure.md",
+          "title": "Project structure"
+        }
       ]
     },
     {
       "id": "shell",
       "title": "The shell",
       "entries": [
-        { "group": "The window", "pages": [
-          { "path": "shell/window-options.md", "title": "Window options" },
-          { "path": "shell/window-chrome.md", "title": "Frame & chrome" }
-        ] },
-        { "path": "shell/close-and-lifecycle.md", "title": "Close & lifecycle" },
-        { "path": "shell/tray.md", "title": "The system tray" },
-        { "path": "shell/widgets.md", "title": "Widgets" },
-        { "path": "shell/notifications.md", "title": "Notifications" },
-        { "path": "shell/monitors-and-icons.md", "title": "Monitors & icons" }
+        {
+          "group": "The window",
+          "pages": [
+            {
+              "path": "shell/window-options.md",
+              "title": "Window options"
+            },
+            {
+              "path": "shell/window-chrome.md",
+              "title": "Frame & chrome"
+            }
+          ]
+        },
+        {
+          "path": "shell/close-and-lifecycle.md",
+          "title": "Close & lifecycle"
+        },
+        {
+          "path": "shell/tray.md",
+          "title": "The system tray"
+        },
+        {
+          "path": "shell/widgets.md",
+          "title": "Widgets"
+        },
+        {
+          "path": "shell/notifications.md",
+          "title": "Notifications"
+        },
+        {
+          "path": "shell/monitors-and-icons.md",
+          "title": "Monitors & icons"
+        }
       ]
     },
     {
       "id": "ui",
       "title": "UI layer",
       "entries": [
-        { "path": "ui/pairs.md", "title": "Pairs" },
-        { "path": "ui/pages.md", "title": "Pages" },
-        { "path": "ui/components.md", "title": "Components" },
-        { "group": "Routing", "pages": [
-          { "path": "ui/routing.md", "title": "Routing basics" },
-          { "path": "ui/dynamic-routes.md", "title": "Dynamic routes" }
-        ] },
-        { "group": "Calls & services", "pages": [
-          { "path": "ui/calls.md", "title": "Awaited Go calls" },
-          { "path": "ui/services.md", "title": "Services & hooks" },
-          { "path": "ui/await.md", "title": "Await & Skeleton" }
-        ] },
-        { "path": "ui/state.md", "title": "State" },
-        { "path": "ui/layouts.md", "title": "Layouts" },
-        { "group": "Tea model", "pages": [
-          { "path": "ui/tea-model.md", "title": "The Tea model" },
-          { "path": "ui/tea-nodes.md", "title": "The node tree" },
-          { "path": "ui/tea-commands.md", "title": "Commands & messages" }
-        ] },
-        { "path": "ui/custom-components.md", "title": "Custom components" },
-        { "path": "ui/styling.md", "title": "Styling" },
-        { "path": "ui/http-endpoints.md", "title": "HTTP endpoints" },
-        { "path": "ui/resources.md", "title": "Resources" },
-        { "path": "ui/titlebar.md", "title": "The TitleBar" }
+        {
+          "path": "ui/pairs.md",
+          "title": "Pairs"
+        },
+        {
+          "path": "ui/pages.md",
+          "title": "Pages"
+        },
+        {
+          "path": "ui/components.md",
+          "title": "Components"
+        },
+        {
+          "group": "Routing",
+          "pages": [
+            {
+              "path": "ui/routing.md",
+              "title": "Routing basics"
+            },
+            {
+              "path": "ui/dynamic-routes.md",
+              "title": "Dynamic routes"
+            }
+          ]
+        },
+        {
+          "group": "Calls & services",
+          "pages": [
+            {
+              "path": "ui/calls.md",
+              "title": "Awaited Go calls"
+            },
+            {
+              "path": "ui/services.md",
+              "title": "Services & hooks"
+            },
+            {
+              "path": "ui/await.md",
+              "title": "Await & Skeleton"
+            }
+          ]
+        },
+        {
+          "path": "ui/state.md",
+          "title": "State"
+        },
+        {
+          "path": "ui/layouts.md",
+          "title": "Layouts"
+        },
+        {
+          "group": "Tea model",
+          "pages": [
+            {
+              "path": "ui/tea-model.md",
+              "title": "The Tea model"
+            },
+            {
+              "path": "ui/tea-nodes.md",
+              "title": "The node tree"
+            },
+            {
+              "path": "ui/tea-commands.md",
+              "title": "Commands & messages"
+            }
+          ]
+        },
+        {
+          "path": "ui/custom-components.md",
+          "title": "Custom components"
+        },
+        {
+          "path": "ui/styling.md",
+          "title": "Styling"
+        },
+        {
+          "path": "ui/http-endpoints.md",
+          "title": "HTTP endpoints"
+        },
+        {
+          "path": "ui/resources.md",
+          "title": "Resources"
+        },
+        {
+          "path": "ui/titlebar.md",
+          "title": "The TitleBar"
+        }
       ]
     },
     {
       "id": "mobile",
       "title": "Mobile",
       "entries": [
-        { "path": "mobile/android.md", "title": "Android builds" },
-        { "path": "mobile/widgets.md", "title": "Home-screen widgets" },
-        { "path": "mobile/notifications.md", "title": "Notifications" },
-        { "path": "mobile/ios.md", "title": "iOS (experimental)" }
+        {
+          "path": "mobile/android.md",
+          "title": "Android builds"
+        },
+        {
+          "path": "mobile/widgets.md",
+          "title": "Home-screen widgets"
+        },
+        {
+          "path": "mobile/notifications.md",
+          "title": "Notifications"
+        },
+        {
+          "path": "mobile/ios.md",
+          "title": "iOS (experimental)"
+        }
       ]
     },
     {
       "id": "testing",
       "title": "Testing",
       "entries": [
-        { "path": "testing/setup.md", "title": "Setup" },
-        { "group": "Driving the app", "pages": [
-          { "path": "testing/pages-and-tree.md", "title": "Pages & the tree" },
-          { "path": "testing/events-and-calls.md", "title": "Events & calls" },
-          { "path": "testing/state-and-restarts.md", "title": "State, pushes & restarts" }
-        ] },
-        { "path": "testing/dom.md", "title": "The DOM plane" },
-        { "path": "testing/errors-and-artifacts.md", "title": "Errors & artifacts" },
-        { "path": "testing/widgets.md", "title": "Widget snapshots" },
-        { "path": "testing/mobile.md", "title": "Mobile testing" },
-        { "path": "testing/ci.md", "title": "CI" }
+        {
+          "path": "testing/setup.md",
+          "title": "Setup"
+        },
+        {
+          "group": "Driving the app",
+          "pages": [
+            {
+              "path": "testing/pages-and-tree.md",
+              "title": "Pages & the tree"
+            },
+            {
+              "path": "testing/events-and-calls.md",
+              "title": "Events & calls"
+            },
+            {
+              "path": "testing/state-and-restarts.md",
+              "title": "State, pushes & restarts"
+            }
+          ]
+        },
+        {
+          "path": "testing/dom.md",
+          "title": "The DOM plane"
+        },
+        {
+          "path": "testing/errors-and-artifacts.md",
+          "title": "Errors & artifacts"
+        },
+        {
+          "path": "testing/widgets.md",
+          "title": "Widget snapshots"
+        },
+        {
+          "path": "testing/mobile.md",
+          "title": "Mobile testing"
+        },
+        {
+          "path": "testing/ci.md",
+          "title": "CI"
+        }
       ]
     },
     {
       "id": "cli",
       "title": "CLI",
       "entries": [
-        { "path": "cli/project.md", "title": "Project & build" },
-        { "path": "cli/develop.md", "title": "Develop & generate" },
-        { "path": "cli/test-command.md", "title": "The test command" },
-        { "path": "cli/mobile-and-docs.md", "title": "Mobile & docs" }
+        {
+          "path": "cli/project.md",
+          "title": "Project & build"
+        },
+        {
+          "path": "cli/develop.md",
+          "title": "Develop & generate"
+        },
+        {
+          "path": "cli/test-command.md",
+          "title": "The test command"
+        },
+        {
+          "path": "cli/mobile-and-docs.md",
+          "title": "Mobile & docs"
+        }
       ]
     },
     {
       "id": "advanced",
       "title": "Advanced",
       "entries": [
-        { "path": "advanced/architecture.md", "title": "Architecture" },
-        { "path": "advanced/without-the-cli.md", "title": "Without the CLI" },
-        { "path": "advanced/args.md", "title": "App args" },
-        { "path": "advanced/modes.md", "title": "Modes" },
-        { "path": "advanced/protocol.md", "title": "The wire protocol" },
-        { "path": "advanced/errors.md", "title": "Errors & crash handling" },
-        { "path": "advanced/win32-notes.md", "title": "Win32 notes" }
+        {
+          "path": "advanced/architecture.md",
+          "title": "Architecture"
+        },
+        {
+          "path": "advanced/without-the-cli.md",
+          "title": "Without the CLI"
+        },
+        {
+          "path": "advanced/args.md",
+          "title": "App args"
+        },
+        {
+          "path": "advanced/modes.md",
+          "title": "Modes"
+        },
+        {
+          "path": "advanced/protocol.md",
+          "title": "The wire protocol"
+        },
+        {
+          "path": "advanced/errors.md",
+          "title": "Errors & crash handling"
+        },
+        {
+          "path": "advanced/win32-notes.md",
+          "title": "Win32 notes"
+        }
       ]
     }
   ]
