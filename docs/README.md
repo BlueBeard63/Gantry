@@ -25,12 +25,18 @@ The shell (windows and chrome)
 
 The UI layer (pages and components)
 
-- [Pages and components](ui/pages-and-components.md) - registration, routing, usePaired
-- [Calls, services and shared state](ui/calls-and-state.md) - awaited Go calls, useAuth-style hooks, useGoState
-- [Layouts](ui/layouts.md) - shared navbars/sidebars, Link and active state
+- [Pairs](ui/pairs.md) - the paired-file model: keys, usePaired, data flow both ways, registration
+- [Pages](ui/pages.md) - the routable pair: Route/Model/On/Call and the tsx chrome/route/layout exports
+- [Components](ui/components.md) - the reusable pair: importing it vs rendering it from Go
+- [Routing basics](ui/routing.md) - route derivation, navigate/Link/useRoute/isActive, ExternalLink
+- [Dynamic routes](ui/dynamic-routes.md) - [id]/[...slug] folders, useParams, the Go half
+- [Calls and services](ui/calls-and-services.md) - awaited Go calls, useAuth-style hooks, Await/Skeleton
+- [State](ui/state.md) - useGoState, shared values both sides own
+- [Layouts](ui/layouts.md) - shared navbars/sidebars around pages
 - [The Tea model](ui/tea.md) - Model, Update, View in Go
 - [Custom components](ui/custom-components.md) - rendering your React from Go
 - [Styling](ui/styling.md) - colocated css and theme variables
+- [HTTP endpoints](ui/http-endpoints.md) - serving your own routes on the app server
 - [Resources](ui/resources.md) - embedded images, fonts and data, shared by both planes
 - [The TitleBar](ui/titlebar.md) - configuring the window chrome
 

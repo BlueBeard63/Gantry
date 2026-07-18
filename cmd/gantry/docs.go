@@ -120,7 +120,7 @@ func loadDocs() ([]docPage, error) {
 		title := p
 		for _, line := range strings.Split(raw, "\n") {
 			if strings.HasPrefix(line, "# ") {
-				title = strings.TrimPrefix(line, "# ")
+				title = strings.TrimSpace(strings.TrimPrefix(line, "# "))
 				break
 			}
 		}

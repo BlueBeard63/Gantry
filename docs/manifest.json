@@ -28,12 +28,20 @@
       "id": "ui",
       "title": "UI layer",
       "entries": [
-        { "path": "ui/pages-and-components.md", "title": "Pages & components" },
-        { "path": "ui/calls-and-state.md", "title": "Calls, services & state" },
+        { "path": "ui/pairs.md", "title": "Pairs" },
+        { "path": "ui/pages.md", "title": "Pages" },
+        { "path": "ui/components.md", "title": "Components" },
+        { "group": "Routing", "pages": [
+          { "path": "ui/routing.md", "title": "Routing basics" },
+          { "path": "ui/dynamic-routes.md", "title": "Dynamic routes" }
+        ] },
+        { "path": "ui/calls-and-services.md", "title": "Calls & services" },
+        { "path": "ui/state.md", "title": "State" },
         { "path": "ui/layouts.md", "title": "Layouts" },
         { "path": "ui/tea.md", "title": "The Tea model" },
         { "path": "ui/custom-components.md", "title": "Custom components" },
         { "path": "ui/styling.md", "title": "Styling" },
+        { "path": "ui/http-endpoints.md", "title": "HTTP endpoints" },
         { "path": "ui/resources.md", "title": "Resources" },
         { "path": "ui/titlebar.md", "title": "The TitleBar" }
       ]
@@ -76,7 +84,6 @@
         { "path": "advanced/without-the-cli.md", "title": "Without the CLI" },
         { "path": "advanced/args.md", "title": "App args" },
         { "path": "advanced/modes.md", "title": "Modes" },
-        { "path": "advanced/pagination.md", "title": "Dynamic routes & pagination" },
         { "path": "advanced/protocol.md", "title": "The wire protocol" },
         { "path": "advanced/errors.md", "title": "Errors & crash handling" },
         { "path": "advanced/win32-notes.md", "title": "Win32 notes" }

@@ -10,7 +10,7 @@ All messages are **JSON** text frames with a `"t"` discriminator.
 {"t":"ready","page":"pages/index"}
 ```
 
-Sent when a page mounts, and again on every reconnect. The server makes this page the active one: if it has a Model, the program starts (first mount) or re-attaches, and a full render comes back. A dynamic page's `ready` also carries its captured route params, which the server hands to the Model as `ParamsMsg` - see [Pagination](pagination.md).
+Sent when a page mounts, and again on every reconnect. The server makes this page the active one: if it has a Model, the program starts (first mount) or re-attaches, and a full render comes back. A dynamic page's `ready` also carries its captured route params, which the server hands to the Model as `ParamsMsg` - see [Dynamic routes](../ui/dynamic-routes.md).
 
 ```json
 {"t":"event","h":"h42","p":123}

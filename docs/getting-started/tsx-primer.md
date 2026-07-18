@@ -90,7 +90,7 @@ import { usePaired, navigate } from "gantry-web";
 import { TeaView } from "gantry-web/tea";
 ```
 
-- `usePaired()` talks to the `.go` file next to your `.tsx`: `send()` fires its handlers, state mirrors what Go pushes. See [Pages and components](../ui/pages-and-components.md).
+- `usePaired()` talks to the `.go` file next to your `.tsx`: `send()` fires its handlers, state mirrors what Go pushes. See [Pairs](../ui/pairs.md).
 - `navigate("/settings")` switches pages without a reload.
 - `TeaView` renders a page whose UI logic lives in Go. See [The Tea model](../ui/tea.md).
 

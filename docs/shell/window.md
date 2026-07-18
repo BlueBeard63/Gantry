@@ -69,8 +69,21 @@ RunWindow binds JS functions the frontend calls, named `<BindingPrefix><Name>` w
 - gantryMaximize / gantryRestore / gantryIsMaximized (EnableMaximize)
 - gantrySetAlwaysOnTop, gantryCaps
 - gantryOpenExternal - open a URL in the default browser (gantry-web's `ExternalLink` component uses it, so external links never navigate the app window)
+- gantryResizeEdge - start an interactive edge resize on Linux frameless windows (gantry-web's `ResizeFrame` strips call it; a no-op on Windows, where the native hit-test handles edges)
 
-You will not call these raw - gantry-web's getShell()/useShell() wraps them with feature detection so the same frontend also runs in a plain browser tab (where they simply do not exist). The window also disables the WebView2 status bar (the bottom-corner URL-preview bubble), a browser artifact that looks wrong in a desktop app.
+You will not call these raw - gantry-web's getShell()/useShell() wraps them with feature detection so the same frontend also runs in a plain browser tab (where they simply do not exist). Each is safe to call anywhere: outside a native window it just does nothing, and `shell.available` tells you which world you are in. The `useShell()` method surface:
+
+- `shell.close()`, `shell.minimize()`, `shell.maximize()`, `shell.restore()` - window verbs.
+- `shell.isMaximized()` - a Promise<boolean> for the current maximized state.
+- `shell.drag()` - start the native window-move loop (call on mousedown, e.g. from a custom caption).
+- `shell.attention()` - system notification sound plus taskbar flash.
+- `shell.caps()` - a Promise<ShellCaps> reporting which buttons the Go side enabled (all false in a browser).
+- `shell.setAlwaysOnTop(on)` - pin or unpin the window above others (bound when AlwaysOnTop is set).
+- `shell.openExternal(url)` - open a URL in the user's default browser, never in the app window.
+- `shell.setVisible(show)` and `shell.resize(w, h)` - show/hide and resize in place, used mainly by [widgets](widgets.md).
+- `shell.resizeEdge(edge)` - start an interactive resize from an edge ("n", "se", ...) on Linux frameless windows.
+
+The window also disables the WebView2 status bar (the bottom-corner URL-preview bubble), a browser artifact that looks wrong in a desktop app.
 
 - BindingPrefix - change it only if you must avoid a name collision; then pass the same prefix to useShell/TitleBar.
 - ExtraBindings - your own JS functions bound on the window: a map of name to Go func, e.g. "myappPickFile": func() string {...}. For app logic prefer paired events (they work in browser mode too); extra bindings are for things only the native window can do.

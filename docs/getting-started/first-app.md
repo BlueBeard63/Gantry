@@ -70,4 +70,4 @@ Open it - it is about a dozen lines: `gantry.Run` with the app's name, title, po
 
 - [Project structure](project-structure.md) - what every file is for
 - [The main window](../shell/window.md) - sizing, buttons, geometry
-- [Pages and components](../ui/pages-and-components.md) - the pairing system
+- [Pairs](../ui/pairs.md) - the pairing system behind pages and components

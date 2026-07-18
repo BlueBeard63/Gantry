@@ -21,7 +21,7 @@ One binary plays every role. `main()` checks `--shellrole` first and, when asked
 
 ## Why serve HTTP at all?
 
-The webview needs a URL, and serving the SPA locally buys three things at once: one code path for the native window, `--browser` mode and dev (only the URL changes); websockets that work naturally (the ui layer needs server push); and a fixed port that doubles as the single-instance guard. The server binds `127.0.0.1` only, so nothing is reachable from the network.
+The webview needs a URL, and serving the SPA locally buys three things at once: one code path for the native window, `--browser` mode and dev (only the URL changes); websockets that work naturally (the ui layer needs server push); and a fixed port that doubles as the single-instance guard. The server binds `127.0.0.1` only, so nothing is reachable from the network. It is also where your own HTTP routes live - register them on the mux in `Config.Setup`; see [Serving your own HTTP routes](../ui/http-endpoints.md).
 
 ## Why child processes for widgets and popups?
 

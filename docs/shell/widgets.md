@@ -53,6 +53,7 @@ Inside a widget page, useShell() gives you:
 - shell.close() - close the widget window.
 - shell.setVisible(show) - show/hide the native window from the page. A timer widget shows itself only while something is running.
 - shell.resize(w, h) - resize in place, keeping whatever position the user dragged it to. Flyouts grow downward with this.
+- shell.setAlwaysOnTop(on) - toggle the widget's always-on-top pin at runtime (e.g. a "keep on top" switch on the widget itself).
 
 ```tsx
 export const chrome = false;

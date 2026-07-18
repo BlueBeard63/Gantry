@@ -57,44 +57,14 @@ Rules worth knowing:
 
 ## Active-aware navigation
 
-`Link` is the navigation primitive built for layouts. It renders an `<a>`, navigates client-side, and knows whether it points at the current page:
+The nav links inside a layout are the routing primitives - `Link` (with its active `data-active`/`aria-current` state), `useRoute`, `isActive`, and `ExternalLink` for links that leave the app. They are the same in a layout as anywhere else, so the full story lives on the [Routing](routing.md) page:
 
 ```tsx
+import { Link, ExternalLink } from "gantry-web";
+
 <Link to="/settings">Settings</Link>
-<Link to="/docs" matchPrefix>Docs</Link>                    // active on /docs/*
-<Link to="/stats" activeClassName="lit">Stats</Link>        // extra class while active
-```
-
-While active a Link carries `data-active="true"` and `aria-current="page"`, so styling works three ways:
-
-```css
-/* plain css */
-.app-nav a[data-active="true"] { background: var(--gantry-control-bg); }
-```
-
-```
-tailwind:        data-[active=true]:bg-zinc-800
-activeClassName: whatever class you like
-```
-
-For links that leave the app (docs, your repo, a website), use `ExternalLink` instead: it opens the URL in the user's default browser rather than navigating the app window, and shows no URL-preview bubble:
-
-```tsx
-<ExternalLink href="https://github.com/B-Commissions/Gantry">Source</ExternalLink>
-```
-
-For fully custom nav elements (buttons, tabs, tree items), the same information is available as hooks:
-
-```tsx
-import { useRoute, isActive, navigate } from "gantry-web";
-
-const path = useRoute(); // current pathname, re-renders on navigation
-<button
-  data-active={isActive(path, "/stats")}
-  onClick={() => navigate("/stats")}
->
-  Stats
-</button>
+<Link to="/docs" matchPrefix>Docs</Link>            // active on /docs/*
+<ExternalLink href="https://example.com">Site</ExternalLink>
 ```
 
 ## Styling a layout
@@ -120,6 +90,6 @@ var Component = ui.Component{
 const { state } = usePaired(); // key injected: "layouts/main"
 ```
 
-Then push into it from anywhere: `app.Push("layouts/main", "state", data)`. See [Calls, services and shared state](calls-and-state.md) for the full data-flow picture.
+Then push into it from anywhere: `app.Push("layouts/main", "state", data)`. See [Pairs](pairs.md) for the full data-flow picture.
 
 One Go naming caveat: a folder named `main` would collide with Go's `package main`. Either name the package differently (as above - Go package names need not match folders) or skip the .go half for the main layout and put live data in a component inside it.
