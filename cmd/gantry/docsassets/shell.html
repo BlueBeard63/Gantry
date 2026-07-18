@@ -251,6 +251,11 @@ header {
 .ai-note { font-size:12px; color:var(--fg-muted); text-align:center; padding:6px 12px; line-height:1.5; }
 .ai-note code { font-family:var(--mono); font-size:.9em; }
 .ai-typing { color:var(--fg-muted); }
+.ai-dots { display:inline-flex; gap:5px; align-items:center; padding:5px 0; }
+.ai-dots span { width:6px; height:6px; border-radius:50%; background:var(--fg-muted); display:inline-block; animation:ai-bounce 1.2s infinite ease-in-out; }
+.ai-dots span:nth-child(2) { animation-delay:.16s; }
+.ai-dots span:nth-child(3) { animation-delay:.32s; }
+@keyframes ai-bounce { 0%, 70%, 100% { transform:translateY(0); opacity:.45; } 35% { transform:translateY(-6px); opacity:1; } }
 .ai-input-row { display:flex; gap:8px; padding:12px; border-top:1px solid var(--border); }
 .ai-input {
   flex:1; resize:none; border:1px solid var(--border); border-radius:9px;
@@ -592,6 +597,7 @@ header {
   var closeBtn = document.getElementById('aiClose');
   var history = [];               // {role, content} conversation turns
   var opened = false, busy = false;
+  var DOTS = '<span class="ai-dots"><span></span><span></span><span></span></span>';
 
   function esc(s) {
     return String(s).replace(/[&<>"]/g, function (c) {
@@ -663,11 +669,13 @@ header {
     input.value = ''; autosize();
 
     var bot = addMsg('bot');
-    bot.innerHTML = '<span class="ai-typing">…</span>';
+    bot.innerHTML = DOTS;
     var full = '', sourcesEl = null;
 
+    // While waiting for the first token, keep the bouncing dots (even once
+    // the source chips have arrived); swap to the answer as it streams in.
     function repaint() {
-      bot.innerHTML = mdToHtml(full);
+      bot.innerHTML = full ? mdToHtml(full) : DOTS;
       if (sourcesEl) bot.appendChild(sourcesEl);
       msgs.scrollTop = msgs.scrollHeight;
     }
@@ -682,8 +690,13 @@ header {
       });
     }
     function finish() {
-      if (full.trim()) { history.push({ role: 'assistant', content: full }); }
-      else if (!sourcesEl) { bot.innerHTML = '<span class="ai-typing">No response.</span>'; }
+      if (full.trim()) {
+        history.push({ role: 'assistant', content: full });
+      } else {
+        // Stream ended with no text: clear the dots.
+        bot.innerHTML = '<span class="ai-typing">No response.</span>';
+        if (sourcesEl) bot.appendChild(sourcesEl);
+      }
       busy = false; send.disabled = false; input.focus();
     }
 
