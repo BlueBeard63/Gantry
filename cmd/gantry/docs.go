@@ -32,7 +32,8 @@ func cmdDocs(args []string) error {
 	printOnly := fs.Bool("print", false, "print the page as plain markdown instead of the browser")
 	frameOnly := fs.Bool("frame", false, "render one frame at the terminal size to stdout, then exit (layout diagnostic)")
 	frameSize := fs.String("size", "", "WxH to force the -frame size, e.g. 188x41 (when redirecting to a file)")
-	ai := fs.Bool("ai", false, "enable the on-device docs assistant (needs a running OpenAI-compatible model server, e.g. Ollama)")
+	ai := fs.Bool("ai", false, "enable the on-device docs assistant (agent CLI like Claude Code/Codex if installed, else a local model)")
+	mcpMode := fs.Bool("mcp", false, "run a stdio MCP server exposing the docs (search_docs/read_doc/list_docs) - no auth; add with: claude mcp add gantry-docs -- gantry docs --mcp")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
@@ -40,6 +41,12 @@ func cmdDocs(args []string) error {
 	pages, err := loadDocs()
 	if err != nil {
 		return err
+	}
+
+	// MCP mode is a headless stdio server for coding agents - no web/TUI, no
+	// stdout chatter (the transport owns stdin/stdout).
+	if *mcpMode {
+		return serveDocsMCP(pages)
 	}
 
 	start := 0

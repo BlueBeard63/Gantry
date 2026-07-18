@@ -22,20 +22,41 @@ import (
 // overriding the env vars. The docs themselves stay fully offline - the
 // assistant is purely additive.
 
-// aiConfig points the assistant at an OpenAI-compatible /chat/completions
-// endpoint.
+// aiConfig selects and configures the assistant backend.
 type aiConfig struct {
-	baseURL string // e.g. http://localhost:11434/v1 (no trailing slash)
-	model   string // e.g. qwen2.5
+	backend string // "claude" | "codex" | "ollama" (the OpenAI-compatible HTTP path)
+	baseURL string // e.g. http://localhost:11434/v1 (no trailing slash); used by "ollama"
+	model   string // e.g. qwen2.5; used by "ollama"
 	apiKey  string // optional; local servers usually need none
 }
 
 func newAIConfig() aiConfig {
 	return aiConfig{
+		backend: resolveBackend(strings.ToLower(strings.TrimSpace(os.Getenv("GANTRY_DOCS_AI_BACKEND")))),
 		baseURL: strings.TrimRight(aiEnvOr("GANTRY_DOCS_AI_URL", "http://localhost:11434/v1"), "/"),
 		model:   aiEnvOr("GANTRY_DOCS_AI_MODEL", "qwen2.5"),
 		apiKey:  os.Getenv("GANTRY_DOCS_AI_KEY"),
 	}
+}
+
+// resolveBackend picks the assistant backend. An explicit GANTRY_DOCS_AI_BACKEND
+// wins; otherwise "auto" prefers an installed agent CLI (Claude Code, then
+// Codex) and falls back to the OpenAI-compatible HTTP model ("ollama").
+func resolveBackend(choice string) string {
+	switch choice {
+	case "claude", "codex":
+		return choice
+	case "ollama", "http", "openai", "local":
+		return "ollama"
+	}
+	// auto (unset or unknown): prefer an agent CLI on PATH.
+	if _, err := exec.LookPath("claude"); err == nil {
+		return "claude"
+	}
+	if _, err := exec.LookPath("codex"); err == nil {
+		return "codex"
+	}
+	return "ollama"
 }
 
 func aiEnvOr(key, def string) string {
@@ -157,6 +178,21 @@ Answer ONLY from the documentation provided below. Be concise and concrete, and 
 	return b.String()
 }
 
+// docByRoute finds a page by its route, tolerating a missing leading slash or
+// a trailing ".md" (so "/ui/state", "ui/state" and "ui/state.md" all match).
+func (s *docsSite) docByRoute(route string) (aiDoc, bool) {
+	route = strings.TrimSuffix(strings.TrimSpace(route), ".md")
+	if !strings.HasPrefix(route, "/") {
+		route = "/" + route
+	}
+	for _, d := range s.aiDocs {
+		if d.Route == route {
+			return d, true
+		}
+	}
+	return aiDoc{}, false
+}
+
 // aiTrimHistory keeps only user/assistant turns, last max, to bound context.
 func aiTrimHistory(msgs []aiChatMessage, max int) []aiChatMessage {
 	var conv []aiChatMessage
@@ -172,9 +208,10 @@ func aiTrimHistory(msgs []aiChatMessage, max int) []aiChatMessage {
 }
 
 // handleAsk streams an answer to the browser as Server-Sent Events. It
-// retrieves the relevant pages for the latest user message, prepends them as
-// a system prompt, then proxies an OpenAI-compatible streaming completion,
-// forwarding only the content deltas (plus an up-front list of sources).
+// retrieves the relevant pages for the latest user message, grounds the
+// backend on them, and forwards the answer as content deltas (plus an
+// up-front list of sources). The backend is either an OpenAI-compatible model
+// server or a local agent CLI (Claude Code / Codex).
 func (s *docsSite) handleAsk(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "POST only", http.StatusMethodNotAllowed)
@@ -214,15 +251,28 @@ func (s *docsSite) handleAsk(w http.ResponseWriter, r *http.Request) {
 	}
 	sse(map[string]any{"sources": srcs})
 
-	msgs := []aiChatMessage{{Role: "system", Content: s.aiSystemPrompt(retrieved)}}
-	msgs = append(msgs, aiTrimHistory(req.Messages, 8)...)
+	system := s.aiSystemPrompt(retrieved)
+	conv := aiTrimHistory(req.Messages, 8)
+
+	switch s.aiCfg.backend {
+	case "claude", "codex":
+		s.streamAgentCLI(r.Context(), sse, buildAgentPrompt(system, conv))
+	default:
+		s.streamHTTP(r.Context(), sse, system, conv)
+	}
+	sse(map[string]bool{"done": true})
+}
+
+// streamHTTP proxies an OpenAI-compatible streaming completion and forwards
+// its content deltas as SSE.
+func (s *docsSite) streamHTTP(ctx context.Context, sse func(any), system string, conv []aiChatMessage) {
+	msgs := append([]aiChatMessage{{Role: "system", Content: system}}, conv...)
 	body, _ := json.Marshal(map[string]any{
 		"model":    s.aiCfg.model,
 		"messages": msgs,
 		"stream":   true,
 	})
-
-	upReq, err := http.NewRequestWithContext(r.Context(), http.MethodPost, s.aiCfg.baseURL+"/chat/completions", bytes.NewReader(body))
+	upReq, err := http.NewRequestWithContext(ctx, http.MethodPost, s.aiCfg.baseURL+"/chat/completions", bytes.NewReader(body))
 	if err != nil {
 		sse(map[string]string{"error": err.Error()})
 		return
@@ -231,7 +281,6 @@ func (s *docsSite) handleAsk(w http.ResponseWriter, r *http.Request) {
 	if s.aiCfg.apiKey != "" {
 		upReq.Header.Set("Authorization", "Bearer "+s.aiCfg.apiKey)
 	}
-
 	resp, err := http.DefaultClient.Do(upReq)
 	if err != nil {
 		sse(map[string]string{"error": "Could not reach a model at " + s.aiCfg.baseURL + ". Is your local model server running? (" + err.Error() + ")"})
@@ -243,8 +292,6 @@ func (s *docsSite) handleAsk(w http.ResponseWriter, r *http.Request) {
 		sse(map[string]string{"error": fmt.Sprintf("Model server returned %d: %s", resp.StatusCode, strings.TrimSpace(string(snippet)))})
 		return
 	}
-
-	// Parse the upstream OpenAI SSE stream and forward content deltas.
 	scanner := bufio.NewScanner(resp.Body)
 	scanner.Buffer(make([]byte, 0, 64*1024), 1024*1024)
 	for scanner.Scan() {
@@ -273,7 +320,152 @@ func (s *docsSite) handleAsk(w http.ResponseWriter, r *http.Request) {
 			sse(map[string]string{"delta": chunk.Choices[0].Delta.Content})
 		}
 	}
-	sse(map[string]bool{"done": true})
+}
+
+// buildAgentPrompt flattens the grounding system prompt plus the conversation
+// into a single prompt string for an agent CLI (piped via stdin, so there is
+// no command-line length limit on the embedded docs).
+func buildAgentPrompt(system string, conv []aiChatMessage) string {
+	var b strings.Builder
+	b.WriteString(system)
+	b.WriteString("\n\n----\n")
+	for _, m := range conv {
+		role := "User"
+		if m.Role == "assistant" {
+			role = "Assistant"
+		}
+		fmt.Fprintf(&b, "\n%s: %s\n", role, m.Content)
+	}
+	b.WriteString("\nAssistant:")
+	return b.String()
+}
+
+// streamAgentCLI runs a local agent CLI (Claude Code or Codex) in headless
+// mode with the grounded prompt on stdin, and forwards its answer as SSE
+// deltas. It uses the agent already installed on the machine - no model
+// download, no GPU.
+func (s *docsSite) streamAgentCLI(ctx context.Context, sse func(any), prompt string) {
+	backend := s.aiCfg.backend
+	bin, err := exec.LookPath(backend)
+	if err != nil {
+		sse(map[string]string{"error": fmt.Sprintf("The %q CLI isn't on your PATH. Install it, or set GANTRY_DOCS_AI_BACKEND=ollama to use a local model.", backend)})
+		return
+	}
+
+	var args []string
+	switch backend {
+	case "claude":
+		// Headless, streaming JSON events (token deltas need partial messages).
+		args = []string{"-p", "--output-format", "stream-json", "--verbose", "--include-partial-messages"}
+	case "codex":
+		// Non-interactive: progress goes to stderr, the final message to stdout.
+		args = []string{"exec"}
+	}
+
+	cmd := exec.CommandContext(ctx, bin, args...)
+	cmd.Stdin = strings.NewReader(prompt)
+	var errBuf bytes.Buffer
+	cmd.Stderr = &errBuf
+	stdout, err := cmd.StdoutPipe()
+	if err != nil {
+		sse(map[string]string{"error": err.Error()})
+		return
+	}
+	if err := cmd.Start(); err != nil {
+		sse(map[string]string{"error": err.Error()})
+		return
+	}
+
+	scanner := bufio.NewScanner(stdout)
+	scanner.Buffer(make([]byte, 0, 64*1024), 8*1024*1024)
+	var emitted bool
+	if backend == "claude" {
+		emitted = streamClaudeEvents(scanner, sse)
+	} else {
+		emitted = streamPlainStdout(scanner, sse)
+	}
+	waitErr := cmd.Wait()
+
+	if !emitted {
+		msg := strings.TrimSpace(errBuf.String())
+		if len(msg) > 800 {
+			msg = msg[:800] + "…"
+		}
+		if msg == "" && waitErr != nil {
+			msg = waitErr.Error()
+		}
+		if msg == "" {
+			msg = "the agent produced no output"
+		}
+		sse(map[string]string{"error": fmt.Sprintf("%s returned no answer: %s", backend, msg)})
+	}
+}
+
+// streamClaudeEvents parses Claude Code's stream-json output. It prefers
+// token-level deltas (content_block_delta events from --include-partial-messages)
+// and falls back to the final assistant message or the result string, so it
+// works whether or not partial messages are available.
+func streamClaudeEvents(scanner *bufio.Scanner, sse func(any)) bool {
+	emitted := false
+	result := ""
+	for scanner.Scan() {
+		var ev struct {
+			Type   string `json:"type"`
+			Result string `json:"result"`
+			Event  struct {
+				Type  string `json:"type"`
+				Delta struct {
+					Type string `json:"type"`
+					Text string `json:"text"`
+				} `json:"delta"`
+			} `json:"event"`
+			Message struct {
+				Content []struct {
+					Type string `json:"type"`
+					Text string `json:"text"`
+				} `json:"content"`
+			} `json:"message"`
+		}
+		if json.Unmarshal(scanner.Bytes(), &ev) != nil {
+			continue
+		}
+		switch ev.Type {
+		case "stream_event":
+			if ev.Event.Type == "content_block_delta" && ev.Event.Delta.Type == "text_delta" && ev.Event.Delta.Text != "" {
+				sse(map[string]string{"delta": ev.Event.Delta.Text})
+				emitted = true
+			}
+		case "assistant":
+			// Only fires here if partial deltas weren't emitted (the final
+			// assistant message always arrives after its stream_events).
+			if !emitted {
+				for _, c := range ev.Message.Content {
+					if c.Type == "text" && c.Text != "" {
+						sse(map[string]string{"delta": c.Text})
+						emitted = true
+					}
+				}
+			}
+		case "result":
+			result = ev.Result
+		}
+	}
+	if !emitted && strings.TrimSpace(result) != "" {
+		sse(map[string]string{"delta": result})
+		emitted = true
+	}
+	return emitted
+}
+
+// streamPlainStdout forwards raw stdout lines as deltas (Codex prints the final
+// message to stdout; progress goes to stderr).
+func streamPlainStdout(scanner *bufio.Scanner, sse func(any)) bool {
+	emitted := false
+	for scanner.Scan() {
+		sse(map[string]string{"delta": scanner.Text() + "\n"})
+		emitted = true
+	}
+	return emitted
 }
 
 // ensureOllamaModel makes `gantry docs --ai` self-provisioning for the
@@ -338,25 +530,33 @@ func ollamaHasModel(cfg aiConfig) bool {
 	return false
 }
 
-// handleAIStatus reports whether a model server is answering, so the widget
-// can show the model name or a "start a local model" hint.
+// handleAIStatus reports the active backend so the widget can show it (and,
+// for the HTTP model backend, whether the server is answering).
 func (s *docsSite) handleAIStatus(w http.ResponseWriter, r *http.Request) {
-	reachable := false
-	ctx, cancel := context.WithTimeout(r.Context(), 1500*time.Millisecond)
-	defer cancel()
-	if req, err := http.NewRequestWithContext(ctx, http.MethodGet, s.aiCfg.baseURL+"/models", nil); err == nil {
-		if s.aiCfg.apiKey != "" {
-			req.Header.Set("Authorization", "Bearer "+s.aiCfg.apiKey)
+	cfg := s.aiCfg
+	out := map[string]any{"backend": cfg.backend}
+	switch cfg.backend {
+	case "claude", "codex":
+		// The CLI was found on PATH at startup; report it as ready.
+		out["reachable"] = true
+		out["model"] = cfg.backend
+	default:
+		reachable := false
+		ctx, cancel := context.WithTimeout(r.Context(), 1500*time.Millisecond)
+		defer cancel()
+		if req, err := http.NewRequestWithContext(ctx, http.MethodGet, cfg.baseURL+"/models", nil); err == nil {
+			if cfg.apiKey != "" {
+				req.Header.Set("Authorization", "Bearer "+cfg.apiKey)
+			}
+			if resp, err := http.DefaultClient.Do(req); err == nil {
+				resp.Body.Close()
+				reachable = resp.StatusCode < 500
+			}
 		}
-		if resp, err := http.DefaultClient.Do(req); err == nil {
-			resp.Body.Close()
-			reachable = resp.StatusCode < 500
-		}
+		out["reachable"] = reachable
+		out["model"] = cfg.model
+		out["baseURL"] = cfg.baseURL
 	}
 	w.Header().Set("Content-Type", "application/json")
-	_ = json.NewEncoder(w).Encode(map[string]any{
-		"reachable": reachable,
-		"model":     s.aiCfg.model,
-		"baseURL":   s.aiCfg.baseURL,
-	})
+	_ = json.NewEncoder(w).Encode(out)
 }

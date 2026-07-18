@@ -32,9 +32,10 @@ func serveDocsWeb(pages []docPage, start int, aiOn bool) error {
 		return err
 	}
 
-	// With --ai, self-provision the model in the background (Ollama only):
-	// the docs serve immediately; the pull progress streams to the terminal.
-	if aiOn {
+	// With --ai on the Ollama backend, self-provision the model in the
+	// background: the docs serve immediately; pull progress streams to the
+	// terminal. Agent-CLI backends (claude/codex) need no model.
+	if aiOn && site.aiCfg.backend == "ollama" {
 		go ensureOllamaModel(site.aiCfg)
 	}
 

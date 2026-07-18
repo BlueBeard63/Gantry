@@ -15,19 +15,22 @@ For **android**: checks the toolchain (offering to install the missing SDK piece
 
 ## gantry docs
 
-The documentation browser - these very pages, embedded in the CLI and readable fully offline. By default it opens the web viewer in your browser; `-tui` keeps the terminal browser instead. An optional `topic` argument jumps to the best-matching page (scored by title, path and body-text matches).
+The documentation browser - these very pages, embedded in the CLI and readable fully offline. By default it opens the web viewer in your browser; `-tui` keeps the terminal browser instead. An optional `topic` argument jumps to the best-matching page (scored by title, path and body-text matches). Two opt-in extras hang off it: `--ai` adds a chat assistant to the web viewer, and `--mcp` turns the command into a docs server for coding agents.
 
 ```
 gantry docs                  open the web viewer at the index
 gantry docs window           open at the best match for "window"
 gantry docs -tui             browse in the terminal instead
 gantry docs --print tea      print a page as plain markdown to stdout
+gantry docs --ai             open the web viewer with the chat assistant
+gantry docs --mcp            run as a stdio MCP server for coding agents
 ```
 
 Flags:
 
 - `-tui` (bool, default: false) - browse in the terminal (a Bubble Tea viewer) instead of the web viewer.
-- `--ai` (bool, default: false) - enable the opt-in, on-device docs assistant: a chat widget in the web viewer wired to an OpenAI-compatible `/chat/completions` endpoint, grounded on the docs themselves. It defaults to a local Ollama server (`http://localhost:11434/v1`, model `qwen2.5`) so your questions and any pasted errors never leave the machine; point it elsewhere with `GANTRY_DOCS_AI_URL`, `GANTRY_DOCS_AI_MODEL` and `GANTRY_DOCS_AI_KEY` (llama.cpp, LM Studio or a hosted provider all work). The docs stay fully offline; the assistant is purely additive.
+- `--ai` (bool, default: false) - enable the opt-in docs assistant: a chat widget in the web viewer, grounded on the docs (it retrieves the most relevant pages per question and cites them). The backend is pluggable - see [The docs assistant](#the-docs-assistant) below. The docs stay fully offline; the assistant is purely additive.
+- `--mcp` (bool, default: false) - run a headless stdio MCP server that exposes the docs to coding agents, instead of opening a viewer - see [The MCP server](#the-mcp-server) below. No web server, no authentication.
 - `--print` (bool, default: false) - print the selected page as plain markdown to stdout and exit (good for piping or grepping).
 - `--frame` (bool, default: false) - render one frame at the terminal size to stdout and exit (a layout diagnostic for the terminal viewer).
 - `--size WxH` (string, default: "") - force the `--frame` size, e.g. `--size 188x41`, for redirecting a frame to a file. When set (or when stdout is redirected), the frame is emitted plainly with colors stripped and each row annotated with its measured display width.
@@ -35,6 +38,25 @@ Flags:
 ### The terminal browser (`-tui`)
 
 The left pane holds a search box and the category tree, the right pane the page. `tab` switches focus; arrows (or `k`/`j`) move and `enter` opens; `/` starts a search across titles and content and `esc` cancels; `f` lists the current page's links and `enter` follows the pick (internal links navigate here, external links open in your browser, or land on the clipboard if no browser can open); `b`/`n` go back/forward through your history; `pgup`/`pgdown` (and space to page down) scroll the content; `q` (or Ctrl+C) quits. On narrow terminals (below 50 columns) the sidebar collapses and `tab` toggles between the two panes.
+
+### The docs assistant
+
+`gantry docs --ai` adds an "Ask" button to the web viewer. It retrieves the most relevant pages for your question, grounds the backend on them, streams the answer, and shows the pages it used as clickable chips - so pasted errors get routed to the right page and answers stay accurate to the docs. Everything runs on your machine, and the docs work with or without it. `GANTRY_DOCS_AI_BACKEND` selects the backend (default `auto`):
+
+- `auto` (default) - use an installed coding-agent CLI if one is on your PATH (Claude Code first, then Codex); otherwise fall back to a local model. Usually what you want: no model download, and it reuses the capable agent you already have.
+- `claude` - route each question to Claude Code in headless mode (`claude -p`, streamed token by token). Uses your Claude Code login and usage.
+- `codex` - route to Codex (`codex exec`).
+- `ollama` (aliases `http` / `openai` / `local`) - an OpenAI-compatible `/chat/completions` server. Defaults to a local Ollama at `http://localhost:11434/v1` with model `qwen2.5`; when Ollama is installed and the model is missing it is pulled automatically in the background. Override with `GANTRY_DOCS_AI_URL`, `GANTRY_DOCS_AI_MODEL` and `GANTRY_DOCS_AI_KEY` (llama.cpp, LM Studio or a hosted provider all work).
+
+### The MCP server
+
+`gantry docs --mcp` runs a local [Model Context Protocol](https://modelcontextprotocol.io) server over stdin/stdout instead of opening a viewer, so a coding agent working on a Gantry project can pull these docs for reference. It exposes three tools over the same embedded pages - `search_docs` (rank pages by a query), `read_doc` (the full markdown of a page by its route), and `list_docs` (the whole index). It needs **no network and no authentication**: the agent spawns `gantry docs --mcp` as a subprocess and talks to it directly over the pipe. Add it once to Claude Code with:
+
+```
+claude mcp add gantry-docs -- gantry docs --mcp
+```
+
+The same server works for any MCP client (Codex, Cursor, ...) through that client's own MCP configuration.
 
 ## gantry --version
 
