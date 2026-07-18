@@ -1,0 +1,24 @@
+{
+  "$schema": "https://raw.githubusercontent.com/B-Commissions/Gantry/main/gantry.schema.json",
+  "name": "weather",
+  "title": "Lazy Weather",
+  "version": "0.1.0",
+  "port": 8331,
+  "mode": "multi",
+  "style": "plain",
+  "tray": false,
+  "buttons": {
+    "minimize": true,
+    "maximize": false,
+    "close": true
+  },
+  "icons": "icons",
+  "mobile": {
+    "id": "ec.morrison.weather",
+    "permissions": [],
+    "widgets": []
+  },
+  "build": {
+    "targets": ["android"]
+  }
+}

@@ -1,0 +1,112 @@
+/* App-wide theme. Lazy Weather is a black, monospace, mobile design -
+   override the --gantry-* tokens the window chrome reads, load the font,
+   and set a few app tokens the pages share. */
+@import url("https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&display=swap");
+
+:root {
+  --gantry-bg: #000000;
+  --gantry-fg: #ffffff;
+  --gantry-fg-dim: #7c7c7c;
+  --gantry-accent: #ffffff;
+  --gantry-border: #232326;
+  --gantry-font: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+
+  /* App tokens shared across the screens. */
+  --wx-header: #b5b5b5; /* location line, muted */
+  --wx-dim: #7c7c7c; /* secondary text, labels */
+  --wx-line: #232326; /* hairline dividers */
+  --wx-pad: 30px; /* screen side padding, from the Figma */
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  background: var(--gantry-bg);
+  color: var(--gantry-fg);
+  font-family: var(--gantry-font);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* No text selection / tap highlight on touch - this reads as a native app. */
+body {
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+button {
+  font-family: inherit;
+  color: inherit;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+}
+
+/* Inputs stay editable/selectable despite the app-wide no-select. */
+input {
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+/* Theme the shared Await/Skeleton widgets for the black background. */
+.gantry-skeleton {
+  background: #17171a;
+  border-radius: 4px;
+  position: relative;
+  overflow: hidden;
+}
+
+.gantry-skeleton::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.06), transparent);
+  transform: translateX(-100%);
+  animation: wx-shimmer 1.4s infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gantry-skeleton::after {
+    animation: none;
+  }
+}
+
+@keyframes wx-shimmer {
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+.gantry-skeleton-lines {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.gantry-await-error {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 16px 0;
+  color: var(--wx-dim);
+  font-size: 14px;
+}
+
+.gantry-await-error-code {
+  font-size: 12px;
+  opacity: 0.7;
+}
+
+.gantry-await-retry {
+  height: 40px;
+  padding: 0 20px;
+  border: 1px solid var(--gantry-border);
+  border-radius: 10px;
+  color: var(--gantry-fg);
+}
