@@ -13,9 +13,9 @@ import (
 	chromahtml "github.com/alecthomas/chroma/v2/formatters/html"
 	"github.com/alecthomas/chroma/v2/styles"
 	"github.com/yuin/goldmark"
+	highlighting "github.com/yuin/goldmark-highlighting/v2"
 	"github.com/yuin/goldmark/ast"
 	"github.com/yuin/goldmark/extension"
-	highlighting "github.com/yuin/goldmark-highlighting/v2"
 	"github.com/yuin/goldmark/parser"
 	"github.com/yuin/goldmark/text"
 
@@ -26,8 +26,8 @@ import (
 // serveDocsWeb renders the embedded docs to HTML, serves them from a
 // loopback port, and opens the browser. It is the default for
 // `gantry docs`; the terminal viewer stays reachable behind -tui.
-func serveDocsWeb(pages []docPage, start int) error {
-	site, err := newDocsSite(pages)
+func serveDocsWeb(pages []docPage, start int, aiOn bool) error {
+	site, err := newDocsSite(pages, aiOn)
 	if err != nil {
 		return err
 	}
@@ -71,6 +71,12 @@ type docsSite struct {
 	version      string
 	searchJSON   []byte
 	highlightCSS template.CSS
+
+	// docs assistant (opt-in via `gantry docs --ai`)
+	aiOn   bool
+	aiCfg  aiConfig
+	aiDocs []aiDoc // every page, for retrieval
+	aiTOC  string  // "- Title (/route) - Category" per page
 }
 
 // renderedPage is one doc page turned into HTML plus the metadata the
@@ -115,7 +121,7 @@ func (e manifestEntry) isGroup() bool { return e.Group != "" }
 
 // --- build ----------------------------------------------------------------
 
-func newDocsSite(pages []docPage) (*docsSite, error) {
+func newDocsSite(pages []docPage, aiOn bool) (*docsSite, error) {
 	data, err := docs.FS.ReadFile("manifest.json")
 	if err != nil {
 		return nil, fmt.Errorf("reading docs manifest: %w", err)
@@ -175,6 +181,8 @@ func newDocsSite(pages []docPage) (*docsSite, error) {
 		pages:        map[string]renderedPage{},
 		version:      docsDisplayVersion(),
 		highlightCSS: hlCSS,
+		aiOn:         aiOn,
+		aiCfg:        newAIConfig(),
 	}
 
 	// Pre-render every embedded page. Pages not named in the manifest
@@ -201,7 +209,26 @@ func newDocsSite(pages []docPage) (*docsSite, error) {
 			Category: rp.CategoryTitle,
 			Text:     rp.plain,
 		})
+		site.aiDocs = append(site.aiDocs, aiDoc{
+			Title:    rp.PageTitle,
+			Route:    rp.Route,
+			Category: rp.CategoryTitle,
+			Raw:      p.raw,
+			Plain:    strings.ToLower(rp.plain),
+		})
 	}
+
+	// Compact index of every page, always sent to the assistant so it can
+	// link to any page even when a page's full text was not retrieved.
+	var toc strings.Builder
+	for _, d := range site.aiDocs {
+		if d.Category != "" {
+			fmt.Fprintf(&toc, "- %s (%s) - %s\n", d.Title, d.Route, d.Category)
+		} else {
+			fmt.Fprintf(&toc, "- %s (%s)\n", d.Title, d.Route)
+		}
+	}
+	site.aiTOC = toc.String()
 
 	site.firstRoute = firstManifestRoute(mf)
 	if site.firstRoute == "" {
@@ -489,6 +516,7 @@ type pageData struct {
 	Nav           []navCategory
 	TOC           []tocEntry
 	HasTOC        bool
+	AIEnabled     bool
 }
 
 func (s *docsSite) handler() http.Handler {
@@ -497,6 +525,10 @@ func (s *docsSite) handler() http.Handler {
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		_, _ = w.Write(s.searchJSON)
 	})
+	if s.aiOn {
+		mux.HandleFunc("/api/ask", s.handleAsk)
+		mux.HandleFunc("/api/ai", s.handleAIStatus)
+	}
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/" {
 			http.Redirect(w, r, s.firstRoute, http.StatusFound)
@@ -518,6 +550,7 @@ func (s *docsSite) handler() http.Handler {
 			Nav:           s.buildNav(rp.Route),
 			TOC:           rp.TOC,
 			HasTOC:        len(rp.TOC) > 0,
+			AIEnabled:     s.aiOn,
 		}
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		if err := s.tmpl.Execute(w, data); err != nil {

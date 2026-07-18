@@ -32,6 +32,7 @@ func cmdDocs(args []string) error {
 	printOnly := fs.Bool("print", false, "print the page as plain markdown instead of the browser")
 	frameOnly := fs.Bool("frame", false, "render one frame at the terminal size to stdout, then exit (layout diagnostic)")
 	frameSize := fs.String("size", "", "WxH to force the -frame size, e.g. 188x41 (when redirecting to a file)")
+	ai := fs.Bool("ai", false, "enable the on-device docs assistant (needs a running OpenAI-compatible model server, e.g. Ollama)")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
@@ -56,7 +57,7 @@ func cmdDocs(args []string) error {
 
 	// The web viewer is the default; -tui keeps the terminal browser.
 	if !*tui {
-		return serveDocsWeb(pages, start)
+		return serveDocsWeb(pages, start, *ai)
 	}
 
 	m := newDocsModel(pages, start)
