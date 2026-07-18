@@ -86,12 +86,32 @@ type App struct {
 
 	// Error pipeline (errors.go): captured errors, the breadcrumb
 	// trail, the page the user is on, and the app-level hook.
-	errors      []ErrorInfo
-	crumbs      []Crumb
-	activePage  string
-	errHook     func(*ErrorInfo) bool
-	errDisabled bool
+	errors       []ErrorInfo
+	crumbs       []Crumb
+	activePage   string
+	activeParams RouteParams
+	errHook      func(*ErrorInfo) bool
+	errDisabled  bool
 }
+
+// RouteParams holds a dynamic page's captured route params, normalized to
+// slices: a [id] segment is a one-element slice, a [...slug] catch-all
+// keeps all its segments. It is the payload of ParamsMsg and what
+// App.Params returns.
+type RouteParams map[string][]string
+
+// Get returns name's value joined by "/" - a single [id] gives "7", a
+// [...slug] gives "a/b/c" - or "" when absent.
+func (r RouteParams) Get(name string) string { return strings.Join(r[name], "/") }
+
+// List returns all segments captured for name (the natural read for a
+// [...slug] catch-all), or nil when absent.
+func (r RouteParams) List(name string) []string { return r[name] }
+
+// ParamsMsg is delivered to a dynamic page's Model when the page becomes
+// active and whenever the concrete param changes for the same page key
+// (/examples/page1/1 -> /2). Update switches on it to load the right data.
+type ParamsMsg struct{ Params RouteParams }
 
 // NewApp registers pages and components (pass ui.Page and ui.Component
 // values, the exported vars of your pages/ and components/ packages).
@@ -142,6 +162,28 @@ func (a *App) Push(key, event string, payload any) {
 	for _, c := range a.allClients() {
 		c.push(key, event, payload)
 	}
+}
+
+// Params returns the currently active page's captured route params (empty
+// for a static route). A dynamic page's Go half - a Call/On handler that
+// captured the *App, or a Model reacting to ParamsMsg - reads the [id] or
+// [...slug] value through here. Safe for concurrent use.
+func (a *App) Params() RouteParams {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	out := make(RouteParams, len(a.activeParams))
+	for k, v := range a.activeParams {
+		out[k] = append([]string(nil), v...)
+	}
+	return out
+}
+
+// Param returns the active page's value for name (a single [id], or a
+// [...slug] joined by "/"), or "" when absent.
+func (a *App) Param(name string) string {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	return strings.Join(a.activeParams[name], "/")
 }
 
 // program returns (creating if needed) the program for a Model page.

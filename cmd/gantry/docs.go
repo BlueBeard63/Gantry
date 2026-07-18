@@ -254,9 +254,14 @@ func (m *docsModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		m.width, m.height = msg.Width, msg.Height
-		side := m.sidebarWidth()
-		m.view = viewport.New(m.width-side-3, m.height-2)
-		m.ready = true
+		cw, ch := m.contentSize()
+		if m.ready {
+			// Resize in place so the scroll position survives.
+			m.view.Width, m.view.Height = cw, ch
+		} else {
+			m.view = viewport.New(cw, ch)
+			m.ready = true
+		}
 		m.render()
 		return m, nil
 
@@ -381,7 +386,20 @@ func (m *docsModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, cmd
 }
 
+// Layout floors: the content pane never renders below docsMinContent
+// columns, and the sidebar collapses entirely once the whole terminal is
+// narrower than docsCollapseBelow (there is no room for two panes).
+const (
+	docsMinContent    = 20
+	docsCollapseBelow = 50
+)
+
+// sidebarWidth is the sidebar column width, or 0 when the terminal is too
+// narrow to show a sidebar and content side by side (collapsed mode).
 func (m *docsModel) sidebarWidth() int {
+	if m.width < docsCollapseBelow {
+		return 0
+	}
 	w := m.width / 3
 	if w < 28 {
 		w = 28
@@ -389,7 +407,57 @@ func (m *docsModel) sidebarWidth() int {
 	if w > 44 {
 		w = 44
 	}
+	// Never let the sidebar, its border and the spacer crowd the content
+	// pane below its floor - keep sidebar + 3 + content <= width.
+	if maxW := m.width - docsMinContent - 3; w > maxW {
+		w = maxW
+	}
 	return w
+}
+
+// contentSize is the viewport's clamped width and height. The 3-column
+// budget covers the sidebar's right border and the spacer; collapsed mode
+// gives the content the full width less a single margin.
+func (m *docsModel) contentSize() (int, int) {
+	side := m.sidebarWidth()
+	w := m.width - 1
+	if side > 0 {
+		w = m.width - side - 3
+	}
+	if w < docsMinContent {
+		w = docsMinContent
+	}
+	h := m.height - 2
+	if h < 1 {
+		h = 1
+	}
+	return w, h
+}
+
+// sidebarTextWidth is the width available for sidebar text (inside the
+// border). In collapsed mode the sidebar, when shown, spans the terminal.
+func (m *docsModel) sidebarTextWidth() int {
+	w := m.sidebarWidth()
+	if w == 0 {
+		w = m.width
+	}
+	if w -= 2; w < 1 {
+		w = 1
+	}
+	return w
+}
+
+// truncRunes trims a string to at most w runes (byte slicing would split
+// multibyte titles when widths are tight).
+func truncRunes(s string, w int) string {
+	if w < 0 {
+		w = 0
+	}
+	r := []rune(s)
+	if len(r) > w {
+		return string(r[:w])
+	}
+	return s
 }
 
 var (
@@ -406,9 +474,24 @@ func (m *docsModel) View() string {
 	if !m.ready {
 		return "loading..."
 	}
-	side := m.renderSidebar()
 	main := m.view.View()
-	body := lipgloss.JoinHorizontal(lipgloss.Top, sideStyle.Height(m.height-2).Render(side), " "+main)
+	var body string
+	if m.sidebarWidth() == 0 {
+		// Collapsed: show one pane at a time. The sidebar takes over when
+		// it has focus (browsing the list, searching, or picking links);
+		// otherwise the content fills the terminal. Tab toggles.
+		if m.focus == "side" || m.mode == "search" || m.mode == "links" {
+			body = m.renderSidebar()
+		} else {
+			body = main
+		}
+	} else {
+		h := m.height - 2
+		if h < 0 {
+			h = 0
+		}
+		body = lipgloss.JoinHorizontal(lipgloss.Top, sideStyle.Height(h).Render(m.renderSidebar()), " "+main)
+	}
 	help := "tab focus | enter open | / search | f links | b back | q quit"
 	if m.mode == "links" {
 		help = "up/down pick link | enter follow | esc cancel"
@@ -420,17 +503,14 @@ func (m *docsModel) View() string {
 }
 
 func (m *docsModel) renderSidebar() string {
-	w := m.sidebarWidth() - 2
+	w := m.sidebarTextWidth()
 	var b strings.Builder
 	b.WriteString(" " + m.search.View() + "\n\n")
 
 	if m.mode == "links" {
 		b.WriteString(catStyle.Render(" Links on this page") + "\n")
 		for i, l := range m.links {
-			line := fmt.Sprintf(" %d. %s", i+1, l.label)
-			if len(line) > w {
-				line = line[:w]
-			}
+			line := truncRunes(fmt.Sprintf(" %d. %s", i+1, l.label), w)
 			if i == m.linkIdx {
 				b.WriteString(linkSelStyle.Render(line) + "\n")
 			} else {
@@ -451,13 +531,10 @@ func (m *docsModel) renderSidebar() string {
 			}
 			b.WriteString(catStyle.Render(" "+label) + "\n")
 		}
-		line := "  " + p.title
-		if len(line) > w {
-			line = line[:w]
-		}
+		line := truncRunes("  "+p.title, w)
 		switch {
 		case i == m.cursor && m.focus == "side":
-			b.WriteString(selStyle.Render("> "+line[2:]) + "\n")
+			b.WriteString(selStyle.Render("> "+strings.TrimPrefix(line, "  ")) + "\n")
 		case idx == m.current:
 			b.WriteString(selStyle.Render(line) + "\n")
 		default:

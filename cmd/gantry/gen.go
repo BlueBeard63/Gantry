@@ -10,11 +10,19 @@ import (
 )
 
 var (
-	packageRe = regexp.MustCompile(`(?m)^package\s+(\w+)`)
-	pageVarRe = regexp.MustCompile(`(?m)^var\s+Page\s*=`)
-	compVarRe = regexp.MustCompile(`(?m)^var\s+Component\s*=`)
-	moduleRe  = regexp.MustCompile(`(?m)^module\s+(\S+)`)
+	packageRe         = regexp.MustCompile(`(?m)^package\s+(\w+)`)
+	pageVarRe         = regexp.MustCompile(`(?m)^var\s+Page\s*=`)
+	compVarRe         = regexp.MustCompile(`(?m)^var\s+Component\s*=`)
+	moduleRe          = regexp.MustCompile(`(?m)^module\s+(\S+)`)
+	buildIgnoreRe     = regexp.MustCompile(`(?m)^//go:build ignore[^\n]*\n`)
+	plusBuildIgnoreRe = regexp.MustCompile(`(?m)^// \+build ignore[^\n]*\n`)
 )
+
+// gantrydynDir is the managed, generated mirror tree for the Go halves of
+// dynamic ([id]/[...slug]) pages: Go cannot import a bracket-named folder,
+// so each such half is copied here into an importable package. Rebuilt
+// from scratch on every gen; treat it like any other generated file.
+const gantrydynDir = "internal/gantrydyn"
 
 // cmdGen regenerates the generated files by hand; dev and build do it
 // automatically.
@@ -208,12 +216,20 @@ func writeRegistry(appDir string) error {
 		return err
 	}
 
+	// The dynamic-page mirror is regenerated from scratch each run so a
+	// deleted/renamed [id] page never leaves a stale importable copy that
+	// would keep the app compiling against a page that no longer exists.
+	mirrorRoot := filepath.Join(appDir, filepath.FromSlash(gantrydynDir))
+	if err := os.RemoveAll(mirrorRoot); err != nil {
+		return err
+	}
+
 	// Pairs nest to any depth (pages/account/settings/settings.go):
 	// walk every directory whose leaf holds a registration var.
 	var entries []registryEntry
 	for _, kind := range []string{"pages", "components", "layouts"} {
 		root := filepath.Join(appDir, kind)
-		_ = filepath.WalkDir(root, func(p string, d os.DirEntry, err error) error {
+		err := filepath.WalkDir(root, func(p string, d os.DirEntry, err error) error {
 			if err != nil || !d.IsDir() || p == root {
 				return nil // the kind's folder itself is optional
 			}
@@ -226,6 +242,17 @@ func writeRegistry(appDir string) error {
 				return nil
 			}
 			rel = filepath.ToSlash(rel)
+			// A dynamic page lives in a bracket folder Go cannot import, so
+			// its Go half is mirrored into an importable package and the
+			// registry points at the mirror instead of the bracket path.
+			if isBracketPath(rel) {
+				imp, alias, err := writeDynMirror(module, mirrorRoot, kind, rel, p)
+				if err != nil {
+					return err
+				}
+				entries = append(entries, registryEntry{alias: alias, importPath: imp, varName: varName})
+				return nil
+			}
 			entries = append(entries, registryEntry{
 				alias:      kind[:1] + "_" + sanitizeIdent(rel),
 				importPath: module + "/" + kind + "/" + rel,
@@ -233,6 +260,9 @@ func writeRegistry(appDir string) error {
 			})
 			return nil
 		})
+		if err != nil {
+			return err
+		}
 	}
 	sort.Slice(entries, func(i, j int) bool { return entries[i].importPath < entries[j].importPath })
 
@@ -312,4 +342,68 @@ func sanitizeIdent(s string) string {
 		}
 	}
 	return string(out)
+}
+
+// isBracketPath reports whether a pair's relative path has a dynamic
+// segment ([id] or [...slug]) - the folder Go cannot import.
+func isBracketPath(rel string) bool { return strings.ContainsAny(rel, "[]") }
+
+// isGoIdentStart reports whether r is a letter - a mirror file name must
+// start with one so the go tool does not ignore it (names beginning with
+// "_" or "." are skipped).
+func isGoIdentStart(r rune) bool {
+	return r >= 'a' && r <= 'z' || r >= 'A' && r <= 'Z'
+}
+
+// writeDynMirror copies a dynamic page's Go half (in a bracket folder Go
+// cannot import) into an importable generated package under
+// internal/gantrydyn, returning the import path and alias to register.
+// The developer's half carries a `//go:build ignore` line so go build
+// ./... and IDEs skip the un-importable original; that constraint is
+// stripped from the copy and the package clause rewritten to a sanitized,
+// letter-first identifier.
+func writeDynMirror(module, mirrorRoot, kind, rel, srcDir string) (importPath, alias string, err error) {
+	sanitized := sanitizeIdent(rel)
+	pkg := kind[:1] + "_" + sanitized // e.g. p_examples_page1__id_ (valid, letter-first)
+	dstDir := filepath.Join(mirrorRoot, kind, sanitized)
+	if err := os.MkdirAll(dstDir, 0o755); err != nil {
+		return "", "", err
+	}
+
+	items, err := os.ReadDir(srcDir)
+	if err != nil {
+		return "", "", err
+	}
+	copied := 0
+	for _, it := range items {
+		if it.IsDir() || !strings.HasSuffix(it.Name(), ".go") || strings.HasSuffix(it.Name(), "_test.go") {
+			continue
+		}
+		data, err := os.ReadFile(filepath.Join(srcDir, it.Name()))
+		if err != nil {
+			return "", "", err
+		}
+		src := buildIgnoreRe.ReplaceAllString(string(data), "")
+		src = plusBuildIgnoreRe.ReplaceAllString(src, "")
+		src = packageRe.ReplaceAllString(src, "package "+pkg)
+		out := "// Code generated by gantry gen; DO NOT EDIT.\n" +
+			"// Importable mirror of " + kind + "/" + rel + " (bracket folders are not importable).\n\n" + src
+		// The source file name may itself contain brackets ([id].go); use a
+		// sanitized name in the mirror, and ensure it is letter-first - Go
+		// ignores files whose names start with "_" or ".", so "[id].go"
+		// (which sanitizes to "_id_") would leave the package with no
+		// buildable files.
+		base := sanitizeIdent(strings.TrimSuffix(it.Name(), ".go"))
+		if base == "" || !isGoIdentStart(rune(base[0])) {
+			base = "gantry_" + base
+		}
+		if err := os.WriteFile(filepath.Join(dstDir, base+".go"), []byte(out), 0o644); err != nil {
+			return "", "", err
+		}
+		copied++
+	}
+	if copied == 0 {
+		return "", "", fmt.Errorf("dynamic page %s/%s registers a Go half but has no non-test .go file to mirror", kind, rel)
+	}
+	return module + "/" + gantrydynDir + "/" + kind + "/" + sanitized, pkg, nil
 }

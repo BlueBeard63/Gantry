@@ -50,6 +50,8 @@ The key is always the folder path ("pages/account/settings/profile"), the css sc
 
 Routing is plain pathname switching, no dependency: navigate("/settings") pushes history and re-renders; back/forward work. With a single page (only pages/index) the router disappears entirely.
 
+- Dynamic segments: a folder named `[id]` matches one path segment and a `[...slug]` folder matches the rest, so one page serves many URLs (pages/examples/page1/[id] -> /examples/page1/1, /2, ...). Read the captured value with `useParams()` in the tsx and `ui.ParamsMsg` / `App.Param` in the Go half. See [Dynamic routes & pagination](../advanced/pagination.md).
+
 ## Layouts and navigation
 
 Shared chrome that should wrap pages - navbars, sidebars, status bars - lives in the layouts/ directory, following the same folder convention as everything else: layouts/main/main.tsx (+ optional main.css, auto-imported; even an optional main.go, paired under the key "layouts/main"):

@@ -126,6 +126,13 @@ func RunWindow(opts WindowOptions) error {
 			return z != 0
 		})
 	}
+	if !opts.Framed {
+		// The frontend's ResizeFrame draws the edge strips (and their
+		// resize cursors) and calls this on mousedown - the WebView2 child
+		// covers the client area, so the parent's WM_NCHITTEST resize
+		// margin never sees the hover.
+		_ = w.Bind(prefix+"ResizeEdge", func(edge string) { resizeWindow(hwnd, edge) })
+	}
 	_ = w.Bind(prefix+"SetAlwaysOnTop", func(on bool) {
 		z := hwndNotopmost
 		if on {
@@ -194,6 +201,7 @@ func RunWindow(opts WindowOptions) error {
 		onCloseRequest:      opts.OnCloseRequest,
 		forceClose:          &forceClose,
 		onClosing:           saveGeometry,
+		onResize:            saveGeometry,
 	})
 	procSetWindowPos.Call(hwnd, 0, 0, 0, 0, 0,
 		swpFrameChange|swpNoMove|swpNoSize|swpNoZOrder)

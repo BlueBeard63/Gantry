@@ -3,11 +3,31 @@
 // and every subscriber re-renders on change.
 
 import {
+  createContext,
+  useContext,
   useSyncExternalStore,
   type AnchorHTMLAttributes,
   type ReactNode,
 } from "react";
 import { getShell } from "./bridge";
+
+/** Params captured from a dynamic route: a string for a [id] segment, a
+ * string[] for a [...slug] catch-all. */
+export type RouteParams = Record<string, string | string[]>;
+
+// The active page's captured params, provided by createApp around the
+// page. Empty for static routes.
+export const ParamsContext = createContext<RouteParams>({});
+
+/**
+ * useParams returns the params captured from the current dynamic route.
+ * For pages/examples/page1/[id] on /examples/page1/7 it is { id: "7" };
+ * for a [...slug] catch-all the value is a string[]. Empty on static
+ * pages. Type it with the shape you expect: useParams<{ id: string }>().
+ */
+export function useParams<T extends RouteParams = RouteParams>(): T {
+  return useContext(ParamsContext) as T;
+}
 
 // Subscriptions go through a window-scoped event, NOT a module-local
 // set: if bundling ever instantiates this module twice (it happened -
