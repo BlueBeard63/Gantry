@@ -38,12 +38,12 @@ Show starts it if not running, Toggle flips it (tray left-click patterns), Repla
 
 - AppName, Title, URL - identity and content. Title doubles as the singleton guard: opening a widget closes any predecessor with the same title, even an orphan from a killed app. Keep titles unique per widget kind.
 - Width, Height - required; widgets have no sensible default size.
-- Placement - PlaceTopCenter, PlaceTopLeft, PlaceTopRight, PlaceBottomLeft, PlaceBottomCenter, PlaceBottomRight, PlaceCenter, or PlaceCustom with X and Y. Margin (default 16) is the gap from the work-area edge. Monitor picks the display (-1 = primary).
+- Placement - PlaceTopCenter, PlaceTopLeft, PlaceTopRight, PlaceBottomLeft, PlaceBottomCenter, PlaceBottomRight, PlaceCenter, or PlaceCustom with X and Y. Margin (default 16) is the gap from the work-area edge. Monitor picks the display (-1 = primary); see [Monitors and icons](monitors-and-icons.md).
 - NoActivate - the widget never steals keyboard focus. Turn this on for glanceable things (timers): clicks work, typing elsewhere is never interrupted.
 - CloseOnDeactivate - the widget dismisses itself when it loses activation, like a shell flyout: click anywhere else and it is gone. (This one wants activation, so do not combine with NoActivate.)
 - StartHidden - create hidden; the page reveals itself with setVisible(true) when it has something to show.
 - SquareCorners - opt out of the Win11 rounded corners.
-- BindingPrefix, ExtraBindings, Icon, DataDirRole - as on the main window.
+- BindingPrefix, ExtraBindings, Icon, DataDirRole - as on the [main window](window.md); DataDirRole defaults to a folder derived from Title.
 
 ## The widget bridge
 
@@ -75,6 +75,8 @@ export default function WidgetTimer() {
 }
 ```
 
-## Why a separate process
+---
+
+## Advanced: why a separate process
 
 The webview renderer is a big piece of software; if it ever crashes, only the widget process dies - your scheduler, server and main window never notice. It also sidesteps a WebView2 rule: each process needs its own browser-data folder, which WidgetOptions derives from the Title automatically. RoleLog writes the child's log to `%LocalAppData%\<AppName>\<role>.log`, because a windowsgui child has no console to print to.

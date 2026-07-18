@@ -1,28 +1,10 @@
 # Testing: driving the app
 
-Everything on this page is the protocol plane: the driver speaking `/gantry/ws` the way the frontend does. It works headless on every platform. Element-level driving of the real webview is [the DOM plane](dom.md), which layers onto the same `App`.
-
-## Launch options
-
-```go
-app := gantrytest.Launch(t,
-	gantrytest.WithArgs(map[string]any{"mock-data": true}), // declared args, same env vars gantry dev uses
-	gantrytest.WithMode("production"),                      // default: development
-	gantrytest.WithHeaded(),                                // real window instead of headless
-	gantrytest.WithDOM(),                                   // the DOM plane: real webview + CDP, off-screen (see dom.md)
-	gantrytest.WithRecording(),                             // record screencast.avi for this test (needs the DOM plane)
-	gantrytest.WithEnv("MY_FLAG", "1"),                     // extra environment for the app process
-	gantrytest.WithTimeout(20*time.Second),                 // default deadline for every waiting API (default 10s)
-	gantrytest.WithBinary("dist/windows/amd64/myapp.exe"),  // launch a prebuilt binary
-	gantrytest.KeepArtifacts(),                             // keep this test's artifacts even on pass
-)
-```
-
-`WithArgs` values are checked against the app's declared args in `gantry.json` - a typoed name fails the test instead of silently doing nothing.
+This page is the protocol plane: the driver speaking `/gantry/ws` the way the frontend does - mounting pages, reading renders, firing events, awaiting calls, reading shared state. It works headless on every platform, and it is enough to test a Tea-style app end to end. Element-level driving of the real webview is [the DOM plane](dom.md), which layers onto the same `App`.
 
 ## Pages and renders
 
-`app.Ready("pages/index")` announces a page mount. For a Tea page the server starts (or re-attaches) the Model and answers with a full render; the driver keeps every render it sees.
+`app.Ready("pages/index")` announces a page mount, like the frontend does when a page component mounts. For a Tea page the server starts (or re-attaches) the Model and answers with a full render; the driver keeps every render it sees.
 
 ```go
 tree := app.Tree()                        // newest render (waits for at least one)
@@ -55,8 +37,6 @@ app.TeaEvent(tree.Find("input").Handler("change"), "Jack") // Tea handler with a
 app.SendEvent("pages/settings", "save", map[string]any{"name": "Jack"}) // paired event (ui.Handlers)
 ```
 
-Handler ids are generation-scoped: each render assigns fresh ones and the server keeps one previous generation, so a click racing a re-render still resolves. Re-query the tree after waiting on a render rather than caching handles for long.
-
 ## Calls
 
 ```go
@@ -68,7 +48,7 @@ cerr := app.CallFail("pages/debug", "callBoom", nil) // must reject; returns the
 if cerr.Code != "panic.call" { t.Errorf(...) }
 ```
 
-`Call`/`CallFail` target services and pair keys alike, exactly like `useService`/`usePaired().call`.
+`Call` / `CallFail` target services and pair keys alike, exactly like `useService` / `usePaired().call`.
 
 ## Shared state
 
@@ -92,15 +72,41 @@ app.WaitFor("the export file", func() bool {   // generic polling wait
 
 Every waiting API respects the test's deadline and, on timeout, fails with the last 20 protocol frames attached - the "what was actually happening" you would otherwise re-run to see.
 
-## Restarts
+## Launch options
+
+`Launch(t)` works with no options; each option below narrows or extends the instance.
+
+```go
+app := gantrytest.Launch(t,
+	gantrytest.WithArgs(map[string]any{"mock-data": true}), // declared args, same env vars gantry dev uses
+	gantrytest.WithMode("production"),                      // default: development
+	gantrytest.WithHeaded(),                                // real window instead of headless
+	gantrytest.WithDOM(),                                   // the DOM plane: real webview + CDP, off-screen (see dom.md)
+	gantrytest.WithRecording(),                             // record screencast.avi for this test (needs the DOM plane)
+	gantrytest.WithEnv("MY_FLAG", "1"),                     // extra environment for the app process
+	gantrytest.WithTimeout(20*time.Second),                 // default deadline for every waiting API (default 10s)
+	gantrytest.WithBinary("dist/windows/amd64/myapp.exe"),  // launch a prebuilt binary
+	gantrytest.KeepArtifacts(),                             // keep this test's artifacts even on pass
+)
+```
+
+`WithArgs` values are checked against the app's declared args in `gantry.json` - a typoed name fails the test instead of silently doing nothing. (`WithGrantedPermissions` / `WithDeniedPermissions` are device-only; see [mobile](mobile.md).)
+
+## Notes
+
+### Handler generations
+
+Handler ids are generation-scoped: each render assigns fresh ones and the server keeps one previous generation, so a click racing a re-render still resolves. Re-query the tree after waiting on a render rather than caching handles for long.
+
+### Restarts and crash recovery
 
 ```go
 app.Restart() // hard-kill the tree, relaunch with the same binary, config dir and env, reconnect
 ```
 
-The config dir survives the restart, so this is the crash-recovery scenario: after a fatal crash, the relaunched app reports the previous run's trace and `app.WaitError("panic.fatal")` asserts it (see [errors](errors-and-artifacts.md)).
+The config dir survives the restart, so this is the crash-recovery scenario: after a fatal crash, the relaunched app reports the previous run's trace and `app.WaitError("panic.fatal")` asserts it. `WaitExit()` blocks until the process dies on its own, so a `Restart` after it reads a complete crash.log rather than racing the dying process. See [errors and artifacts](errors-and-artifacts.md).
 
-## Targets and capabilities
+### Targets and capabilities
 
 Shared suites gate on the target instead of forking:
 
@@ -110,4 +116,6 @@ gantrytest.MobileOnly(t)   // skip unless a device target
 if app.Supports(gantrytest.Hover) { ... } // capability check inside a shared test
 ```
 
-A `WithDOM()`/headed launch reports `DOM` and `Hover`; a protocol-only launch reports every capability false. `Touch` and `Notifications` arrive with the device backends, without changing test code.
+A `WithDOM()` / headed launch reports `DOM` and `Hover`; a protocol-only launch reports every capability false. `Touch` and `Notifications` arrive with the device backends, without changing test code. See [mobile](mobile.md).
+
+Next: [the DOM plane](dom.md).

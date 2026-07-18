@@ -1,6 +1,6 @@
 # The Tea model
 
-Pages can keep their whole UI - state, logic, and structure - in Go, with React as the renderer. The shape comes from Elm via Bubble Tea: a Model with three methods.
+A page can keep its whole UI - state, logic, and structure - in Go, with React as the renderer. The shape comes from Elm via Bubble Tea: a Model with three methods.
 
 ## The shape
 
@@ -12,7 +12,7 @@ type Model interface {
 }
 ```
 
-One loop drives it: something happens (a click, a timer, your server) -> it becomes a Msg -> Update returns the new model -> View renders it -> the tree travels to React. You never mutate state outside Update, and Update runs on a single goroutine, so there are no data races to think about - ever.
+One loop drives it: something happens (a click, a timer, your server) -> it becomes a `Msg` -> `Update` returns the new model -> `View` renders it -> the tree travels to React. You never mutate state outside Update, and Update runs on a single goroutine, so there are no data races to think about - ever.
 
 ## A complete page
 
@@ -73,18 +73,16 @@ func (m model) View() ui.Node {
 }
 ```
 
-The tsx half is one line of hosting:
+The tsx half is one line of hosting - and it does not have to stay one line; wrap `TeaView` in any React layout you like:
 
 ```tsx
 import { TeaView } from "gantry-web/tea";
 export default function Stats() { return <TeaView />; }
 ```
 
-(And it does not have to be just one line - wrap TeaView in any React layout you like.)
-
 ## Messages
 
-A Msg is any Go value; Update switches on the concrete type. Define one type per thing-that-can-happen. Empty structs for plain events, carrier types for events with data:
+A `Msg` is any Go value; `Update` switches on the concrete type. Define one type per thing-that-can-happen - empty structs for plain events, carrier types for events with data:
 
 ```go
 type saveClicked struct{}
@@ -94,12 +92,12 @@ type rowPicked int
 
 ## Commands
 
-A Cmd is work that runs off the update loop and feeds its result back in as a Msg:
+A `Cmd` is work that runs off the update loop and feeds its result back in as a Msg:
 
-- Return nil for "nothing to do" (the common case).
-- ui.Tick(d, fn) - wait d, then fn(now) becomes a Msg. Re-issue it from Update for a repeating timer (see the example above).
-- ui.Batch(cmds...) - run several at once.
-- Any func() Msg of your own - fetch something, read a file, compute:
+- Return `nil` for "nothing to do" (the common case).
+- `ui.Tick(d, fn)` - wait d, then `fn(now)` becomes a Msg. Re-issue it from Update for a repeating timer (see the example above).
+- `ui.Batch(cmds...)` - run several at once.
+- Any `func() Msg` of your own - fetch something, read a file, compute:
 
 ```go
 func loadCmd(path string) ui.Cmd {
@@ -127,18 +125,16 @@ Models ignore message types they do not switch on, so broadcast is safe.
 
 ## Building Views
 
-The builders in the ui package: Column, Row, Text, Textf, Heading, Button, Input, Checkbox, Select, Divider, Spacer, Progress, and Custom for your own React components (see [Custom components](custom-components.md)).
+The builders in the ui package: `Column`, `Row`, `Text`, `Textf`, `Heading`, `Button`, `Input`, `Checkbox`, `Select`, `Divider`, `Spacer`, `Progress`, and `Custom` for your own React components (see [Custom components](custom-components.md)).
 
-Three modifiers:
+Three modifiers chain onto any node:
 
-- .WithKey("todo-3") - identity for list items, so React keeps them straight when the list reorders.
-- .WithProps("gap", 8, "pad", 16, "grow", true, "class", "hero") - layout hints and a css class.
-- .OnEvent("hover", fn) - raw event handler, the escape hatch behind Button and friends.
+- `.WithKey("todo-3")` - identity for list items, so React keeps them straight when the list reorders.
+- `.WithProps("gap", 8, "pad", 16, "grow", true, "class", "hero")` - layout hints and a css class (see [Styling Tea built-ins](styling.md)).
+- `.OnEvent("hover", fn)` - raw event handler, the escape hatch behind Button and friends.
 
-Inputs are semi-controlled on the React side: keystrokes echo locally immediately and stream to Update, and your model's value only forces the field when it genuinely differs (a validation rewrite, a reset) - typing never fights the round trip.
+## Notes
 
-## How rendering works (and why you can ignore it)
-
-Every Update sends the whole View tree to React, which reconciles it like any other render. Trees are small (this is a desktop app, not a million-row table), renders coalesce under load, and event handlers from the immediately previous render still resolve during the swap. If a page ever outgrows this, restructure it into components - do not diff by hand.
-
-Details of the messages on the wire: [The protocol](../advanced/protocol.md).
+- **Inputs are semi-controlled.** Keystrokes echo locally immediately and stream to Update; your model's value only forces the field when it genuinely differs (a validation rewrite, a reset), so typing never fights the round trip.
+- **How rendering works (and why you can ignore it).** Every Update sends the whole View tree to React, which reconciles it like any other render. Trees are small (this is a desktop app, not a million-row table), renders coalesce under load, and event handlers from the immediately previous render still resolve during the swap. If a page ever outgrows this, restructure it into components - do not diff by hand.
+- **On the wire.** The details of the render/event messages: [The protocol](../advanced/protocol.md).

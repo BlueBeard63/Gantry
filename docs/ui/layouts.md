@@ -1,6 +1,6 @@
 # Layouts
 
-Layouts are shared chrome around pages: navbars, sidebars, status bars - anything that should stay put while pages change. They live in the layouts/ directory and follow the same folder convention as pages and components.
+Layouts are the shared chrome around pages: navbars, sidebars, status bars - anything that should stay put while pages change. They live in the layouts/ directory and follow the same folder convention as pages and components.
 
 ```
 layouts/
@@ -34,7 +34,7 @@ export default function Main({ children }: { children?: ReactNode }) {
 }
 ```
 
-The layout renders inside the app shell, below the TitleBar - window chrome is the TitleBar's job (see [The TitleBar](titlebar.md)), page chrome is the layout's.
+The layout renders inside the app shell, below the TitleBar - window chrome is the [TitleBar](titlebar.md)'s job, page chrome is the layout's.
 
 ## Which pages get which layout
 
@@ -45,19 +45,19 @@ Layouts are addressed by short name: layouts/main -> "main". Each page declares 
 export const layout = "compact";           // use layouts/compact instead
 export const layout = ["main", "compact"]; // nest: <Main><Compact><Page/></Compact></Main>
 export const layout = false;               // raw page, no layout
-export const layout = true;               // force "main" on a chromeless page
+export const layout = true;                // force "main" on a chromeless page
 ```
 
 Rules worth knowing:
 
-- "main" is the default name. Have one layout and call it main, and every normal page picks it up with zero exports.
-- Chromeless pages (export const chrome = false - widgets, popups) skip layouts by default; they are their own little surfaces. Opt back in with a name or true.
-- Arrays nest outermost-first: ["main", "compact"] puts the compact layout inside the main one. Use it for section-level chrome inside app-level chrome.
-- An unknown name logs a console warning and is skipped - a typo never blanks the page.
+- **"main" is the default name.** Have one layout, call it main, and every normal page picks it up with zero exports.
+- **Chromeless pages** (`export const chrome = false` - widgets, popups) skip layouts by default; they are their own little surfaces. Opt back in with a name or `true`.
+- **Arrays nest outermost-first**: `["main", "compact"]` puts the compact layout inside the main one - section-level chrome inside app-level chrome.
+- **An unknown name logs a console warning and is skipped** - a typo never blanks the page.
 
 ## Active-aware navigation
 
-Link is the navigation primitive built for layouts. It renders an <a>, navigates client-side, and knows whether it points at the current page:
+`Link` is the navigation primitive built for layouts. It renders an `<a>`, navigates client-side, and knows whether it points at the current page:
 
 ```tsx
 <Link to="/settings">Settings</Link>
@@ -65,7 +65,7 @@ Link is the navigation primitive built for layouts. It renders an <a>, navigates
 <Link to="/stats" activeClassName="lit">Stats</Link>        // extra class while active
 ```
 
-While active a Link carries data-active="true" and aria-current="page", so styling works three ways:
+While active a Link carries `data-active="true"` and `aria-current="page"`, so styling works three ways:
 
 ```css
 /* plain css */
@@ -73,11 +73,11 @@ While active a Link carries data-active="true" and aria-current="page", so styli
 ```
 
 ```
-tailwind: data-[active=true]:bg-zinc-800
+tailwind:        data-[active=true]:bg-zinc-800
 activeClassName: whatever class you like
 ```
 
-For links that leave the app (docs, your repo, a website), use ExternalLink instead: it opens the URL in the user's default browser rather than navigating the app window, and shows no URL-preview bubble:
+For links that leave the app (docs, your repo, a website), use `ExternalLink` instead: it opens the URL in the user's default browser rather than navigating the app window, and shows no URL-preview bubble:
 
 ```tsx
 <ExternalLink href="https://github.com/B-Commissions/Gantry">Source</ExternalLink>
@@ -99,11 +99,11 @@ const path = useRoute(); // current pathname, re-renders on navigation
 
 ## Styling a layout
 
-Same rules as everywhere (see [Styling](styling.md)): the colocated main.css auto-imports, scope selectors under a class your layout renders (.layout-main), and use the --gantry-* variables so the layout follows the theme. Layout css loads after the root index.css and before page css.
+Same rules as everywhere (see [Styling](styling.md)): the colocated main.css auto-imports, scope selectors under a class your layout renders (`.layout-main`), and use the `--gantry-*` variables so the layout follows the theme. Layout css loads after the root index.css and before page css.
 
-## Layouts with a Go half
+## Advanced: a layout with a Go half
 
-A layout folder can hold a .go file like any pair - useful when the shared chrome shows live data (a status bar with a sync indicator, a sidebar with counts). Export a Component under the layouts key and it registers automatically like every other pair:
+A layout folder can hold a .go file like any pair - useful when the shared chrome shows live data (a status bar with a sync indicator, a sidebar with counts). Export a `Component` under the layouts key and it registers automatically like every other pair:
 
 ```go
 // layouts/main/main.go
@@ -120,6 +120,6 @@ var Component = ui.Component{
 const { state } = usePaired(); // key injected: "layouts/main"
 ```
 
-Then push into it from anywhere: app.Push("layouts/main", "state", data).
+Then push into it from anywhere: `app.Push("layouts/main", "state", data)`. See [Calls, services and shared state](calls-and-state.md) for the full data-flow picture.
 
-One Go naming caveat: a folder named main would collide with Go's "package main". Either name the package differently (as above - Go package names do not have to match folders) or skip the .go half for the main layout and put live data in a component inside it.
+One Go naming caveat: a folder named `main` would collide with Go's `package main`. Either name the package differently (as above - Go package names need not match folders) or skip the .go half for the main layout and put live data in a component inside it.

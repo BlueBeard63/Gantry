@@ -1,6 +1,6 @@
 # A Go primer
 
-Just enough Go to build Gantry apps. If you have written Go before, skip to [Your first app](first-app.md).
+Just enough Go to build Gantry apps, aimed at someone new to the language. This is background, not a tutorial - skim it, then learn the rest by reading the code `gantry new` generates. If you have written Go before, skip to [Your first app](first-app.md).
 
 ## What Go is
 
@@ -22,7 +22,7 @@ import "github.com/B-Commissions/Gantry/ui"
 var Page = ui.Page{Key: "pages/index"}
 ```
 
-Names that start with an Uppercase letter are exported (visible to other packages). lowercase names are private to the package. This is why your pages export "Page" with a capital P - main.go needs to see it.
+Names that start with an Uppercase letter are exported (visible to other packages); lowercase names are private to the package. This is why your pages export "Page" with a capital P - main.go needs to see it.
 
 ## Variables and types
 
@@ -114,6 +114,6 @@ func (m model) Update(msg ui.Msg) (ui.Model, ui.Cmd) {
 
 ## go.mod
 
-`go.mod` declares your module's name and dependencies. gantry new writes it; "go build" reads it. You edit it only when adding a new Go dependency, and even then `go get example.com/pkg` edits it for you.
+`go.mod` declares your module's name and dependencies. `gantry new` writes it; `go build` reads it. You edit it only when adding a new Go dependency, and even then `go get example.com/pkg` edits it for you.
 
 That is genuinely most of what Gantry app code uses. Next: the [TSX primer](tsx-primer.md).

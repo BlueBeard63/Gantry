@@ -1,6 +1,8 @@
 # iOS (experimental scaffold)
 
-`gantry build --targets ios` generates an Xcode project scaffold into `.gantry/ios/` - the shell is real, but the Go server is **not linked in yet**, so what runs today is a placeholder page. The target exists so the shell, permissions and project wiring are ready when in-app Go linking lands; treat everything on this page as experimental.
+The iOS target is an **experimental scaffold**, not a working app yet. `gantry build --targets ios` generates an Xcode project into `.gantry/ios/` - the WKWebView shell is real, but the Go server is **not linked in yet**, so what runs today is a placeholder page. The target exists so the shell, permissions and project wiring are ready when in-app Go linking lands; treat everything on this page as provisional. Building and running on Android is fully working - see [Android builds](android.md).
+
+## Generate the scaffold
 
 The scaffold generates on any machine (it is just files - inspect it, commit an overlay against it, or hand it to a Mac), but turning it into a running app needs a Mac with Xcode.
 
@@ -23,6 +25,8 @@ xed .                            # open in Xcode, pick a device, run
 | `Sources/GantryShim.h/.c` | the seam where the Go server attaches - today a stub returning -1, which makes the shell show the placeholder page |
 | `README.md` | these build steps, offline, next to the project |
 
+## Configuration
+
 The bundle identifier defaults to `mobile.id`; set `mobile.ios.bundleId` in gantry.json when the iOS identity must differ:
 
 ```json
@@ -36,7 +40,7 @@ The bundle identifier defaults to `mobile.id`; set `mobile.ios.bundleId` in gant
 
 ## Permissions
 
-The same friendly names as Android, translated to Info.plist usage-description strings (Apple's purpose strings). Names with no iOS meaning are simply skipped - one `permissions` list builds both platforms.
+The same friendly names as [Android](android.md#permissions), translated to Info.plist usage-description strings (Apple's purpose strings). Names with no iOS meaning are simply skipped - one `permissions` list builds both platforms.
 
 | Name | Info.plist key |
 | --- | --- |
@@ -50,10 +54,12 @@ The same friendly names as Android, translated to Info.plist usage-description s
 
 The generated strings are generic ("Myapp uses the camera."). App Store review usually wants more specific wording - override `Info.plist` via the overlay when you get there.
 
-## Customizing
+## Notes (advanced)
+
+### Customizing
 
 `.gantry/ios/` is regenerated every build - never edit it. Create `mobile/ios/` in your app root instead: its contents are copied over the generated scaffold path for path, exactly like `mobile/android/`.
 
-## Why the Go server is missing
+### Why the Go server is missing
 
 On Android the Go server ships inside the APK as an executable and runs as a child process. iOS forbids spawning processes, so the server has to be compiled *into* the app binary: `GOOS=ios GOARCH=arm64 CGO_ENABLED=1 go build -buildmode=c-archive`, exporting a start function the shim calls, plus the embedded frontend. That linking step is deferred; `Sources/GantryShim.h` documents the plan and `gantry_start()` is the function that will light up.

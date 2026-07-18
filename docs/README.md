@@ -31,6 +31,7 @@ The UI layer (pages and components)
 - [The Tea model](ui/tea.md) - Model, Update, View in Go
 - [Custom components](ui/custom-components.md) - rendering your React from Go
 - [Styling](ui/styling.md) - colocated css and theme variables
+- [Resources](ui/resources.md) - embedded images, fonts and data, shared by both planes
 - [The TitleBar](ui/titlebar.md) - configuring the window chrome
 
 Mobile (the same app on a phone)

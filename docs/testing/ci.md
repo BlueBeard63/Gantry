@@ -23,17 +23,20 @@ jobs:
           path: test-results/
 ```
 
-The pieces that matter:
-
-- **Upload `test-results/` on failure.** Failing tests keep `app.log` and `trace.jsonl` (and `crash.log` when the process died); that is usually enough to diagnose without reproducing locally.
-- **Caching**: the Go build cache and the npm cache cover the expensive steps. The app builds once per suite, not per test.
-- **Parallelism**: `gantry test` defaults to NumCPU/2 because each parallel test is a full app process; on small runners `-p 2` is a sensible floor.
-- **Headless is real headless** for the protocol plane - `--no-open` serves without a window, so Linux runners need no xvfb for these tests.
+The pieces that matter: **upload `test-results/` on failure** - failing tests keep `app.log` and `trace.jsonl` (and `crash.log` when the process died), usually enough to diagnose without reproducing locally. **Caching** - the Go build cache and the npm cache cover the expensive steps, and the app builds once per suite, not per test. **Parallelism** - `gantry test` defaults to NumCPU/2 because each parallel test is a full app process; on small runners `-p 2` is a sensible floor. **Headless is real headless** for the protocol plane - `--no-open` serves without a window, so Linux runners need no xvfb for these tests.
 
 ## Recommended split
 
 - **PR gate**: the protocol-plane suite plus [widget snapshots](widgets.md) - fast, hermetic, no special runners.
 - **Nightly**: `--mode production` runs (asserting production error behavior), the DOM suite, `--record` screencasts, and the [Android emulator job](#the-android-emulator-job) below.
+
+## Production-mode runs
+
+```
+gantry test --mode production
+```
+
+Development mode is the default so error detail is full; a periodic production run catches anything gated on mode - stripped stacks, disabled pages, production-only branches. Tests that assert on mode-dependent behavior can also pin it per launch with `WithMode`.
 
 ## The Android emulator job
 
@@ -68,12 +71,4 @@ jobs:
           path: examples/**/test-results/
 ```
 
-The action boots the AVD, waits for it, and runs the script against it as the sole connected device. The emulator counts as a device that allows the hermetic `pm clear`, so runs are fully isolated without `--allow-device-data`. Cache the Go build cache, the npm cache, and the AVD system image (the action does the last) to keep it cheap; the app builds once per suite.
-
-## Production-mode runs
-
-```
-gantry test --mode production
-```
-
-Development mode is the default so error detail is full; a periodic production run catches anything gated on mode - stripped stacks, disabled pages, production-only branches. Tests that assert on mode-dependent behavior can also pin it per launch with `WithMode`.
+The action boots the AVD, waits for it, and runs the script against it as the sole connected device. The emulator counts as a device that allows the hermetic `pm clear`, so runs are fully isolated without `--allow-device-data`. Cache the Go build cache, the npm cache, and the AVD system image (the action does the last) to keep it cheap; the app builds once per suite. See [mobile testing](mobile.md) for the device story in full.

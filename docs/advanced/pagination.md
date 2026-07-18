@@ -52,7 +52,7 @@ A dynamic page can have a Go half like any other page. Because Go cannot import 
 1. Start the file with `//go:build ignore`. That keeps `go build ./...` and your editor from choking on the un-importable original; gantry strips the line from the copy it generates. (Your app's own build - `gantry dev`/`build`, which run `go build .` - never touches the bracket folder, only the generated copy.)
 2. Set `Key` to the bracket path explicitly, matching the tsx: `Key: "pages/examples/page1/[id]"`.
 
-A Model receives `ui.ParamsMsg` whenever the id changes, so it always knows which one is open:
+A Model receives `ui.ParamsMsg` whenever the id changes (it rides the `ready` frame - see [the wire protocol](protocol.md)), so it always knows which one is open:
 
 ```go
 //go:build ignore

@@ -1,6 +1,6 @@
 # Notifications (mobile)
 
-On the phone your app posts real system notifications - the kind that land in the shade, survive the app being closed, and respect the user's per-channel settings. The API is the `notification` package; the generated shell does the Android side for you. (Desktop notifications are a different thing - app-drawn popup windows - documented in [Shell > Notifications](../shell/notifications.md).)
+On the phone your app posts real system notifications - the kind that land in the shade, survive the app being closed, and respect the user's per-channel settings. The API is the `notification` package; the generated shell does the Android side for you. This page is only about mobile system notifications - desktop notifications are a different thing (app-drawn popup windows) documented in [Shell > Notifications](../shell/notifications.md).
 
 ## Prerequisite: the permission
 
@@ -13,7 +13,7 @@ Android 13+ only shows notifications when the user granted `POST_NOTIFICATIONS`.
 }
 ```
 
-Without the grant, `Post` is silently ignored by Android - your code does not error.
+Without the grant, `Post` is silently ignored by Android - your code does not error. See [Android > Permissions](android.md#permissions) for the full list.
 
 ## Sending
 
@@ -92,7 +92,9 @@ notification.Post(notification.Notification{
 
 Notifications use the app's launcher icon (`icons/icon.png`) as their small icon. Android renders small icons as a monochrome silhouette, so a detailed logo can look like a blob in the status bar - a simple, high-contrast glyph fares best. A dedicated notification icon file is on the roadmap.
 
-## How it works (and its limits)
+## Notes (advanced)
+
+### How it works, and its limits
 
 The Go server can't touch `NotificationManager` - it is a child process without the Android framework. `Post`/`Clear` write one-line control messages (`GANTRY_NOTIFY {json}`) to stdout, and the shell that spawned the server parses and executes them. Two consequences:
 

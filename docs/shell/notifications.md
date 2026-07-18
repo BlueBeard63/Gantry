@@ -37,27 +37,18 @@ notifier.Show("/alert")   // replaces any popup currently showing
 notifier.Close()          // dismiss
 ```
 
-Show spawns "<exe> --shellrole popup --url <BaseURL+path> --monitor N --position top|bottom" with replace semantics: a new notification supersedes the old one. Placement is evaluated at each Show, so a settings change applies to the very next popup.
+Show spawns "<exe> --shellrole popup --url <BaseURL+path> --monitor N --position top|bottom" with replace semantics: a new notification supersedes the old one. Placement is evaluated at each Show, so a settings change applies to the very next popup. (Override the argv with Notifier.Args if your dispatch differs from the scaffold's.)
 
 ## PopupOptions
 
 - Width, Height - required.
 - Position - "top" or "bottom" (default) of the monitor work area; Margin (default 24) is the gap from the edge.
-- Monitor - display index, -1 = primary.
-- AdjustPos - a final nudge given the computed x, y. The classic use: when a widget parks in the same corner, slide the popup below it. `appshell.FindWindowVisible(title)` tells you if the widget is currently on screen.
-
-```go
-AdjustPos: func(x, y int) (int, int) {
-    if appshell.FindWindowVisible("Myapp Timer") {
-        return x, y + 52
-    }
-    return x, y
-},
-```
+- Monitor - display index, -1 = primary; see [Monitors and icons](monitors-and-icons.md).
+- AdjustPos - a final nudge given the computed x, y; see [Advanced: sliding around a widget](#advanced-sliding-around-a-widget).
 
 ## Inside the popup page
 
-The page talks to your app the normal way (`usePaired` - the popup process serves no logic itself, events go to the main app over the websocket... note the popup loads the page from the MAIN app's server, so its events land in the main process). To dismiss:
+The page talks to your app the normal way (`usePaired`) - the popup process serves no logic itself. Note it loads the page from the MAIN app's server, so its events travel over the websocket and land in the main process. To dismiss:
 
 - `shell.setVisible(false)` hides the window instantly (nice before the process is torn down - a hidden window can never paint a goodbye flash), then
 - `shell.close()` or the app's `notifier.Close()` ends it.
@@ -73,6 +64,21 @@ shell.attention()           // from the frontend
 
 It plays the system notification sound and flashes the main window's taskbar button until the user brings it to the foreground.
 
-## Fallback behavior
+---
+
+## Advanced: sliding around a widget
+
+PopupOptions.AdjustPos gets the computed x, y and returns the final ones. The classic use: when a widget parks in the same corner, slide the popup below it. `appshell.FindWindowVisible(title)` tells you if the widget is currently on screen.
+
+```go
+AdjustPos: func(x, y int) (int, int) {
+    if appshell.FindWindowVisible("Myapp Timer") {
+        return x, y + 52
+    }
+    return x, y
+},
+```
+
+## Advanced: fallback behavior
 
 If the WebView2 runtime is missing, RunPopup opens the same URL in the default browser instead, so the notification still reaches the user.

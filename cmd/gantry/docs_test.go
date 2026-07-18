@@ -1,39 +1,84 @@
 package main
 
-import "testing"
+import (
+	"strings"
+	"testing"
 
-// TestDocsLayoutScaling exercises the sidebar/content layout math across
-// terminal sizes, including the tiny ones that used to yield a zero or
-// negative viewport and a garbled sidebar.
-func TestDocsLayoutScaling(t *testing.T) {
+	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
+	"github.com/charmbracelet/x/ansi"
+)
+
+// checkSafe asserts the invariants that keep a frame from tripping the
+// Windows Terminal full-width auto-wrap bug: no row reaches the right edge,
+// no row carries trailing padding, and the frame fits under the height.
+func checkSafe(t *testing.T, label string, frame string, w, h int) {
+	t.Helper()
+	lines := strings.Split(frame, "\n")
+	if h > 1 && len(lines) > h-1 {
+		t.Errorf("%s: %d rows exceeds h-1=%d", label, len(lines), h-1)
+	}
+	limit := w - 1
+	if limit < 1 {
+		limit = 1 // a 1-column terminal still needs one usable cell
+	}
+	for i, ln := range lines {
+		if wln := lipgloss.Width(ln); wln > limit {
+			t.Errorf("%s: row %d width %d exceeds limit=%d", label, i, wln, limit)
+		}
+		clean := ansi.Strip(ln)
+		if clean != strings.TrimRight(clean, " \t") {
+			t.Errorf("%s: row %d has trailing padding: %q", label, i, clean)
+		}
+	}
+}
+
+func TestSafeFrameInvariants(t *testing.T) {
+	// A pathological input: over-wide lines, full-width padding hidden
+	// before ANSI resets, and more rows than the height.
+	pad := "\x1b[38;5;212mcolored\x1b[0m" + strings.Repeat(" ", 300) + "\x1b[0m"
+	frame := strings.Join([]string{
+		strings.Repeat("x", 500),
+		pad,
+		"short",
+		"a\x1b[0m   ",
+		strings.Repeat("y", 40),
+	}, "\n")
+	for _, s := range []struct{ w, h int }{{10, 3}, {40, 4}, {80, 6}, {188, 10}, {1, 1}} {
+		checkSafe(t, "safeFrame", safeFrame(frame, s.w, s.h), s.w, s.h)
+	}
+}
+
+func TestDocsRenderInvariants(t *testing.T) {
+	pages, err := loadDocs()
+	if err != nil {
+		t.Fatalf("loadDocs: %v", err)
+	}
+	if len(pages) < 10 {
+		t.Fatalf("expected embedded docs, got %d", len(pages))
+	}
 	sizes := []struct{ w, h int }{
-		{0, 0}, {1, 1}, {10, 3}, {31, 5}, {40, 10}, {49, 20}, {50, 24}, {80, 24}, {200, 60},
+		{188, 41}, {120, 30}, {80, 24}, {60, 20}, {49, 15}, {40, 24}, {20, 8}, {10, 3},
 	}
 	for _, s := range sizes {
-		m := &docsModel{width: s.w, height: s.h}
-		side := m.sidebarWidth()
-		cw, ch := m.contentSize()
+		var m tea.Model = newDocsModel(pages, 0)
+		m, _ = m.Update(tea.WindowSizeMsg{Width: s.w, Height: s.h})
+		checkSafe(t, "render", m.View(), s.w, s.h)
+	}
+}
 
-		if cw < docsMinContent {
-			t.Errorf("w=%d,h=%d: content width %d below floor %d", s.w, s.h, cw, docsMinContent)
-		}
-		if ch < 1 {
-			t.Errorf("w=%d,h=%d: content height %d < 1", s.w, s.h, ch)
-		}
-		if side < 0 {
-			t.Errorf("w=%d: sidebar width %d negative", s.w, side)
-		}
-		if s.w < docsCollapseBelow && side != 0 {
-			t.Errorf("w=%d: expected collapsed sidebar, got %d", s.w, side)
-		}
-		// When the sidebar shows, it plus its border and the spacer must
-		// still leave the content its floor - never overflow the terminal.
-		if side > 0 && side+3+docsMinContent > s.w {
-			t.Errorf("w=%d: sidebar %d + 3 + content floor overflows width", s.w, side)
-		}
-		if w := m.sidebarTextWidth(); w < 1 {
-			t.Errorf("w=%d: sidebar text width %d < 1", s.w, w)
-		}
+func TestDocsResponsiveCollapse(t *testing.T) {
+	pages, _ := loadDocs()
+	// Wide: two panes (sidebar > 0). Narrow: collapsed (sidebar == 0).
+	wide := newDocsModel(pages, 0)
+	wide.width, wide.height = 120, 30
+	if wide.sidebarWidth() == 0 {
+		t.Errorf("wide terminal should show a sidebar")
+	}
+	narrow := newDocsModel(pages, 0)
+	narrow.width, narrow.height = 40, 20
+	if narrow.sidebarWidth() != 0 {
+		t.Errorf("narrow terminal should collapse the sidebar, got %d", narrow.sidebarWidth())
 	}
 }
 

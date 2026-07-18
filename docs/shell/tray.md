@@ -51,7 +51,13 @@ Item features:
 - Children turns an item into a submenu (parents of submenus do not fire clicks themselves).
 - item.SetLabel(s) renames an item live ("Pause" -> "Resume").
 
-## Runtime changes
+## Icons
+
+Windows trays want ICO bytes (Options.Icon); Linux and Mac trays want PNG (Options.IconPNG). Set both - tray.Run picks the right one per platform - or use the appicon package for both formats at once; see [Monitors and icons](monitors-and-icons.md). gantry.Run sets both automatically.
+
+---
+
+## Advanced: runtime changes
 
 Options.OnReady hands you a Handle once the tray exists:
 
@@ -65,18 +71,20 @@ Tray: &tray.Options{
 },
 ```
 
-## Toggling the tray without a rebuild
+The Handle also carries SetIcon (ICO on Windows, PNG elsewhere) and SetTitle for the same live updates.
 
-Whether *closing the window* keeps the app in the tray is also switchable from code while the app runs - `gantry.SetCloseToTray(false)` makes close quit outright - see [Switching close behavior at runtime](close-and-lifecycle.md#switching-close-behavior-at-runtime).
+## Advanced: toggling the tray without a rebuild
 
-`gantry.Run` gives every app --tray and --no-tray runtime flags that override Config.Tray, so the tray is a launch decision, not a compile decision:
+Whether *closing the window* keeps the app in the tray is switchable from code while the app runs - `gantry.SetCloseToTray(false)` makes close quit outright - see [Switching close behavior at runtime](close-and-lifecycle.md#advanced-switching-close-behavior-at-runtime).
+
+Whether the tray *exists* is a launch decision, not a compile decision: `gantry.Run` gives every app --tray and --no-tray runtime flags that override Config.Tray.
 
 ```
 myapp.exe --no-tray        (closing the window exits)
 gantry dev -- --tray       (dev run with the tray on)
 ```
 
-## Tray-only apps
+## Advanced: tray-only apps
 
 Set `TrayOnly` on `appshell.App` and skip the main window entirely: the app is its tray icon, menu actions, widgets and popups. Useful for background utilities.
 
@@ -90,10 +98,6 @@ shell := &appshell.App{
 
 (The Window options still matter for AppName and URL - widgets and the browser fallback use them.)
 
-## Using tray directly
+## Advanced: using tray directly
 
 Without App.Run, call tray.Run(options) yourself - it blocks, so start it on its own goroutine, and call tray.Quit() to tear it down. Options.OnExit runs after teardown; that is where App.Run hooks "Quit means cancel the app context".
-
-## Icons
-
-Windows trays want ICO bytes (Options.Icon); Linux and Mac trays want PNG (Options.IconPNG). Set both - tray.Run picks the right one per platform - or use the appicon package for both formats at once; see [Monitors and icons](monitors-and-icons.md). gantry.Run sets both automatically.

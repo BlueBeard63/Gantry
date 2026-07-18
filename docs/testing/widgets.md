@@ -24,14 +24,14 @@ For widgets whose output is stable, compare against a golden file instead of han
 gantrytest.Golden(t, "status", gantrytest.WidgetSnapshot(t, "status"))
 ```
 
-The golden lives at `tests/testdata/status.golden.json` (normalized, indented JSON, so diffs read well). Create or refresh it with:
-
-```
-gantry test --update
-```
+The golden lives at `tests/testdata/status.golden.json` (normalized, indented JSON, so diffs read well). Create or refresh it with `gantry test --update`.
 
 Only golden stable output: a widget that renders the clock will never match. For time-dependent widgets, assert on structure (the node types and the props that do not move) like the snapshot example above, or inject determinism via a declared arg.
 
-Remember the constraint from the widgets doc: render functions run in a short-lived process without the app loop, so they must be self-contained - persisted files, not live app state. Snapshot tests enforce this for free, because they run exactly that way.
+## Notes
+
+Remember the constraint from the [widgets doc](../mobile/widgets.md): render functions run in a short-lived process without the app loop, so they must be self-contained - persisted files, not live app state. Snapshot tests enforce this for free, because they run exactly that way.
 
 On-device Glance rendering (does the launcher actually draw it right) is screenshot territory, scoped to manual/nightly review - see [mobile testing](mobile.md).
+
+Next: [mobile testing](mobile.md).

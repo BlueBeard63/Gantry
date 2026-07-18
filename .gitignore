@@ -6,3 +6,5 @@ webdist/
 *.log
 *.exe
 examples/demo/go.work.sum
+.claude/
+skills*

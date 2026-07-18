@@ -4,9 +4,9 @@ CSS in Gantry follows the same convention as everything else: files live next to
 
 ## The three levels
 
-1. Root index.css - app-wide. Loaded first, applies everywhere. This is where the theme variables live.
-2. pages/<name>/<name>.css - one page's styles.
-3. components/<name>/<name>.css - one component's styles.
+1. **Root index.css** - app-wide. Loaded first, applies everywhere. This is where the theme variables live.
+2. **pages/&lt;name&gt;/&lt;name&gt;.css** - one page's styles.
+3. **components/&lt;name&gt;/&lt;name&gt;.css** - one component's styles.
 
 Colocated css is imported automatically by the Vite plugin - no import statement in the tsx, no central stylesheet list to maintain. Create the file next to the tsx and it is live (gantry dev picks up new files on the fly).
 
@@ -36,7 +36,7 @@ Components wrap themselves: give your component's root element a class named aft
 
 ## The theme variables
 
-The window chrome and the Tea built-ins read their colors and metrics from CSS variables, all prefixed --gantry-. Redefine them in your root index.css and the whole app rethemes - TitleBar included, no component changes:
+The window chrome and the Tea built-ins read their colors and metrics from CSS variables, all prefixed `--gantry-`. Redefine them in your root index.css and the whole app rethemes - TitleBar included, no component changes:
 
 ```css
 :root {
@@ -67,7 +67,7 @@ Your own styles can (and should) use the same variables so custom UI follows the
 
 ## Styling Tea built-ins
 
-Every built-in carries a stable class: `.gantry-tea-button`, `.gantry-tea-input`, `.gantry-tea-checkbox`, `.gantry-tea-select`, `.gantry-tea-progress`, `.gantry-tea-column`, `.gantry-tea-row`, and so on. Combine with the Go-side "class" prop for targeted styling:
+Every built-in carries a stable class: `.gantry-tea-button`, `.gantry-tea-input`, `.gantry-tea-checkbox`, `.gantry-tea-select`, `.gantry-tea-progress`, `.gantry-tea-column`, `.gantry-tea-row`, and so on. Combine with the Go-side `"class"` prop for targeted styling:
 
 ```go
 ui.Button("Save", saveMsg{}).WithProps("class", "primary")
@@ -80,7 +80,7 @@ ui.Button("Save", saveMsg{}).WithProps("class", "primary")
 }
 ```
 
-Layout hints from Go ("gap", "pad", "grow") become inline styles; use them for one-offs and css classes for anything reused.
+Layout hints from Go (`"gap"`, `"pad"`, `"grow"`) become inline styles; use them for one-offs and css classes for anything reused.
 
 ## Load order
 
@@ -95,11 +95,11 @@ Root index.css loads first, then every colocated css. Since page css comes later
 
 Variables cascade, so built-ins inside that page pick the override up automatically.
 
-## Tailwind and friends
+## Advanced: Tailwind
 
 Nothing in gantry-web requires Tailwind - the chrome ships plain css, and the variables + plain css convention carries a long way. Tailwind v4 is supported first-class when you want it:
 
 - **New app**: `gantry new myapp --tailwind`. index.css becomes a Tailwind `@theme` token file - every color is both a utility class (`bg-surface`, `text-primary`, `border-border-subtle`) and a real CSS custom property, and the `--gantry-*` chrome variables are bridged to the tokens (`--gantry-bg: var(--color-base)`), so retheming the app and retheming the chrome is one edit.
-- **Existing app**: `gantry install --tailwind`. Installs the packages, migrates your index.css (custom colors are pulled into an `@theme` block and wired to the chrome; you review the diff first), sets `"tailwind": true` in gantry.json and regenerates the synthesized vite config with `@tailwindcss/vite` included.
+- **Existing app**: `gantry install --tailwind`. Installs the packages, migrates your index.css (custom colors are pulled into an `@theme` block and wired to the chrome; you review the diff first), sets `"tailwind": true` in gantry.json, and regenerates the synthesized vite config with `@tailwindcss/vite` included.
 
 The `"tailwind"` flag in gantry.json is what makes `gantry dev`/`build` emit the plugin into `.gantry/vite.config.ts` - you never need to own the vite config for Tailwind. [Without the CLI](../advanced/without-the-cli.md) remains the path for other build customizations.

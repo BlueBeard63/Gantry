@@ -1,13 +1,13 @@
 # Project structure
 
-A Gantry app is a Go module with React files living inside it. There is no `web/` directory and no build config to maintain - the CLI synthesizes those.
+A Gantry app is a Go module with React files living inside it. There is no `web/` directory and no build config to maintain - the CLI synthesizes those. Here is what `gantry new` lays down (the multi-page scaffold; a single-page app omits `layouts/`, `pages/settings/`, and `components/`):
 
 ```
 myapp/
   main.go            the entrypoint: a dozen lines calling gantry.Run
   gantry_registry.go generated page/component registrations - never edit
   app.tsx            optional: TitleBar and app options (see the TitleBar docs)
-  embed.go           embeds dist/ into the exe
+  embed.go           embeds webdist/ (the built frontend) into the exe
   go.mod             Go module + dependency on Gantry
   package.json       npm dependencies (react, gantry-web, ...)
   tsconfig.json      makes the editor understand the .tsx files
@@ -29,6 +29,7 @@ myapp/
       example.go     component logic
       example.tsx    component look
       example.css    component styles (optional)
+  tests/             generated smoke test; add your own Go tests here
   .vscode/           editor settings (excludes, recommendations)
   .gantry/           synthesized build root - gitignored, regenerated
   webdist/           built frontend (embedded into the exe) - gitignored
@@ -56,11 +57,11 @@ Widget and popup windows are pages too - a widget is just a small native window 
 
 ## Registration
 
-Automatic. `gantry dev/build` (or `gantry gen`) scan the `pages/`, `components/` and `layouts/` folders for exported Page/Component vars and regenerate gantry_registry.go; main.go just calls `gantry.Run(gantry.Config{... Pairs: gantryPairs() ...})`. Add a pair, run `gantry dev`, done. If a key ever misses (typo in the Key string), the tsx side's `send()` logs **"no handler for ..."** in the Go terminal.
+Automatic. `gantry dev/build` (or `gantry gen`) scan the `pages/`, `components/`, and `layouts/` folders for exported Page/Component vars and regenerate `gantry_registry.go`; main.go just calls `gantry.Run(gantry.Config{... Pairs: gantryPairs() ...})`. Add a pair, run `gantry dev`, done. If a key ever misses (typo in the Key string), the tsx side's `send()` logs "no handler for ..." in the Go terminal.
 
 ## Resources
 
-Anything you drop in `resources/` - images, fonts, JSON, whatever - is embedded into the exe once and reachable from **both** halves of your app by the same relative path. Create the folder, add files, run `gantry dev`. Like `pages/`, the folder is a fixed convention, and unlike `webdist/`/`dist/` it is your source, so commit it. An empty `resources/` folder is ignored; the generated `gantry_resources.go` (never edit it) appears only once the folder holds a file.
+Anything you drop in `resources/` - images, fonts, JSON, whatever - is embedded into the exe once and reachable from both halves of your app by the same relative path. Create the folder, add files, run `gantry dev`. Like `pages/`, the folder is a fixed convention, and unlike `webdist/`/`dist/` it is your source, so commit it. An empty `resources/` folder is ignored; the generated `gantry_resources.go` (never edit it) appears only once the folder holds a file.
 
 From tsx, reference a resource by URL with `resourceURL()`:
 
@@ -82,22 +83,26 @@ One embedded copy backs both: in a built app the Go server serves `resources/` a
 
 ## gantry.json
 
-Written by gantry new so dev/build do not re-ask:
+Written by `gantry new` so dev/build do not re-ask. A single-page, Tea-style scaffold looks like this:
 
 ```json
 {
+  "$schema": "https://raw.githubusercontent.com/B-Commissions/Gantry/main/gantry.schema.json",
   "name": "myapp",
   "title": "Myapp",
+  "version": "0.1.0",
+  "gantry": "0.4.0",
   "port": 8330,
   "mode": "single",
   "style": "tea",
   "tray": true,
-  "buttons": { "minimize": true, "maximize": false, "close": true }
+  "buttons": { "minimize": true, "maximize": false, "close": true },
+  "icons": "icons"
 }
 ```
 
-name is the exe/module name, port is the local server the app binds (also the single-instance guard), and the rest records your scaffold choices. Note that changing buttons here does NOT reconfigure a built app - the real switches live in main.go's WindowOptions; this file just remembers what the scaffold generated.
+name is the exe/module name, version shows up in installers, gantry records the framework version the app was scaffolded with (the baseline `gantry upgrade` compares against), port is the local server the app binds (also the single-instance guard), and the rest records your scaffold choices. Fields that default off are omitted until set: `tailwind` (Tailwind v4 wiring), `args` (custom app arguments), `build` (extra targets, console, installers), and `mobile` (Android/iOS identity and permissions). Note that changing buttons here does NOT reconfigure a built app - the real switches live in main.go's WindowOptions; this file just remembers what the scaffold generated.
 
 ## The synthesized .gantry/ folder
 
-`gantry dev` and `gantry build` regenerate `.gantry/` (index.html, main.tsx, vite.config.ts) every run. Never edit those files - your changes woul be overwritten. Everything you would want to change lives in your own files: theme in index.css, page layout in your tsx, window behavior in `main.go`. If you outgrow the synthesis entirely, see [Without the CLI](../advanced/without-the-cli.md).
+`gantry dev` and `gantry build` regenerate `.gantry/` (index.html, main.tsx, vite.config.ts) every run. Never edit those files - your changes would be overwritten. Everything you would want to change lives in your own files: theme in index.css, page layout in your tsx, window behavior in `main.go`. If you outgrow the synthesis entirely, see [Without the CLI](../advanced/without-the-cli.md).

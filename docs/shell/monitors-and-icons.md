@@ -18,7 +18,7 @@ Each Monitor carries two rectangles in virtual-desktop pixels:
 
 Coordinates can be negative: a monitor left of the primary starts at a negative X. Pick never fails - with a bad index it returns the primary, and with no data at all a sane 1920x1080 stand-in, so placement code needs no error handling.
 
-Use cases you get for free: `WidgetOptions.Monitor`, `PopupOptions.Monitor`, geometry restore clamping. Reach for the package directly when building your own placement (a settings page listing displays by name, for instance - Monitor.Name and Primary are there for exactly that).
+Most of the time you never call this package: `WidgetOptions.Monitor`, `PopupOptions.Monitor` and geometry-restore clamping all use it for you. Reach for it directly when building your own placement - a settings page listing displays by name, for instance (Monitor.Name and Primary are there for exactly that).
 
 ## appicon
 
@@ -43,9 +43,11 @@ p := appicon.Palette{
 
 When you have real artwork, skip the package: put PNG bytes in `appshell.IconSource{PNG: ...}` and ICO bytes in tray.Options.Icon.
 
-## Exe icons (release builds)
+---
 
-The window icon defaults to whatever icon resource is embedded in the exe, falling back to your IconSource PNG. To embed one (so Explorer and shortcuts show it too), generate a multi-resolution ICO and compile it in with the rsrc tool:
+## Advanced: exe icons (release builds)
+
+The window icon defaults to whatever icon resource is embedded in the exe, falling back to your IconSource PNG. To embed one (so Explorer and shortcuts show it too), generate a multi-resolution ICO with appicon.MultiICO and compile it in with the rsrc tool:
 
 ```go
 ico := appicon.MultiICO(func(sz int) *image.NRGBA {

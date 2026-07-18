@@ -4,6 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"io/fs"
+	"os"
 	"path"
 	"regexp"
 	"sort"
@@ -15,6 +16,8 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/glamour"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/charmbracelet/x/ansi"
+	"github.com/charmbracelet/x/term"
 
 	"github.com/B-Commissions/Gantry/appshell"
 	"github.com/B-Commissions/Gantry/docs"
@@ -25,7 +28,10 @@ import (
 // fully offline - the docs travel inside the gantry exe.
 func cmdDocs(args []string) error {
 	fs := flag.NewFlagSet("docs", flag.ExitOnError)
+	tui := fs.Bool("tui", false, "browse the docs in the terminal instead of the web viewer")
 	printOnly := fs.Bool("print", false, "print the page as plain markdown instead of the browser")
+	frameOnly := fs.Bool("frame", false, "render one frame at the terminal size to stdout, then exit (layout diagnostic)")
+	frameSize := fs.String("size", "", "WxH to force the -frame size, e.g. 188x41 (when redirecting to a file)")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
@@ -44,10 +50,52 @@ func cmdDocs(args []string) error {
 		fmt.Println(pages[start].raw)
 		return nil
 	}
+	if *frameOnly {
+		return docsFrameProbe(pages, start, *frameSize)
+	}
+
+	// The web viewer is the default; -tui keeps the terminal browser.
+	if !*tui {
+		return serveDocsWeb(pages, start)
+	}
 
 	m := newDocsModel(pages, start)
 	_, err = tea.NewProgram(m, tea.WithAltScreen()).Run()
 	return err
+}
+
+// docsFrameProbe renders one frame at the terminal's (or forced) size and
+// prints it plainly - no Bubble Tea program, so only this text reaches the
+// screen. When redirected (or -size is set) it strips colors and annotates
+// each row with its display width, for inspecting the layout without the
+// live terminal.
+func docsFrameProbe(pages []docPage, start int, size string) error {
+	fd := int(os.Stdout.Fd())
+	w, h := 0, 0
+	if size != "" {
+		fmt.Sscanf(size, "%dx%d", &w, &h)
+	}
+	if w <= 0 || h <= 0 {
+		if dw, dh, err := term.GetSize(uintptr(fd)); err == nil && dw > 0 && dh > 0 {
+			w, h = dw, dh
+		} else {
+			w, h = 100, 30
+		}
+	}
+	var m tea.Model = newDocsModel(pages, start)
+	m, _ = m.Update(tea.WindowSizeMsg{Width: w, Height: h})
+	frame := m.View()
+	if size != "" || !term.IsTerminal(uintptr(fd)) {
+		fmt.Printf("[size %dx%d - plain, |NN| = measured display width]\n", w, h)
+		for i, ln := range strings.Split(frame, "\n") {
+			clean := ansi.Strip(ln)
+			fmt.Printf("%2d |%3d| %s\n", i, lipgloss.Width(clean), clean)
+		}
+		return nil
+	}
+	fmt.Printf("[terminal %dx%d]\n", w, h)
+	fmt.Println(frame)
+	return nil
 }
 
 type docPage struct {
@@ -261,6 +309,11 @@ func (m *docsModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		} else {
 			m.view = viewport.New(cw, ch)
 			m.ready = true
+		}
+		if sw := m.sidebarTextWidth() - 4; sw >= 4 {
+			m.search.Width = sw
+		} else {
+			m.search.Width = 4
 		}
 		m.render()
 		return m, nil
@@ -490,7 +543,10 @@ func (m *docsModel) View() string {
 		if h < 0 {
 			h = 0
 		}
-		body = lipgloss.JoinHorizontal(lipgloss.Top, sideStyle.Height(h).Render(m.renderSidebar()), " "+main)
+		// Fixed width keeps the border a straight column aligned with the
+		// content budget; safeFrame later strips the padding lipgloss adds.
+		sidebar := sideStyle.Width(m.sidebarWidth()).Height(h).Render(m.renderSidebar())
+		body = lipgloss.JoinHorizontal(lipgloss.Top, sidebar, " "+main)
 	}
 	help := "tab focus | enter open | / search | f links | b back | q quit"
 	if m.mode == "links" {
@@ -499,7 +555,38 @@ func (m *docsModel) View() string {
 	if m.status != "" {
 		help = m.status
 	}
-	return body + "\n" + statusStyle.Render(" "+help)
+	frame := body + "\n" + statusStyle.Render(" "+help)
+	return safeFrame(frame, m.width, m.height)
+}
+
+// trailBlank matches a trailing run of spaces/tabs and SGR (color/reset)
+// escape sequences at the end of a line.
+var trailBlank = regexp.MustCompile(`(?:\x1b\[[0-9;]*m|[ \t])+$`)
+
+// safeFrame makes a frame that cannot trip the Windows Terminal full-width
+// auto-wrap bug (lines that reach the right edge wrap and stagger the rows
+// below). For every row it strips the trailing padding lipgloss adds to
+// square the layout - even when that padding hides before an ANSI reset,
+// which a plain TrimRight misses - so no row reaches the edge, then hard-
+// truncates to w-1 cells (ANSI-aware). The whole frame is capped to h-1
+// rows so it never fills the last screen row (another known mis-render).
+func safeFrame(frame string, w, h int) string {
+	lines := strings.Split(frame, "\n")
+	if h > 1 && len(lines) > h-1 {
+		lines = lines[:h-1]
+	}
+	limit := w - 1
+	if limit < 1 {
+		limit = 1
+	}
+	for i, ln := range lines {
+		ln = trailBlank.ReplaceAllString(ln, "")
+		if strings.IndexByte(ln, 0x1b) >= 0 {
+			ln += "\x1b[0m" // re-close a style whose trailing reset we stripped
+		}
+		lines[i] = ansi.Truncate(ln, limit, "")
+	}
+	return strings.Join(lines, "\n")
 }
 
 func (m *docsModel) renderSidebar() string {
@@ -520,6 +607,11 @@ func (m *docsModel) renderSidebar() string {
 		return b.String()
 	}
 
+	// Build every row, then show only the window that fits the pane, scrolled
+	// to keep the cursor visible - a list taller than the terminal must never
+	// render more rows than there is room for.
+	var lines []string
+	cursorLine := 0
 	lastCat := "\x00"
 	for i, idx := range m.filtered {
 		p := m.pages[idx]
@@ -529,17 +621,43 @@ func (m *docsModel) renderSidebar() string {
 			if label == "" {
 				label = "start"
 			}
-			b.WriteString(catStyle.Render(" "+label) + "\n")
+			lines = append(lines, catStyle.Render(" "+label))
 		}
 		line := truncRunes("  "+p.title, w)
 		switch {
 		case i == m.cursor && m.focus == "side":
-			b.WriteString(selStyle.Render("> "+strings.TrimPrefix(line, "  ")) + "\n")
+			lines = append(lines, selStyle.Render("> "+strings.TrimPrefix(line, "  ")))
 		case idx == m.current:
-			b.WriteString(selStyle.Render(line) + "\n")
+			lines = append(lines, selStyle.Render(line))
 		default:
-			b.WriteString(dimStyle.Render(line) + "\n")
+			lines = append(lines, dimStyle.Render(line))
 		}
+		if i == m.cursor {
+			cursorLine = len(lines) - 1
+		}
+	}
+
+	// Rows left after the two the search box took (search + blank line).
+	avail := m.height - 4
+	if avail < 1 {
+		avail = 1
+	}
+	start := 0
+	if len(lines) > avail {
+		start = cursorLine - avail/2
+		if start < 0 {
+			start = 0
+		}
+		if maxStart := len(lines) - avail; start > maxStart {
+			start = maxStart
+		}
+	}
+	end := start + avail
+	if end > len(lines) {
+		end = len(lines)
+	}
+	for _, ln := range lines[start:end] {
+		b.WriteString(ln + "\n")
 	}
 	return b.String()
 }

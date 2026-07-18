@@ -1,6 +1,6 @@
 # Custom components
 
-The Tea built-ins cover forms and layout; everything else - charts, canvases, rich views - is a real React component that Go composes with ui.Custom.
+The [Tea built-ins](tea.md) cover forms and layout; everything else - charts, canvases, rich views - is a real React component that Go composes with `ui.Custom`.
 
 ## Rendering your React from Go
 
@@ -14,7 +14,7 @@ ui.Custom("components/gauge", map[string]any{
 The name resolves against the component registry:
 
 1. Every paired components/ folder registers automatically under its key ("components/gauge" -> the default export of gauge.tsx).
-2. createApp can add more by hand - components that are not paired with any Go file:
+2. `createApp` can add more by hand - components not paired with any Go file (the usual home for this is the app-root app.tsx):
 
 ```tsx
 createApp({
@@ -24,11 +24,11 @@ createApp({
 // Go side: ui.Custom("FancyChart", props)
 ```
 
-An unresolved name renders a visible [unknown component: x] box rather than failing silently.
+An unresolved name renders a visible `[unknown component: x]` box rather than failing silently.
 
 ## What a Tea-rendered component receives
 
-Components rendered via Custom get TeaComponentProps:
+Components rendered via Custom get `TeaComponentProps`:
 
 ```tsx
 import type { TeaComponentProps } from "gantry-web/tea";
@@ -46,8 +46,8 @@ export default function Gauge({ node, emit, children }: TeaComponentProps) {
 }
 ```
 
-- node.props - whatever the Go side put in the map. Values arrive as JSON, so numbers are number, nested maps are objects.
-- emit(event, payload) - fires a handler the Go side attached:
+- `node.props` - whatever the Go side put in the map. Values arrive as JSON, so numbers are `number`, nested maps are objects.
+- `emit(event, payload)` - fires a handler the Go side attached with `.OnEvent`:
 
 ```go
 ui.Custom("components/gauge", props).
@@ -58,7 +58,7 @@ ui.Custom("components/gauge", props).
     })
 ```
 
-- children - Go-side child nodes, already rendered:
+- `children` - Go-side child nodes, already rendered:
 
 ```go
 ui.Custom("components/panel", nil,
@@ -66,9 +66,17 @@ ui.Custom("components/panel", nil,
 )
 ```
 
-## Dual-use components
+## When to reach for Custom
 
-A paired component can serve both worlds: rendered from Go via Custom AND imported directly into other tsx. Make props optional and fall back to usePaired for its Go channel:
+- Anything visual the built-ins cannot express (canvas, SVG, media).
+- Anything with heavy local interactivity (drag and drop, hover states, animations) - let React own the micro-interactions and emit only the decisions to Go.
+- Wrapping an npm component library: install it with `gantry add`, wrap it in a paired component, compose it from Go.
+
+The built-ins and Custom nodes nest freely - a Column of Text next to a Custom chart is the normal shape of a real page.
+
+## Advanced: dual-use components
+
+A paired component can serve both worlds - rendered from Go via Custom AND imported directly into other tsx. Make props optional and fall back to `usePaired` for its Go channel:
 
 ```tsx
 export default function Gauge(props: Partial<TeaComponentProps>) {
@@ -81,11 +89,3 @@ export default function Gauge(props: Partial<TeaComponentProps>) {
 ```
 
 For most components you will know which way they are used and can skip the gymnastics.
-
-## When to reach for Custom
-
-- Anything visual the built-ins cannot express (canvas, SVG, media).
-- Anything with heavy local interactivity (drag and drop, hover states, animations) - let React own the micro-interactions and emit only the decisions to Go.
-- Wrapping an npm component library: install it with gantry add, wrap it in a paired component, compose it from Go.
-
-The built-ins and Custom nodes nest freely - a Column of Text next to a Custom chart is the normal shape of a real page.

@@ -1,6 +1,6 @@
 # A TSX primer
 
-Just enough React and TypeScript to build Gantry pages. If you know React, skip to [Your first app](first-app.md).
+Just enough React and TypeScript to build Gantry pages, aimed at someone new to them. This is background, not a tutorial - skim it, then learn the rest by reading the code `gantry new` generates. If you know React, skip to [Your first app](first-app.md).
 
 ## What TSX is
 
@@ -79,8 +79,7 @@ Render lists with map, and give each item a stable key so React can track identi
 
 ## TypeScript in one paragraph
 
-Types describe the shape of values: `string`, `number`, `boolean`, arrays (`string[]`), and `object` shapes (`{ name: string }`). You mostly write them
-on function props; everything else is inferred. If the editor draws a red squiggle, read the message - it is usually "this thing might not have the shape you think".
+Types describe the shape of values: `string`, `number`, `boolean`, arrays (`string[]`), and `object` shapes (`{ name: string }`). You mostly write them on function props; everything else is inferred. If the editor draws a red squiggle, read the message - it is usually "this thing might not have the shape you think".
 
 ## The Gantry pieces
 
@@ -92,7 +91,7 @@ import { TeaView } from "gantry-web/tea";
 ```
 
 - `usePaired()` talks to the `.go` file next to your `.tsx`: `send()` fires its handlers, state mirrors what Go pushes. See [Pages and components](../ui/pages-and-components.md).
--` navigate("/settings")` switches pages without a reload.
+- `navigate("/settings")` switches pages without a reload.
 - `TeaView` renders a page whose UI logic lives in Go. See [The Tea model](../ui/tea.md).
 
 Next: [Your first app](first-app.md).

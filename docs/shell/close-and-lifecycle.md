@@ -1,6 +1,6 @@
 # Close behavior and app lifecycle
 
-What happens when the user clicks the close button is a decision, not a default. This page covers the close hook, the App lifecycle helper, and the single-instance guard.
+What happens when the user clicks the close button is a decision, not a default. This page covers the close hook and the App lifecycle helper first, then the runtime toggle, the single-instance guard and shutdown as advanced material.
 
 ## OnCloseRequest: intercepting close
 
@@ -63,7 +63,9 @@ Reopening from the tray first tries `ShowMainWindow` (instant if the window was 
 
 Pick per app; both are one line.
 
-## Switching close behavior at runtime
+---
+
+## Advanced: switching close behavior at runtime
 
 Both models can be flipped while the app runs - the natural home for a "keep running in the tray" settings checkbox.
 
@@ -111,7 +113,7 @@ Window: func(w *appshell.WindowOptions) {
 
 Apps driving `appshell.App` directly get the same switch as the `KeepRunning func() bool` field - consulted at each close on tray apps; return false and that close quits.
 
-## Single instance
+## Advanced: single instance
 
 Gantry apps bind a fixed local port for their frontend server, which doubles as the single-instance guard:
 
@@ -125,6 +127,6 @@ if err != nil {
 
 Starting a second copy fails the bind and exits. There is no lockfile to go stale.
 
-## Shutdown
+## Advanced: shutdown
 
 The scaffold wires ctx to Ctrl+C (`signal.NotifyContext`) and tray Quit to `cancel()`. When ctx is done: `App.Run` returns, your server shuts down, widgets and popups die with their `ProcManager (CloseAll)`, and main returns. Nothing needs to be killed by hand.
