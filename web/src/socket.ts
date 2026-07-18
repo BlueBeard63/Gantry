@@ -37,6 +37,11 @@ type StateListener = () => void;
 let ws: WebSocket | null = null;
 let url = "";
 let activePage = "";
+// The active page's captured route params, re-sent on every (re)connect
+// alongside the page key so the Go side can read them. Normalized to
+// arrays on the wire: a [id] value is a single-element array, a [...slug]
+// catch-all keeps all its segments.
+let activeParams: Record<string, string[]> = {};
 let backoff = 300;
 let renderListener: RenderListener | null = null;
 const pushListeners = new Map<string, Set<PushListener>>();
@@ -69,7 +74,7 @@ function open(): void {
   ws = sock;
   sock.onopen = () => {
     backoff = 300;
-    if (activePage) sock.send(JSON.stringify({ t: "ready", page: activePage }));
+    if (activePage) sock.send(JSON.stringify({ t: "ready", page: activePage, params: activeParams }));
     while (sendQueue.length > 0) sock.send(sendQueue.shift() as string);
   };
   sock.onmessage = (e) => {
@@ -129,10 +134,23 @@ function send(obj: unknown): void {
   }
 }
 
-/** ready announces the mounted page; the server activates its Model. */
-export function ready(pageKey: string): void {
+/** ready announces the mounted page (and its captured route params); the
+ * server activates its Model and records the params for the Go half. */
+export function ready(pageKey: string, params?: Record<string, string | string[]>): void {
   activePage = pageKey;
-  send({ t: "ready", page: pageKey });
+  activeParams = normalizeParams(params);
+  send({ t: "ready", page: pageKey, params: activeParams });
+}
+
+// normalizeParams puts every value in array form so the Go side sees one
+// stable shape (map[string][]string): a [id] becomes ["7"], a [...slug]
+// keeps its segments.
+function normalizeParams(params?: Record<string, string | string[]>): Record<string, string[]> {
+  const out: Record<string, string[]> = {};
+  for (const [k, v] of Object.entries(params ?? {})) {
+    out[k] = Array.isArray(v) ? v : [v];
+  }
+  return out;
 }
 
 /** sendTeaEvent fires a Tea handler by its render-generation id. */

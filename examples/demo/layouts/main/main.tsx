@@ -12,6 +12,8 @@ export default function Main({ children }: { children?: ReactNode }) {
         <Link to="/">Home</Link>
         <Link to="/settings">Settings</Link>
         <Link to="/account/profile">Profile</Link>
+        <Link to="/examples/page1/1" matchPrefix>Dynamic</Link>
+        <Link to="/files/docs/intro" matchPrefix>Catch-all</Link>
       </nav>
       <main className="app-main">{children}</main>
     </div>

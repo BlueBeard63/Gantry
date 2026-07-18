@@ -1,14 +1,14 @@
 # The TitleBar
 
-The TitleBar is the React half of the window chrome: the drag surface, the title (left, center or right), your own controls, and the window buttons. createApp renders one on every page automatically; this page covers every knob, then replacing it entirely.
+The TitleBar is the React half of the window chrome: the drag surface, the title (left, center or right), your own controls, and the window buttons. `createApp` renders one on every page automatically (unless the page or app opts out). This page covers every knob it takes, the native contract it shares with the Go window, and replacing it entirely.
 
 ## Defaults and Caps
 
-Out of the box you configure nothing: the TitleBar asks the native window which buttons it supports (the bridge's Caps() call) and shows exactly those. Disable minimize in Go and the button disappears; enable maximize and it shows up. In a plain browser tab all window buttons hide and only your content renders.
+Out of the box you configure nothing. The TitleBar asks the native window which buttons it supports - the bridge's `caps()` call, backed by the Go window's `Caps()` binding - and shows exactly those. The mapping is `props.showMinimize ?? caps?.minimize ?? false` (and likewise maximize/close), so an unset prop defers to the window and a plain browser tab (no bridge, all caps false) shows no window buttons at all. The buttons a window advertises come from Go: `DisableMinimize` drops the minimize button, `EnableMaximize` adds maximize/restore, `DisableClose` drops close (see [Frame & window chrome](../shell/window-chrome.md)). `ShellCaps` also reports `platform` (`"windows"`/`"linux"`) and `frameless` if you need to branch on them in custom chrome.
 
 ## Configuring it app-wide: app.tsx
 
-The entry file is synthesized, so TitleBar settings live in an optional app.tsx at the app root, default-exporting CreateAppOptions:
+The entry file is synthesized, so TitleBar settings live in an optional `app.tsx` at the app root that default-exports `CreateAppOptions`. Whatever it exports is merged *over* the synthesized defaults, so you customize everything without owning the entry file:
 
 ```tsx
 // app.tsx
@@ -18,44 +18,47 @@ import { ArrowLeft, ArrowRight } from "lucide-react";
 export default {
   title: "Myapp",
   titleBar: {
-    titleAlign: "left", // title next to the buttons instead of centered
-    leftReserve: 90,    // widen the clickable left zone (see below)
+    titleAlign: "left", // title sits next to the left slot instead of centered
+    leftReserve: 90,    // widen the clickable left zone (see the contract below)
     left: (
       <>
-        <button className="gantry-winbtn" onClick={goBack}><ArrowLeft size={15} /></button>
-        <button className="gantry-winbtn" onClick={goForward}><ArrowRight size={15} /></button>
+        <button className="gantry-tbbtn" onClick={goBack}><ArrowLeft size={15} /></button>
+        <button className="gantry-tbbtn" onClick={goForward}><ArrowRight size={15} /></button>
       </>
     ),
   },
 } satisfies CreateAppOptions;
 ```
 
-Whatever app.tsx exports overrides the synthesized defaults; it can also set components, prefix, socketURL and chrome.
+Besides `title` and `titleBar`, `CreateAppOptions` also carries `components` (extra Tea components), `prefix` (the binding prefix, if Go changed it), `socketURL`, `chrome` (hide the bar app-wide), and `errors`.
 
-## Every option
+## Every TitleBar option
+
+`titleBar` is a `Partial<TitleBarProps>`; every field with its default:
 
 ```tsx
 titleBar: {
-  titleAlign: "center",              // "left" | "center" | "right"
+  titleAlign: "center",              // "left" | "center" | "right" (default "center")
   left: <NavButtons />,               // left slot: back/forward, menus, an icon
-  right: <SyncSpinner />,             // right slot, before the window buttons
-  height: 40,                         // MUST match Go CaptionHeight
-  leftReserve: 8,                     // MUST match Go CaptionLeftReserve
-  rightReserve: 150,                  // MUST match Go CaptionRightReserve
-  showMinimize: true,                 // override Caps per button
+  right: <SyncSpinner />,             // right slot, rendered BEFORE the window buttons
+  height: 40,                         // px; MUST match Go CaptionHeight (default 40)
+  leftReserve: 8,                     // px clickable on the left; MUST match Go CaptionLeftReserve
+  rightReserve: 150,                  // px clickable on the right; MUST match Go CaptionRightReserve
+  showMinimize: true,                 // override Caps() per button (default: defer to Caps)
   showMaximize: false,
   showClose: true,
-  closeHint: "Keeps running in the tray", // close button tooltip
-  onClose: () => confirmThenClose(),  // replace the close BUTTON's action
-  prefix: "gantry",                   // only if Go changed BindingPrefix
-  className: "my-titlebar",
+  closeHint: "Keeps running in the tray", // native tooltip on the close button
+  onClose: () => confirmThenClose(),  // replace what the close BUTTON does
+  prefix: "gantry",                   // only if the Go side changed BindingPrefix
+  className: "my-titlebar",           // extra class on the .gantry-titlebar root
 }
 ```
 
 ## Slots, custom buttons and styling
 
-- left renders flush against the window's left edge; right renders in its own container just BEFORE the window buttons, visually separate from them (.gantry-titlebar-left / .gantry-titlebar-right are the hooks for your css).
-- Style your own top bar buttons with the gantry-tbbtn class - it is independent of the window buttons (gantry-winbtn) and has its own variables: --gantry-tbbtn-w (min width), --gantry-tbbtn-bg, --gantry-tbbtn-fg, --gantry-tbbtn-hover. Or skip the class entirely and style from scratch; the slots do not impose anything.
+The bar is a flex row of three regions: `left` renders flush against the window's left edge (`.gantry-titlebar-left`, which also holds a left-aligned title); the window buttons cluster at the far right inside `.gantry-titlebar-end`; and `right` renders in `.gantry-titlebar-right`, in its own container *just before* the window buttons, visually separate from them. A centered title is absolutely positioned across the whole bar (`.gantry-titlebar-title`) and is **pointer-transparent in every alignment**, so the bar stays draggable through the title - interactive things go in `left` or `right`, never in the title.
+
+Style your own bar buttons with the `gantry-tbbtn` class - independent of the window buttons (`gantry-winbtn`) and driven by its own variables so you can theme it without touching the window controls: `--gantry-tbbtn-w` (min width, default 40px), `--gantry-tbbtn-bg` (default transparent), `--gantry-tbbtn-fg` (default the titlebar fg), and `--gantry-tbbtn-hover` (falls back to `--gantry-btn-hover`). Or skip the class and style from scratch; the slots impose nothing.
 
 ```tsx
 left: <button className="gantry-tbbtn" onClick={goBack}><ArrowLeft size={15} /></button>,
@@ -68,9 +71,11 @@ right: <button className="gantry-tbbtn sync">Sync</button>,
 .gantry-titlebar-right .sync { color: var(--gantry-accent); }
 ```
 
+Everything is themed by the `--gantry-*` variables like the rest of the app (see [Styling](styling.md)): `--gantry-titlebar-bg`, `--gantry-titlebar-fg`, `--gantry-btn-hover`, `--gantry-close-hover`, plus the shared fg/font variables. The stable classes for surgical overrides: `.gantry-titlebar`, `.gantry-titlebar-title`, `.gantry-titlebar-text` (left/right-aligned title), `.gantry-winbtn`, and `.gantry-winbtn-close`. The window buttons use lucide icons (`Minus`, `Square`/`Copy` for maximize/restore, `X`).
+
 ## Bar height (thin bars)
 
-Every element in the bar follows its height, so a thin bar is just a smaller number on both halves of the contract:
+Every element in the bar follows its height, so a thin bar is one smaller number on both halves of the contract - the frontend prop and the Go caption metric:
 
 ```tsx
 // app.tsx
@@ -82,30 +87,34 @@ titleBar: { height: 28 },
 Window: func(w *appshell.WindowOptions) { w.CaptionHeight = 28 },
 ```
 
-Notes:
-
-- The title is pointer-transparent in every alignment, so the bar stays draggable through it; interactive things go in left or right.
-- The reserves are the frontend half of the native hit-test contract. The Go window treats CaptionLeftReserve/CaptionRightReserve pixels as clickable instead of draggable - so when you put buttons in the left slot, raise BOTH the leftReserve prop and the window's CaptionLeftReserve (gantry.Config.Window: w.CaptionLeftReserve = 90) or your buttons will drag the window instead of clicking. Same pairing for height/CaptionHeight and rightReserve/CaptionRightReserve. See [The main window](../shell/window.md).
-- onClose replaces what the close BUTTON does; the native close path (Alt+F4) still goes through Go's OnCloseRequest, which is where real close policy belongs.
-
 ## Per-page chrome
 
-Any page can opt out of the TitleBar (widgets, popups, splash pages):
+Any page can opt out of the TitleBar (widgets, popups, splash screens) by exporting `chrome = false`; that page also skips the default layout, since a chromeless page is its own surface (see [Layouts](layouts.md)):
 
 ```tsx
 export const chrome = false;
 export default function WidgetTimer() { /* ... */ }
 ```
 
-Or turn it off app-wide and hand-place it: createApp({ chrome: false }), then render <TitleBar /> yourself wherever it belongs.
+Or turn the bar off app-wide with `chrome: false` in `app.tsx`/`createApp` and hand-place `<TitleBar />` yourself wherever it belongs.
 
-## Styling
+## The native hit-test contract
 
-Plain css, themed by the --gantry-* variables (see [Styling](styling.md)): --gantry-titlebar-bg, --gantry-btn-hover, --gantry-close-hover, and the shared fg/font variables. The classes are stable if you want surgical overrides: `.gantry-titlebar, .gantry-titlebar-title, .gantry-winbtn, .gantry-winbtn-close`.
+The reserves are the frontend half of a two-sided native hit-test. The Go window treats `CaptionLeftReserve`/`CaptionRightReserve` pixels (from the left and right edges of a `CaptionHeight`-tall band) as **clickable** rather than draggable; everything else in that band is drag surface. So when you put buttons in the left slot, raise **both** the `leftReserve` prop and the window's `CaptionLeftReserve` - or your buttons sit in the drag zone and drag the window instead of clicking:
 
-## Fully custom chrome
+```go
+Window: func(w *appshell.WindowOptions) {
+    w.CaptionHeight = 40         // pair with titleBar.height
+    w.CaptionLeftReserve = 90    // pair with titleBar.leftReserve
+    w.CaptionRightReserve = 150  // pair with titleBar.rightReserve
+},
+```
 
-Skip TitleBar entirely and build your own from the pieces:
+The Go metrics default to `40` / `8` / `150` (matching the TitleBar prop defaults), with `ResizeMargin` at `6` for the edge-resize zone. `onClose` replaces only what the close *button* does; the native close path (Alt+F4, a `WM_CLOSE` from anywhere) still runs through Go's `OnCloseRequest`, which returns `CloseAllow`/`CloseCancel`/`CloseHide` - that is where real close policy (confirm, minimize-to-tray) belongs.
+
+## Advanced: fully custom chrome
+
+Skip `TitleBar` entirely and assemble your own from the pieces gantry-web exports - `DragStrip`, `useShell`, and `useShellCaps`:
 
 ```tsx
 import { DragStrip, useShell, useShellCaps } from "gantry-web";
@@ -118,10 +127,11 @@ export default function MyChrome() {
       <DragStrip height={48} rightInset={100} />
       <span className="brand">MYAPP</span>
       {caps?.minimize && <button onClick={shell.minimize}>_</button>}
+      {caps?.maximize && <button onClick={shell.maximize}>[]</button>}
       {caps?.close && <button onClick={shell.close}>x</button>}
     </div>
   );
 }
 ```
 
-DragStrip is the invisible drag surface (left-button mousedown starts the native move; double-clicks are ignored on purpose). Remember the contract: your chrome's height and button zone must match the Go window's caption metrics.
+`DragStrip` is the invisible drag surface: a left-button `mousedown` starts the native move (`shell.drag()`), and it deliberately ignores non-left buttons and double-clicks (`e.detail > 1`) so a quick double-tap can't trip the OS caption-maximize. Its props (`height`, `leftInset`, `rightInset`) are the same caption metrics, and it renders `null` outside a native window. `useShell()` is the full bridge (`minimize`, `maximize`, `restore`, `close`, `isMaximized`, `caps`, `attention`, `openExternal`, ...); `useShellCaps()` returns `null` while resolving, then the caps - so the same height/reserve contract applies to your custom chrome exactly as it does to `TitleBar`.

@@ -1,0 +1,94 @@
+/* Home screen. Scoped under .gantry-pages-index (the wrapper class
+   Gantry derives from the page's folder). */
+
+/* The screen: a full-height black column with the Figma's side padding. */
+.gantry-pages-index .wx-screen {
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  padding: 17px var(--wx-pad) 40px;
+}
+
+.gantry-pages-index .wx-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 40px;
+  flex-shrink: 0;
+}
+
+.gantry-pages-index .wx-location {
+  color: var(--wx-header);
+  font-size: 16px;
+}
+
+.gantry-pages-index .wx-iconbtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--gantry-fg);
+}
+
+/* The Await body fills the space under the header. */
+.gantry-pages-index .wx-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.gantry-pages-index .wx-grow {
+  flex: 1;
+}
+
+/* Weather statement block. */
+.gantry-pages-index .wx-statement p {
+  margin: 0;
+  font-size: 18px;
+  line-height: 1.35;
+}
+
+.gantry-pages-index .wx-statement .wx-dim {
+  color: var(--wx-dim);
+}
+
+.gantry-pages-index .wx-statement-detail {
+  margin-top: 22px !important;
+  font-size: 15px !important;
+  color: var(--wx-dim);
+}
+
+/* Forecast list, pinned to the bottom. Each row is a grid so the label,
+   temp, and trend columns line up across rows. */
+.gantry-pages-index .wx-forecast {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.gantry-pages-index .wx-row {
+  display: grid;
+  grid-template-columns: 7ch auto 22px 1fr max-content 18px;
+  align-items: center;
+  column-gap: 12px;
+  font-size: 15px;
+  height: 20px;
+}
+
+.gantry-pages-index .wx-row-delta {
+  text-align: right;
+}
+
+.gantry-pages-index .wx-glyph {
+  display: block;
+}
+
+/* Skeleton rows match the forecast row height. */
+.gantry-pages-index .wx-row-skeleton {
+  list-style: none;
+  height: 20px;
+  display: flex;
+  align-items: center;
+}

@@ -28,3 +28,18 @@ then extended by hand to demonstrate:
 - main.go: gantry.Run with Window and Setup hooks
 - wstest/: a wire-protocol smoke test (`go run ./wstest` against
   `demo.exe --no-open --port 8331`)
+
+## weather
+
+Lazy Weather - a **mobile** app that fetches [Open-Meteo](https://open-meteo.com)
+and frames today's forecast against yesterday. The example for Gantry's
+server-side surface, extended by hand to demonstrate:
+
+- weather.go: a `weather` service (app.Service in Setup) that calls an
+  external API and does the "today vs yesterday" computation in Go
+- pages/index, settings, search: plain React screens (tsx-only) using
+  `useCall` + `Await`/`Skeleton` for loading and `useGoState` for the
+  shared location + unit
+- settings.go: on-device persistence (`~/.lazy-weather/settings.json`),
+  saved from the state OnChange observers
+- gantry.json: a `mobile` block - run with `gantry mobile dev android`

@@ -1,6 +1,6 @@
 # Layouts
 
-Layouts are shared chrome around pages: navbars, sidebars, status bars - anything that should stay put while pages change. They live in the layouts/ directory and follow the same folder convention as pages and components.
+Layouts are the shared chrome around pages: navbars, sidebars, status bars - anything that should stay mounted while the page underneath changes. They live in the `layouts/` directory and follow the same folder convention as pages and components: a folder per layout, a `.tsx` default export, an optional colocated `.css`, and an optional paired `.go` half.
 
 ```
 layouts/
@@ -14,7 +14,7 @@ layouts/
 
 ## Writing a layout
 
-A layout is a React component that renders its children where the page goes:
+A layout is a React component that receives the page as `children` and renders it wherever the page belongs. The type is `FC<{ children?: ReactNode }>` - that is exactly the shape `createApp` resolves each layout name to:
 
 ```tsx
 // layouts/main/main.tsx
@@ -34,92 +34,75 @@ export default function Main({ children }: { children?: ReactNode }) {
 }
 ```
 
-The layout renders inside the app shell, below the TitleBar - window chrome is the TitleBar's job (see [The TitleBar](titlebar.md)), page chrome is the layout's.
+A layout wraps the page host but sits *inside* the app scaffold and *below* the TitleBar: the render tree is `.gantry-app` -> `ResizeFrame` + [`TitleBar`](titlebar.md) -> layouts (outermost first) -> `.gantry-page` -> your page. Window chrome is the TitleBar's job; page chrome is the layout's. The page's own wrapper (`.gantry-page.gantry-<key>`) is nested inside whatever your layout renders, so your layout's markup is always the outer frame.
 
 ## Which pages get which layout
 
-Layouts are addressed by short name: layouts/main -> "main". Each page declares its choice with an optional export; no export means the default:
+Layouts are addressed by the short name derived from the folder: `layouts/main/main.tsx` -> `"main"`, `layouts/compact/compact.tsx` -> `"compact"`. Each page declares its choice with an optional `layout` export on the page module (`GantryPageModule.layout?: boolean | string | string[]`); no export means the default:
 
 ```tsx
 // nothing exported        -> "main", if a layout named main exists
 export const layout = "compact";           // use layouts/compact instead
 export const layout = ["main", "compact"]; // nest: <Main><Compact><Page/></Compact></Main>
 export const layout = false;               // raw page, no layout
-export const layout = true;               // force "main" on a chromeless page
+export const layout = true;                // force "main" on a chromeless page
 ```
 
-Rules worth knowing:
+The resolution runs in `createApp`'s `layoutsFor` and is exactly:
 
-- "main" is the default name. Have one layout and call it main, and every normal page picks it up with zero exports.
-- Chromeless pages (export const chrome = false - widgets, popups) skip layouts by default; they are their own little surfaces. Opt back in with a name or true.
-- Arrays nest outermost-first: ["main", "compact"] puts the compact layout inside the main one. Use it for section-level chrome inside app-level chrome.
-- An unknown name logs a console warning and is skipped - a typo never blanks the page.
+- **No export** resolves to `["main"]` when a `main` layout exists *and* the page is not chromeless; otherwise `[]`. So one layout named `main` covers every normal page with zero exports.
+- **`false`** resolves to `[]` - a raw page with no layout at all.
+- **A string** resolves to that single layout.
+- **An array** nests outermost-first: `["main", "compact"]` renders `<Main><Compact><Page/></Compact></Main>`, so app-level chrome sits outside section-level chrome.
+- **`true`** forces `["main"]` when a `main` layout exists (its purpose is to opt a chromeless page back into the default).
+- **Chromeless pages** (`export const chrome = false` - widgets, popups, splash screens) skip the default layout: they are their own little surfaces. Opt back in with an explicit name, an array, or `true`.
+- **An unknown name is skipped with a `console.warn`** listing the layouts that do exist, so a typo degrades to "no layout" and never blanks the page.
 
 ## Active-aware navigation
 
-Link is the navigation primitive built for layouts. It renders an <a>, navigates client-side, and knows whether it points at the current page:
+The nav links inside a layout are the routing primitives - `Link` (with its `data-active`/`aria-current` state and optional `matchPrefix`), `useRoute`, `isActive`, and `ExternalLink` for links that open in the user's default browser instead of navigating the webview. They behave identically inside a layout and anywhere else, so the full story lives on the [Routing](routing.md) page:
 
 ```tsx
+import { Link, ExternalLink } from "gantry-web";
+
 <Link to="/settings">Settings</Link>
-<Link to="/docs" matchPrefix>Docs</Link>                    // active on /docs/*
-<Link to="/stats" activeClassName="lit">Stats</Link>        // extra class while active
+<Link to="/docs" matchPrefix>Docs</Link>            // active on /docs and /docs/*
+<ExternalLink href="https://example.com">Site</ExternalLink>
 ```
 
-While active a Link carries data-active="true" and aria-current="page", so styling works three ways:
-
-```css
-/* plain css */
-.app-nav a[data-active="true"] { background: var(--gantry-control-bg); }
-```
-
-```
-tailwind: data-[active=true]:bg-zinc-800
-activeClassName: whatever class you like
-```
-
-For links that leave the app (docs, your repo, a website), use ExternalLink instead: it opens the URL in the user's default browser rather than navigating the app window, and shows no URL-preview bubble:
-
-```tsx
-<ExternalLink href="https://github.com/B-Commissions/Gantry">Source</ExternalLink>
-```
-
-For fully custom nav elements (buttons, tabs, tree items), the same information is available as hooks:
-
-```tsx
-import { useRoute, isActive, navigate } from "gantry-web";
-
-const path = useRoute(); // current pathname, re-renders on navigation
-<button
-  data-active={isActive(path, "/stats")}
-  onClick={() => navigate("/stats")}
->
-  Stats
-</button>
-```
+Because the layout stays mounted across navigation, an active link recomputes its state on every route change without the layout itself re-mounting - the routing store re-renders subscribers in place.
 
 ## Styling a layout
 
-Same rules as everywhere (see [Styling](styling.md)): the colocated main.css auto-imports, scope selectors under a class your layout renders (.layout-main), and use the --gantry-* variables so the layout follows the theme. Layout css loads after the root index.css and before page css.
+Same rules as everywhere (see [Styling](styling.md)): the colocated `main.css` auto-imports, so scope your selectors under a class your layout renders (`.layout-main`), and reach for the `--gantry-*` variables so the layout tracks the theme. There is no framework-injected class on the layout wrapper - the class is whatever your component puts on its own root element, so pick a stable one and scope under it.
 
-## Layouts with a Go half
+## A layout with a Go half
 
-A layout folder can hold a .go file like any pair - useful when the shared chrome shows live data (a status bar with a sync indicator, a sidebar with counts). Export a Component under the layouts key and it registers automatically like every other pair:
+A layout folder can hold a `.go` file like any other pair - useful when the shared chrome shows live data (a status bar with a sync indicator, a sidebar with unread counts). Register a `ui.Component` whose `Key` is the layout key, and it wires up like every other pair; the paired `.tsx` reads the same key through `usePaired()` (see [Pairs](pairs.md)):
 
 ```go
 // layouts/main/main.go
-package main_layout // note: cannot be "package main" - pick a distinct name
+package mainlayout // NOT "package main" - see the caveat below
+
+import "github.com/B-Commissions/Gantry/ui"
 
 var Component = ui.Component{
     Key: "layouts/main",
-    On:  ui.Handlers{ /* events from the layout */ },
+    On:  ui.Handlers{ /* events the layout's tsx sends */ },
+    Call: ui.Calls{ /* requests the layout's tsx awaits */ },
 }
 ```
 
 ```tsx
 // layouts/main/main.tsx
-const { state } = usePaired(); // key injected: "layouts/main"
+import { usePaired } from "gantry-web";
+const { state, send } = usePaired(); // key injected by the Vite plugin: "layouts/main"
 ```
 
-Then push into it from anywhere: app.Push("layouts/main", "state", data).
+Push live data into it from anywhere - `Setup`, a service, a watcher - with the layout key:
 
-One Go naming caveat: a folder named main would collide with Go's "package main". Either name the package differently (as above - Go package names do not have to match folders) or skip the .go half for the main layout and put live data in a component inside it.
+```go
+app.Push("layouts/main", "state", syncStatus) // arrives as usePaired().state in the tsx
+```
+
+One Go naming caveat: a folder named `main` would push the package toward Go's reserved `package main`. Go package names need not match their folder, so name the package something distinct (`mainlayout` above). If you would rather not, skip the `.go` half on the `main` layout and put the live data in a paired *component* rendered inside it instead.

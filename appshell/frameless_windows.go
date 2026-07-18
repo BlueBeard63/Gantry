@@ -32,6 +32,11 @@ type subclassConfig struct {
 	// geometry snapshot hook. Also runs on CloseHide, so a hidden
 	// window's position survives an app exit.
 	onClosing func()
+	// onResize runs when a resize/move drag finishes (WM_EXITSIZEMOVE) or
+	// a maximize/restore lands (WM_SIZE), persisting the new geometry mid-
+	// session so it survives a kill without a clean close - e.g. gantry
+	// dev tearing the app down on hot reload.
+	onResize func()
 }
 
 // subclassWindow installs the WndProc subclass.
@@ -136,6 +141,23 @@ func subclassWindow(hwnd uintptr, cfg subclassConfig) {
 				mmi.PtMaxTrackSize.Y = int32(cfg.maxHeight)
 			}
 			return 0
+
+		case wmExitSizeMove:
+			// The user finished dragging an edge (resize) or the title
+			// band (move): snapshot the geometry now, not only at close, so
+			// a later kill without a clean WM_CLOSE keeps the new size.
+			if cfg.onResize != nil {
+				cfg.onResize()
+			}
+
+		case wmSize:
+			// A maximize/restore via the window buttons never enters the
+			// resize-drag loop (no WM_EXITSIZEMOVE), so persist it here.
+			// Plain drag-resizes emit SIZE_RESTORED continuously and are
+			// left to WM_EXITSIZEMOVE to avoid a write per pixel.
+			if wparam == sizeMaximized && cfg.onResize != nil {
+				cfg.onResize()
+			}
 
 		case wmClose:
 			forced := cfg.forceClose != nil && cfg.forceClose.Load()

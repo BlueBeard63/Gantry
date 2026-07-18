@@ -1,0 +1,135 @@
+/* Add Location screen. Scoped under .gantry-pages-search. */
+
+.gantry-pages-search .wx-screen {
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  padding: 17px 24px 24px;
+}
+
+.gantry-pages-search .wx-topbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 40px;
+  flex-shrink: 0;
+}
+
+.gantry-pages-search .wx-iconbtn {
+  display: inline-flex;
+  align-items: center;
+  color: var(--gantry-fg);
+}
+
+.gantry-pages-search .wx-title {
+  font-size: 16px;
+}
+
+/* Search field. */
+.gantry-pages-search .wx-searchfield {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 48px;
+  padding: 0 14px;
+  margin-top: 20px;
+  border: 1px solid var(--gantry-border);
+  border-radius: 12px;
+  background: #0d0d0f;
+}
+
+.gantry-pages-search .wx-search-lead {
+  color: var(--wx-dim);
+  flex-shrink: 0;
+}
+
+.gantry-pages-search .wx-search-input {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  outline: none;
+  background: transparent;
+  color: var(--gantry-fg);
+  font-family: inherit;
+  font-size: 16px;
+}
+
+.gantry-pages-search .wx-search-input::placeholder {
+  color: var(--wx-dim);
+}
+
+/* Use current location. */
+.gantry-pages-search .wx-current {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-top: 18px;
+  font-size: 15px;
+  color: var(--gantry-fg);
+}
+
+.gantry-pages-search .wx-divider {
+  height: 1px;
+  background: var(--wx-line);
+  margin: 22px 0;
+}
+
+.gantry-pages-search .wx-matches-label {
+  font-size: 13px;
+  letter-spacing: 0.08em;
+  color: var(--wx-dim);
+  margin-bottom: 14px;
+}
+
+/* Results. */
+.gantry-pages-search .wx-results {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.gantry-pages-search .wx-result {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  padding: 10px 0;
+  text-align: left;
+}
+
+.gantry-pages-search .wx-result-pin {
+  color: var(--wx-dim);
+  flex-shrink: 0;
+}
+
+.gantry-pages-search .wx-result-text {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  flex: 1;
+  min-width: 0;
+}
+
+.gantry-pages-search .wx-result-name {
+  font-size: 16px;
+  color: var(--gantry-fg);
+}
+
+.gantry-pages-search .wx-result-sub {
+  font-size: 13px;
+  color: var(--wx-dim);
+}
+
+.gantry-pages-search .wx-result-check {
+  color: var(--gantry-fg);
+  flex-shrink: 0;
+}
+
+.gantry-pages-search .wx-empty {
+  list-style: none;
+  padding: 10px 0;
+  color: var(--wx-dim);
+  font-size: 14px;
+}

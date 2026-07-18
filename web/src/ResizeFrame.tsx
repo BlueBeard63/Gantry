@@ -13,15 +13,18 @@ const EDGES = [
 
 /**
  * ResizeFrame renders invisible edge strips that start a native
- * interactive resize - needed on Linux, where a frameless window has
- * no OS hit-test to re-implement edges (Windows handles this natively,
- * so there the component renders nothing). createApp adds one
- * automatically on frameless Linux windows.
+ * interactive resize and carry the resize cursor. A frameless window has
+ * no draggable OS frame: on Linux the compositor offers no hit-test, and
+ * on Windows the WebView2 child covers the client area and swallows the
+ * parent's WM_NCHITTEST resize margin - so on both the frontend draws the
+ * strips and calls the ResizeEdge binding on mousedown. Framed windows
+ * (and the browser) render nothing.
  */
 export function ResizeFrame({ prefix }: { prefix?: string }) {
   const shell = useShell(prefix);
   const caps = useShellCaps(prefix);
-  if (caps?.platform !== "linux" || !caps.frameless) return null;
+  const native = caps?.platform === "linux" || caps?.platform === "windows";
+  if (!native || !caps?.frameless) return null;
   return (
     <>
       {EDGES.map(({ edge, style }) => (

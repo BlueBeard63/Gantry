@@ -34,6 +34,9 @@ type clientMsg struct {
 	Name string          `json:"name,omitempty"`
 	ID   string          `json:"id,omitempty"`
 	P    json.RawMessage `json:"p,omitempty"`
+	// Params carries a dynamic page's captured route params, normalized to
+	// arrays ([id] -> ["7"], [...slug] -> its segments). Sent with "ready".
+	Params map[string][]string `json:"params,omitempty"`
 }
 
 type replyMsg struct {
@@ -259,6 +262,7 @@ func (a *App) readLoop(c *conn) {
 			a.mu.Lock()
 			samePage := a.activePage == msg.Page
 			a.activePage = msg.Page
+			a.activeParams = RouteParams(msg.Params)
 			a.mu.Unlock()
 			// Reconnects re-announce the same page; only real
 			// navigation belongs in the error trail.
@@ -279,6 +283,9 @@ func (a *App) readLoop(c *conn) {
 				} else {
 					prog.setDeliver(c, a.deliverTo(c))
 				}
+				// A dynamic page's Model gets the captured params on
+				// activation and on every param change for the same key.
+				prog.send(ParamsMsg{Params: RouteParams(msg.Params)})
 			}
 
 		case "event":

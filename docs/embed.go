@@ -7,5 +7,5 @@ import "embed"
 // FS holds every docs page. Paths are relative to this directory,
 // e.g. "getting-started/first-app.md".
 //
-//go:embed README.md */*.md
+//go:embed README.md */*.md manifest.json
 var FS embed.FS

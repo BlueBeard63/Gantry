@@ -1,6 +1,6 @@
 # Testing: CI
 
-The protocol-plane suite is deliberately CI-friendly: headless, no display server, no browser tooling, ephemeral ports. Anywhere Go and Node run, `gantry test` runs.
+The protocol-plane suite is deliberately CI-friendly: headless, no display server, no browser tooling, ephemeral ports. Anywhere Go and Node run, `gantry test` runs. This page covers wiring it into a pipeline; the flags it leans on are documented in [setup](setup.md#the-gantry-test-command).
 
 ## A minimal GitHub Actions job
 
@@ -25,15 +25,25 @@ jobs:
 
 The pieces that matter:
 
-- **Upload `test-results/` on failure.** Failing tests keep `app.log` and `trace.jsonl` (and `crash.log` when the process died); that is usually enough to diagnose without reproducing locally.
-- **Caching**: the Go build cache and the npm cache cover the expensive steps. The app builds once per suite, not per test.
-- **Parallelism**: `gantry test` defaults to NumCPU/2 because each parallel test is a full app process; on small runners `-p 2` is a sensible floor.
-- **Headless is real headless** for the protocol plane - `--no-open` serves without a window, so Linux runners need no xvfb for these tests.
+- **Upload `test-results/` on failure.** Failing tests keep `app.log` and `trace.jsonl` (and `crash.log` when the process died), and the whole run rolls up into the self-contained `gantry_test_report.html` at the root of that directory - open it locally to get the Run Overview and per-test Trace without reproducing anything. See [errors and artifacts](errors-and-artifacts.md#artifacts).
+- **Caching.** The Go build cache and the npm cache cover the expensive steps, and the app binary builds once per suite (not per test), so warm runs are dominated by the tests themselves.
+- **Parallelism.** `gantry test` defaults to NumCPU/2 because each parallel test is a full app process; on small runners `-p 2` is a sensible floor, and `-p 1` serializes when a runner is memory-constrained.
+- **Headless is real headless** for the protocol plane - the app runs with `--no-open` and serves without a window, so Linux runners need no xvfb for these tests.
 
 ## Recommended split
 
-- **PR gate**: the protocol-plane suite plus [widget snapshots](widgets.md) - fast, hermetic, no special runners.
+- **PR gate**: the protocol-plane suite plus [widget snapshots](widgets.md) - fast, hermetic, no special runners, cross-platform.
 - **Nightly**: `--mode production` runs (asserting production error behavior), the DOM suite, `--record` screencasts, and the [Android emulator job](#the-android-emulator-job) below.
+
+The DOM plane belongs in the nightly tier because it needs a CDP-speaking webview: a Windows runner (WebView2) is the validated path, and a Linux runner (WebKitGTK under `xvfb`) is [experimental](dom.md#platforms). Protocol-plane tests share the same files and simply run everywhere - a `WithDOM()` launch on a runner without a webview skips cleanly, so a mixed suite never fails for being on the wrong OS.
+
+## Production-mode runs
+
+```
+gantry test --mode production
+```
+
+Development mode is the default so error detail is full; a periodic production run catches anything gated on mode - stripped stacks, disabled pages, production-only branches. Tests that assert on mode-dependent behavior can also pin it per launch with `WithMode`, so a single suite can carry both.
 
 ## The Android emulator job
 
@@ -68,12 +78,4 @@ jobs:
           path: examples/**/test-results/
 ```
 
-The action boots the AVD, waits for it, and runs the script against it as the sole connected device. The emulator counts as a device that allows the hermetic `pm clear`, so runs are fully isolated without `--allow-device-data`. Cache the Go build cache, the npm cache, and the AVD system image (the action does the last) to keep it cheap; the app builds once per suite.
-
-## Production-mode runs
-
-```
-gantry test --mode production
-```
-
-Development mode is the default so error detail is full; a periodic production run catches anything gated on mode - stripped stacks, disabled pages, production-only branches. Tests that assert on mode-dependent behavior can also pin it per launch with `WithMode`.
+The action boots the AVD, waits for it, and runs the script against it as the sole connected device. The emulator counts as a device that allows the hermetic `pm clear`, so runs are fully isolated without `--allow-device-data`; the runner builds and installs the `.test` APK for the emulator's `x86_64` ABI and uninstalls it when the suite ends. Parallelism is forced to one on a device target regardless of `-p`. Cache the Go build cache, the npm cache, and the AVD system image (the action does the last) to keep it cheap; the app binary builds once per suite. See [mobile testing](mobile.md) for the device story in full.

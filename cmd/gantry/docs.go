@@ -4,6 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"io/fs"
+	"os"
 	"path"
 	"regexp"
 	"sort"
@@ -15,6 +16,8 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/glamour"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/charmbracelet/x/ansi"
+	"github.com/charmbracelet/x/term"
 
 	"github.com/B-Commissions/Gantry/appshell"
 	"github.com/B-Commissions/Gantry/docs"
@@ -25,7 +28,12 @@ import (
 // fully offline - the docs travel inside the gantry exe.
 func cmdDocs(args []string) error {
 	fs := flag.NewFlagSet("docs", flag.ExitOnError)
+	tui := fs.Bool("tui", false, "browse the docs in the terminal instead of the web viewer")
 	printOnly := fs.Bool("print", false, "print the page as plain markdown instead of the browser")
+	frameOnly := fs.Bool("frame", false, "render one frame at the terminal size to stdout, then exit (layout diagnostic)")
+	frameSize := fs.String("size", "", "WxH to force the -frame size, e.g. 188x41 (when redirecting to a file)")
+	ai := fs.Bool("ai", false, "enable the on-device docs assistant (agent CLI like Claude Code/Codex if installed, else a local model)")
+	mcpMode := fs.Bool("mcp", false, "run a stdio MCP server exposing the docs (search_docs/read_doc/list_docs) - no auth; add with: claude mcp add gantry-docs -- gantry docs --mcp")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
@@ -33,6 +41,12 @@ func cmdDocs(args []string) error {
 	pages, err := loadDocs()
 	if err != nil {
 		return err
+	}
+
+	// MCP mode is a headless stdio server for coding agents - no web/TUI, no
+	// stdout chatter (the transport owns stdin/stdout).
+	if *mcpMode {
+		return serveDocsMCP(pages)
 	}
 
 	start := 0
@@ -44,10 +58,52 @@ func cmdDocs(args []string) error {
 		fmt.Println(pages[start].raw)
 		return nil
 	}
+	if *frameOnly {
+		return docsFrameProbe(pages, start, *frameSize)
+	}
+
+	// The web viewer is the default; -tui keeps the terminal browser.
+	if !*tui {
+		return serveDocsWeb(pages, start, *ai)
+	}
 
 	m := newDocsModel(pages, start)
 	_, err = tea.NewProgram(m, tea.WithAltScreen()).Run()
 	return err
+}
+
+// docsFrameProbe renders one frame at the terminal's (or forced) size and
+// prints it plainly - no Bubble Tea program, so only this text reaches the
+// screen. When redirected (or -size is set) it strips colors and annotates
+// each row with its display width, for inspecting the layout without the
+// live terminal.
+func docsFrameProbe(pages []docPage, start int, size string) error {
+	fd := int(os.Stdout.Fd())
+	w, h := 0, 0
+	if size != "" {
+		fmt.Sscanf(size, "%dx%d", &w, &h)
+	}
+	if w <= 0 || h <= 0 {
+		if dw, dh, err := term.GetSize(uintptr(fd)); err == nil && dw > 0 && dh > 0 {
+			w, h = dw, dh
+		} else {
+			w, h = 100, 30
+		}
+	}
+	var m tea.Model = newDocsModel(pages, start)
+	m, _ = m.Update(tea.WindowSizeMsg{Width: w, Height: h})
+	frame := m.View()
+	if size != "" || !term.IsTerminal(uintptr(fd)) {
+		fmt.Printf("[size %dx%d - plain, |NN| = measured display width]\n", w, h)
+		for i, ln := range strings.Split(frame, "\n") {
+			clean := ansi.Strip(ln)
+			fmt.Printf("%2d |%3d| %s\n", i, lipgloss.Width(clean), clean)
+		}
+		return nil
+	}
+	fmt.Printf("[terminal %dx%d]\n", w, h)
+	fmt.Println(frame)
+	return nil
 }
 
 type docPage struct {
@@ -72,7 +128,7 @@ func loadDocs() ([]docPage, error) {
 		title := p
 		for _, line := range strings.Split(raw, "\n") {
 			if strings.HasPrefix(line, "# ") {
-				title = strings.TrimPrefix(line, "# ")
+				title = strings.TrimSpace(strings.TrimPrefix(line, "# "))
 				break
 			}
 		}
@@ -254,9 +310,19 @@ func (m *docsModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		m.width, m.height = msg.Width, msg.Height
-		side := m.sidebarWidth()
-		m.view = viewport.New(m.width-side-3, m.height-2)
-		m.ready = true
+		cw, ch := m.contentSize()
+		if m.ready {
+			// Resize in place so the scroll position survives.
+			m.view.Width, m.view.Height = cw, ch
+		} else {
+			m.view = viewport.New(cw, ch)
+			m.ready = true
+		}
+		if sw := m.sidebarTextWidth() - 4; sw >= 4 {
+			m.search.Width = sw
+		} else {
+			m.search.Width = 4
+		}
 		m.render()
 		return m, nil
 
@@ -381,7 +447,20 @@ func (m *docsModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, cmd
 }
 
+// Layout floors: the content pane never renders below docsMinContent
+// columns, and the sidebar collapses entirely once the whole terminal is
+// narrower than docsCollapseBelow (there is no room for two panes).
+const (
+	docsMinContent    = 20
+	docsCollapseBelow = 50
+)
+
+// sidebarWidth is the sidebar column width, or 0 when the terminal is too
+// narrow to show a sidebar and content side by side (collapsed mode).
 func (m *docsModel) sidebarWidth() int {
+	if m.width < docsCollapseBelow {
+		return 0
+	}
 	w := m.width / 3
 	if w < 28 {
 		w = 28
@@ -389,7 +468,57 @@ func (m *docsModel) sidebarWidth() int {
 	if w > 44 {
 		w = 44
 	}
+	// Never let the sidebar, its border and the spacer crowd the content
+	// pane below its floor - keep sidebar + 3 + content <= width.
+	if maxW := m.width - docsMinContent - 3; w > maxW {
+		w = maxW
+	}
 	return w
+}
+
+// contentSize is the viewport's clamped width and height. The 3-column
+// budget covers the sidebar's right border and the spacer; collapsed mode
+// gives the content the full width less a single margin.
+func (m *docsModel) contentSize() (int, int) {
+	side := m.sidebarWidth()
+	w := m.width - 1
+	if side > 0 {
+		w = m.width - side - 3
+	}
+	if w < docsMinContent {
+		w = docsMinContent
+	}
+	h := m.height - 2
+	if h < 1 {
+		h = 1
+	}
+	return w, h
+}
+
+// sidebarTextWidth is the width available for sidebar text (inside the
+// border). In collapsed mode the sidebar, when shown, spans the terminal.
+func (m *docsModel) sidebarTextWidth() int {
+	w := m.sidebarWidth()
+	if w == 0 {
+		w = m.width
+	}
+	if w -= 2; w < 1 {
+		w = 1
+	}
+	return w
+}
+
+// truncRunes trims a string to at most w runes (byte slicing would split
+// multibyte titles when widths are tight).
+func truncRunes(s string, w int) string {
+	if w < 0 {
+		w = 0
+	}
+	r := []rune(s)
+	if len(r) > w {
+		return string(r[:w])
+	}
+	return s
 }
 
 var (
@@ -406,9 +535,27 @@ func (m *docsModel) View() string {
 	if !m.ready {
 		return "loading..."
 	}
-	side := m.renderSidebar()
 	main := m.view.View()
-	body := lipgloss.JoinHorizontal(lipgloss.Top, sideStyle.Height(m.height-2).Render(side), " "+main)
+	var body string
+	if m.sidebarWidth() == 0 {
+		// Collapsed: show one pane at a time. The sidebar takes over when
+		// it has focus (browsing the list, searching, or picking links);
+		// otherwise the content fills the terminal. Tab toggles.
+		if m.focus == "side" || m.mode == "search" || m.mode == "links" {
+			body = m.renderSidebar()
+		} else {
+			body = main
+		}
+	} else {
+		h := m.height - 2
+		if h < 0 {
+			h = 0
+		}
+		// Fixed width keeps the border a straight column aligned with the
+		// content budget; safeFrame later strips the padding lipgloss adds.
+		sidebar := sideStyle.Width(m.sidebarWidth()).Height(h).Render(m.renderSidebar())
+		body = lipgloss.JoinHorizontal(lipgloss.Top, sidebar, " "+main)
+	}
 	help := "tab focus | enter open | / search | f links | b back | q quit"
 	if m.mode == "links" {
 		help = "up/down pick link | enter follow | esc cancel"
@@ -416,21 +563,49 @@ func (m *docsModel) View() string {
 	if m.status != "" {
 		help = m.status
 	}
-	return body + "\n" + statusStyle.Render(" "+help)
+	frame := body + "\n" + statusStyle.Render(" "+help)
+	return safeFrame(frame, m.width, m.height)
+}
+
+// trailBlank matches a trailing run of spaces/tabs and SGR (color/reset)
+// escape sequences at the end of a line.
+var trailBlank = regexp.MustCompile(`(?:\x1b\[[0-9;]*m|[ \t])+$`)
+
+// safeFrame makes a frame that cannot trip the Windows Terminal full-width
+// auto-wrap bug (lines that reach the right edge wrap and stagger the rows
+// below). For every row it strips the trailing padding lipgloss adds to
+// square the layout - even when that padding hides before an ANSI reset,
+// which a plain TrimRight misses - so no row reaches the edge, then hard-
+// truncates to w-1 cells (ANSI-aware). The whole frame is capped to h-1
+// rows so it never fills the last screen row (another known mis-render).
+func safeFrame(frame string, w, h int) string {
+	lines := strings.Split(frame, "\n")
+	if h > 1 && len(lines) > h-1 {
+		lines = lines[:h-1]
+	}
+	limit := w - 1
+	if limit < 1 {
+		limit = 1
+	}
+	for i, ln := range lines {
+		ln = trailBlank.ReplaceAllString(ln, "")
+		if strings.IndexByte(ln, 0x1b) >= 0 {
+			ln += "\x1b[0m" // re-close a style whose trailing reset we stripped
+		}
+		lines[i] = ansi.Truncate(ln, limit, "")
+	}
+	return strings.Join(lines, "\n")
 }
 
 func (m *docsModel) renderSidebar() string {
-	w := m.sidebarWidth() - 2
+	w := m.sidebarTextWidth()
 	var b strings.Builder
 	b.WriteString(" " + m.search.View() + "\n\n")
 
 	if m.mode == "links" {
 		b.WriteString(catStyle.Render(" Links on this page") + "\n")
 		for i, l := range m.links {
-			line := fmt.Sprintf(" %d. %s", i+1, l.label)
-			if len(line) > w {
-				line = line[:w]
-			}
+			line := truncRunes(fmt.Sprintf(" %d. %s", i+1, l.label), w)
 			if i == m.linkIdx {
 				b.WriteString(linkSelStyle.Render(line) + "\n")
 			} else {
@@ -440,6 +615,11 @@ func (m *docsModel) renderSidebar() string {
 		return b.String()
 	}
 
+	// Build every row, then show only the window that fits the pane, scrolled
+	// to keep the cursor visible - a list taller than the terminal must never
+	// render more rows than there is room for.
+	var lines []string
+	cursorLine := 0
 	lastCat := "\x00"
 	for i, idx := range m.filtered {
 		p := m.pages[idx]
@@ -449,20 +629,43 @@ func (m *docsModel) renderSidebar() string {
 			if label == "" {
 				label = "start"
 			}
-			b.WriteString(catStyle.Render(" "+label) + "\n")
+			lines = append(lines, catStyle.Render(" "+label))
 		}
-		line := "  " + p.title
-		if len(line) > w {
-			line = line[:w]
-		}
+		line := truncRunes("  "+p.title, w)
 		switch {
 		case i == m.cursor && m.focus == "side":
-			b.WriteString(selStyle.Render("> "+line[2:]) + "\n")
+			lines = append(lines, selStyle.Render("> "+strings.TrimPrefix(line, "  ")))
 		case idx == m.current:
-			b.WriteString(selStyle.Render(line) + "\n")
+			lines = append(lines, selStyle.Render(line))
 		default:
-			b.WriteString(dimStyle.Render(line) + "\n")
+			lines = append(lines, dimStyle.Render(line))
 		}
+		if i == m.cursor {
+			cursorLine = len(lines) - 1
+		}
+	}
+
+	// Rows left after the two the search box took (search + blank line).
+	avail := m.height - 4
+	if avail < 1 {
+		avail = 1
+	}
+	start := 0
+	if len(lines) > avail {
+		start = cursorLine - avail/2
+		if start < 0 {
+			start = 0
+		}
+		if maxStart := len(lines) - avail; start > maxStart {
+			start = maxStart
+		}
+	}
+	end := start + avail
+	if end > len(lines) {
+		end = len(lines)
+	}
+	for _, ln := range lines[start:end] {
+		b.WriteString(ln + "\n")
 	}
 	return b.String()
 }

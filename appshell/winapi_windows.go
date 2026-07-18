@@ -63,16 +63,35 @@ const (
 	swMaximize = 3
 	swRestore  = 9
 
-	wmClose          = 0x0010
-	wmActivate       = 0x0006
-	wmGetMinMaxInfo  = 0x0024
-	wmSetIcon        = 0x0080
-	wmNCCalcSize     = 0x0083
-	wmNCHitTest      = 0x0084
-	wmNCLButtonDown  = 0x00A1
+	wmClose         = 0x0010
+	wmSize          = 0x0005
+	wmActivate      = 0x0006
+	wmGetMinMaxInfo = 0x0024
+	wmSetIcon       = 0x0080
+	wmNCCalcSize    = 0x0083
+	wmNCHitTest     = 0x0084
+	wmNCLButtonDown = 0x00A1
+	wmExitSizeMove  = 0x0232
+
+	// WM_SIZE wParam values worth reacting to (a maximize/restore that
+	// never goes through the resize-drag loop).
+	sizeRestored  = 0
+	sizeMaximized = 2
 
 	htClient  = 1
 	htCaption = 2
+
+	// Edge/corner hit-test codes, reused both as WM_NCHITTEST return
+	// values and as the WM_NCLBUTTONDOWN wParam that starts a native
+	// resize (see resizeWindow).
+	htLeft        = 10
+	htRight       = 11
+	htTop         = 12
+	htTopLeft     = 13
+	htTopRight    = 14
+	htBottom      = 15
+	htBottomLeft  = 16
+	htBottomRight = 17
 
 	iconSmall = 0
 	iconBig   = 1
@@ -166,6 +185,45 @@ func closeWindow(hwnd uintptr) {
 func dragWindow(hwnd uintptr) {
 	procReleaseCapture.Call()
 	procPostMessageW.Call(hwnd, wmNCLButtonDown, htCaption, 0)
+}
+
+// resizeEdgeHit maps the frontend ResizeFrame edge names to their
+// WM_NCHITTEST codes; the second result is false for an unknown edge.
+func resizeEdgeHit(edge string) (uintptr, bool) {
+	switch edge {
+	case "n":
+		return htTop, true
+	case "s":
+		return htBottom, true
+	case "w":
+		return htLeft, true
+	case "e":
+		return htRight, true
+	case "nw":
+		return htTopLeft, true
+	case "ne":
+		return htTopRight, true
+	case "sw":
+		return htBottomLeft, true
+	case "se":
+		return htBottomRight, true
+	}
+	return 0, false
+}
+
+// resizeWindow starts a native interactive edge resize - the same trick as
+// dragWindow (the WebView2 child covers the client area, so the frontend's
+// ResizeFrame strips call this on mousedown instead of relying on the
+// parent's WM_NCHITTEST margin, which the child swallows). PostMessage,
+// not SendMessage: entering the modal size loop from inside a JS-dispatch
+// stack is the Terminate()-style crash.
+func resizeWindow(hwnd uintptr, edge string) {
+	hit, ok := resizeEdgeHit(edge)
+	if !ok {
+		return
+	}
+	procReleaseCapture.Call()
+	procPostMessageW.Call(hwnd, wmNCLButtonDown, hit, 0)
 }
 
 // setVisible shows (without activating) or hides a window. Hiding MUST

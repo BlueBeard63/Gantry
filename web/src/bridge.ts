@@ -36,9 +36,10 @@ export interface ShellBridge {
   /** Open a URL in the user's default browser (never in the app). */
   openExternal(url: string): void;
   /**
-   * Linux frameless windows: start an interactive resize from an edge
-   * ("n","s","e","w","ne","nw","se","sw"). No-op on Windows, where the
-   * native hit-test handles edges.
+   * Frameless windows: start an interactive resize from an edge
+   * ("n","s","e","w","ne","nw","se","sw"). Bound on both Windows and
+   * Linux; on Windows it posts WM_NCLBUTTONDOWN (the native hit-test
+   * margin remains only as a backstop).
    */
   resizeEdge(edge: string): void;
 }
