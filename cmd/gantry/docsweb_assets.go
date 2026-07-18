@@ -125,7 +125,7 @@ header {
 .nav-group.expanded > .nav-group-children { display:block; }
 
 .content { flex:1; min-width:0; margin-left:var(--side-w); margin-right:var(--toc-w); }
-.content-inner { max-width:var(--content-max); padding:36px 56px 80px; }
+.content-inner { padding:36px 56px 80px; }
 .breadcrumb { font-size:13px; color:var(--fg-muted); margin-bottom:18px; }
 .breadcrumb span + span::before { content:none; }
 
@@ -147,7 +147,7 @@ header {
   background:var(--code-bg) !important; border:1px solid var(--border); border-radius:8px;
   padding:14px 16px; overflow-x:auto; margin:0 0 16px;
 }
-.markdown pre code { background:none !important; border:none; padding:0; font-size:13px; line-height:1.55; }
+.markdown pre code { background:none !important; border:none; padding:0; font-size:13px; line-height:1.55; color:var(--fg); }
 .markdown pre.chroma { padding:14px 16px; }
 
 /* code block copy button */

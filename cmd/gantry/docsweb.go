@@ -360,9 +360,19 @@ func buildHighlightCSS() (template.CSS, error) {
 	if err != nil {
 		return "", err
 	}
+	// Scope BOTH themes mutually-exclusively, not light-as-default. chroma's
+	// two styles color different token sets, so if the light sheet applied
+	// unscoped it would leave its dark punctuation/name colors on tokens that
+	// github-dark leaves to inherit - invisible dark-on-dark code in dark
+	// mode. Mirrors the --var scheme: a forced theme wins, else the OS
+	// preference decides, and the two never both apply.
 	var b strings.Builder
-	b.WriteString(light)
-	b.WriteString("\n")
+	// Light: forced light, or OS-light and not forced dark.
+	b.WriteString(scopeCSS(light, ":root[data-theme=light]"))
+	b.WriteString("\n@media (prefers-color-scheme: light) {\n")
+	b.WriteString(scopeCSS(light, ":root:not([data-theme=dark])"))
+	b.WriteString("\n}\n")
+	// Dark: forced dark, or OS-dark and not forced light.
 	b.WriteString(scopeCSS(dark, ":root[data-theme=dark]"))
 	b.WriteString("\n@media (prefers-color-scheme: dark) {\n")
 	b.WriteString(scopeCSS(dark, ":root:not([data-theme=light])"))
