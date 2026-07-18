@@ -16,7 +16,8 @@ Getting started
 
 The shell (windows and chrome)
 
-- [The main window](shell/window.md) - every WindowOptions field explained
+- [Window options](shell/window-options.md) - every WindowOptions field explained
+- [Frame and window chrome](shell/window-chrome.md) - frameless mode, title-bar buttons, hit-test metrics
 - [Close behavior and app lifecycle](shell/close-and-lifecycle.md) - OnCloseRequest, tray life
 - [The system tray](shell/tray.md) - tray apps and menu actions
 - [Widgets](shell/widgets.md) - small always-on-top helper windows
@@ -30,10 +31,14 @@ The UI layer (pages and components)
 - [Components](ui/components.md) - the reusable pair: importing it vs rendering it from Go
 - [Routing basics](ui/routing.md) - route derivation, navigate/Link/useRoute/isActive, ExternalLink
 - [Dynamic routes](ui/dynamic-routes.md) - [id]/[...slug] folders, useParams, the Go half
-- [Calls and services](ui/calls-and-services.md) - awaited Go calls, useAuth-style hooks, Await/Skeleton
+- [Awaited Go calls](ui/calls.md) - Call/CallResult, useCall, resolution order, the call timeout
+- [Services and hooks](ui/services.md) - Service/useService, useAuth-style hooks, the built-in gantry service
+- [Await and Skeleton](ui/await.md) - the Await and Skeleton components and their props
 - [State](ui/state.md) - useGoState, shared values both sides own
 - [Layouts](ui/layouts.md) - shared navbars/sidebars around pages
-- [The Tea model](ui/tea.md) - Model, Update, View in Go
+- [The Tea model](ui/tea-model.md) - Model, Update, View and the update loop in Go
+- [The node tree](ui/tea-nodes.md) - the node builders (Column/Button/Input...) and modifiers
+- [Commands and messages](ui/tea-commands.md) - Msg/Cmd, Batch/Tick, App.Send, ParamsMsg
 - [Custom components](ui/custom-components.md) - rendering your React from Go
 - [Styling](ui/styling.md) - colocated css and theme variables
 - [HTTP endpoints](ui/http-endpoints.md) - serving your own routes on the app server
@@ -50,7 +55,9 @@ Mobile (the same app on a phone)
 Testing (end-to-end tests against the real app)
 
 - [Setup](testing/setup.md) - the gantrytest driver, your first test, the gantry test command
-- [Driving the app](testing/driving.md) - pages, trees, events, calls, state, pushes, restarts
+- [Pages and the tree](testing/pages-and-tree.md) - renders, tree queries and matchers
+- [Events and calls](testing/events-and-calls.md) - firing events, awaiting Go calls
+- [State, pushes and restarts](testing/state-and-restarts.md) - state, pushes/waits, restarts, launch options
 - [The DOM plane](testing/dom.md) - element driving over CDP: real clicks and typing, screenshots, screencasts
 - [Errors and artifacts](testing/errors-and-artifacts.md) - error assertions, traces, per-test recordings
 - [Widget snapshots](testing/widgets.md) - host-side widget tests and golden files
@@ -59,7 +66,10 @@ Testing (end-to-end tests against the real app)
 
 The CLI
 
-- [Command reference](cli/commands.md) - new, dev, build, add, docs, mobile
+- [Project and build](cli/project.md) - new, build, install, add, update, upgrade
+- [Developing and generating](cli/develop.md) - dev and gen
+- [The test command](cli/test-command.md) - gantry test and its flags
+- [Mobile and docs](cli/mobile-and-docs.md) - mobile dev, docs, version
 
 Advanced
 

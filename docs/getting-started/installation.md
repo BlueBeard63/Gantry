@@ -50,7 +50,7 @@ gantry help
 
 ## Keeping the CLI current
 
-Before `new`, `dev`, `build`, and `test`, the CLI does a once-a-day check against the Go module proxy (capped at 1.5 seconds) and prints a one-line notice when a newer Gantry release exists. When you see it, `gantry update` reinstalls the CLI itself (the same `go install ... @latest`), and inside an app `gantry upgrade` brings that app's packages and regenerated scaffold files up to the CLI's version. The two halves of a release move together - the CLI pins the exact matching `gantry-web` npm version into `package.json` - so upgrade the CLI and the app together. Set `GANTRY_NO_UPDATE_CHECK=1` to silence the daily check; a local `(devel)` build (installed from a checkout) never checks. Full details are in the [command reference](../cli/commands.md).
+Before `new`, `dev`, `build`, and `test`, the CLI does a once-a-day check against the Go module proxy (capped at 1.5 seconds) and prints a one-line notice when a newer Gantry release exists. When you see it, `gantry update` reinstalls the CLI itself (the same `go install ... @latest`), and inside an app `gantry upgrade` brings that app's packages and regenerated scaffold files up to the CLI's version. The two halves of a release move together - the CLI pins the exact matching `gantry-web` npm version into `package.json` - so upgrade the CLI and the app together. Set `GANTRY_NO_UPDATE_CHECK=1` to silence the daily check; a local `(devel)` build (installed from a checkout) never checks. The `update` and `upgrade` commands are documented in [Project & build](../cli/project.md).
 
 ## Linux prerequisites
 

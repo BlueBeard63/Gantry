@@ -101,7 +101,7 @@ For links that leave the app (docs, your repo, a website), use `ExternalLink` in
 <ExternalLink href="https://github.com/B-Commissions/Gantry">Source</ExternalLink>
 ```
 
-Under the hood `ExternalLink` calls `shell.openExternal(url)` from [useShell()](../shell/window.md) - the same one-liner you can call directly (from a button handler, say) to open a URL in the default browser without ever navigating the app window.
+Under the hood `ExternalLink` calls `shell.openExternal(url)` from [useShell()](../shell/window-chrome.md#the-useshell-surface) - the same one-liner you can call directly (from a button handler, say) to open a URL in the default browser without ever navigating the app window.
 
 ## When nothing matches
 

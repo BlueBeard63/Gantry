@@ -120,7 +120,7 @@ export default function Index() {
 }
 ```
 
-  See [The Tea model](../ui/tea.md).
+  See [The Tea model](../ui/tea-model.md).
 
 - **`Link`** and **`navigate`** move between pages without a reload. Use `<Link to="/settings">Settings</Link>` in markup, or `navigate("/settings")` from an event handler. `ExternalLink` opens a URL in the real browser instead of inside the app window. (Routing only kicks in once your app has more than one page - see [Project structure](project-structure.md).)
 

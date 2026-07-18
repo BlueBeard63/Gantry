@@ -26,7 +26,7 @@ The hook is the natural place to hand off to something else: hide the window and
 Two paths bypass the hook by design:
 
 - `appshell.CloseMainWindow()` force-closes: it sets the internal `forceClose` flag and destroys the window without consulting the hook or `DisableClose`. Tray Quit uses this, so Quit always works no matter what the hook says.
-- The `DisableClose` field (see [the main window](window.md#disableclose-bool-default-false)) drops close requests entirely, without a hook.
+- The `DisableClose` field (see [Frame & window chrome](window-chrome.md#disableclose-bool-default-false)) drops close requests entirely, without a hook.
 
 Window geometry saves on any path that actually closes or hides (the subclass calls the geometry store from both `onClosing` and `onResize`), so `CloseHide` apps keep their position and size too.
 

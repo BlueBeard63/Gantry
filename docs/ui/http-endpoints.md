@@ -1,6 +1,6 @@
 # Serving your own HTTP routes
 
-Most Go<->React traffic goes over the websocket - [paired events](pairs.md), [calls and services](calls-and-services.md), [Tea](tea.md) renders. Sometimes a plain HTTP endpoint is the right tool instead: a file download, an image the browser loads with a normal `<img src>`, a webhook a non-Gantry client posts to, a `fetch` that returns a blob, an SSE stream. Gantry hands you the app's own `*http.ServeMux` so you register those routes on the same local server.
+Most Go<->React traffic goes over the websocket - [paired events](pairs.md), [calls](calls.md) and [services](services.md), [Tea](tea-model.md) renders. Sometimes a plain HTTP endpoint is the right tool instead: a file download, an image the browser loads with a normal `<img src>`, a webhook a non-Gantry client posts to, a `fetch` that returns a blob, an SSE stream. Gantry hands you the app's own `*http.ServeMux` so you register those routes on the same local server.
 
 ## The Setup hook
 
@@ -23,7 +23,7 @@ gantry.Run(gantry.Config{
 })
 ```
 
-`Setup` is the single place all three server-side registrations happen: [services](calls-and-services.md) (`app.Service`), [shared state](state.md) (`ui.NewState`), and HTTP routes on `mux`. It runs on the goroutine that builds the server, so keep it quick and non-blocking - spin up any long-lived workers as goroutines.
+`Setup` is the single place all three server-side registrations happen: [services](services.md) (`app.Service`), [shared state](state.md) (`ui.NewState`), and HTTP routes on `mux`. It runs on the goroutine that builds the server, so keep it quick and non-blocking - spin up any long-lived workers as goroutines.
 
 Handlers you register are wrapped by the same middleware as the built-in routes: a **recover** layer (a panic in your handler is caught and fed to the [error pipeline](../advanced/errors.md) instead of crashing the process) and, when the app runs with a `--token`, a **token** gate (the mobile shell sets one; on the desktop there is none). You get those for free - write an ordinary `http.Handler`.
 
@@ -66,4 +66,4 @@ Setup: func(app *ui.App, mux *http.ServeMux) {
 },
 ```
 
-`App.Send` and `App.Push` are safe to call from the handler's goroutine; see [The Tea model](tea.md#external-events) and [Pairs](pairs.md).
+`App.Send` and `App.Push` are safe to call from the handler's goroutine; see [Commands & messages](tea-commands.md#appsend-reaching-every-page) and [Pairs](pairs.md).

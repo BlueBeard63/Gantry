@@ -1,6 +1,6 @@
 # State
 
-`useGoState` is a `useState` whose value lives in Go and syncs both ways instantly. Reach for it when a value is owned by both sides - volume, active session, feature toggles - and every subscriber should re-render the moment it changes, from React or from Go. For asking Go a one-off question, see [Calls and services](calls-and-services.md); for Go-driven UI, a [Tea Model](tea.md).
+`useGoState` is a `useState` whose value lives in Go and syncs both ways instantly. Reach for it when a value is owned by both sides - volume, active session, feature toggles - and every subscriber should re-render the moment it changes, from React or from Go. For asking Go a one-off question, see [Awaited Go calls](calls.md); for Go-driven UI, a [Tea Model](tea-model.md).
 
 ## Declaring shared state in Go
 

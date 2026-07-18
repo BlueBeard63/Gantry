@@ -76,7 +76,7 @@ Inside the app scaffold (`.gantry-app`), gantry-web already styles ordinary `<in
 
 ## Styling Tea built-ins
 
-Every [Tea built-in](tea.md) carries a stable class: `.gantry-tea-column`, `.gantry-tea-row`, `.gantry-tea-text`, `.gantry-tea-heading`, `.gantry-tea-button`, `.gantry-tea-input`, `.gantry-tea-checkbox`, `.gantry-tea-select`, `.gantry-tea-divider`, `.gantry-tea-spacer`, `.gantry-tea-progress` (with an inner `.gantry-tea-progress-fill`), and `.gantry-tea-unknown` for an unresolved `Custom` name. Add your own hook with the Go-side `"class"` prop and scope under the page:
+Every [Tea built-in](tea-nodes.md) carries a stable class: `.gantry-tea-column`, `.gantry-tea-row`, `.gantry-tea-text`, `.gantry-tea-heading`, `.gantry-tea-button`, `.gantry-tea-input`, `.gantry-tea-checkbox`, `.gantry-tea-select`, `.gantry-tea-divider`, `.gantry-tea-spacer`, `.gantry-tea-progress` (with an inner `.gantry-tea-progress-fill`), and `.gantry-tea-unknown` for an unresolved `Custom` name. Add your own hook with the Go-side `"class"` prop and scope under the page:
 
 ```go
 ui.Button("Save", saveMsg{}).WithProps("class", "primary")

@@ -1,6 +1,6 @@
 # Testing: the DOM plane
 
-Everything on the [driving page](driving.md) works headless against the wire protocol. The DOM plane adds the other half: what the user actually sees. The driver attaches to the real webview over its devtools protocol (CDP) and drives it like a user would - element queries, real mouse clicks, real key events, screenshots, screencasts - while the protocol plane keeps watching the same app from the Go side. A single test can click a button in the DOM and assert the push it caused in Go, which is the point of the whole system.
+Everything on the protocol plane - [pages & the tree](pages-and-tree.md), [events & calls](events-and-calls.md), [state, pushes & restarts](state-and-restarts.md) - works headless against the wire protocol. The DOM plane adds the other half: what the user actually sees. The driver attaches to the real webview over its devtools protocol (CDP) and drives it like a user would - element queries, real mouse clicks, real key events, screenshots, screencasts - while the protocol plane keeps watching the same app from the Go side. A single test can click a button in the DOM and assert the push it caused in Go, which is the point of the whole system.
 
 ## Enabling it
 

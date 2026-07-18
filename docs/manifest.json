@@ -16,7 +16,10 @@
       "id": "shell",
       "title": "The shell",
       "entries": [
-        { "path": "shell/window.md", "title": "The main window" },
+        { "group": "The window", "pages": [
+          { "path": "shell/window-options.md", "title": "Window options" },
+          { "path": "shell/window-chrome.md", "title": "Frame & chrome" }
+        ] },
         { "path": "shell/close-and-lifecycle.md", "title": "Close & lifecycle" },
         { "path": "shell/tray.md", "title": "The system tray" },
         { "path": "shell/widgets.md", "title": "Widgets" },
@@ -35,10 +38,18 @@
           { "path": "ui/routing.md", "title": "Routing basics" },
           { "path": "ui/dynamic-routes.md", "title": "Dynamic routes" }
         ] },
-        { "path": "ui/calls-and-services.md", "title": "Calls & services" },
+        { "group": "Calls & services", "pages": [
+          { "path": "ui/calls.md", "title": "Awaited Go calls" },
+          { "path": "ui/services.md", "title": "Services & hooks" },
+          { "path": "ui/await.md", "title": "Await & Skeleton" }
+        ] },
         { "path": "ui/state.md", "title": "State" },
         { "path": "ui/layouts.md", "title": "Layouts" },
-        { "path": "ui/tea.md", "title": "The Tea model" },
+        { "group": "Tea model", "pages": [
+          { "path": "ui/tea-model.md", "title": "The Tea model" },
+          { "path": "ui/tea-nodes.md", "title": "The node tree" },
+          { "path": "ui/tea-commands.md", "title": "Commands & messages" }
+        ] },
         { "path": "ui/custom-components.md", "title": "Custom components" },
         { "path": "ui/styling.md", "title": "Styling" },
         { "path": "ui/http-endpoints.md", "title": "HTTP endpoints" },
@@ -61,7 +72,11 @@
       "title": "Testing",
       "entries": [
         { "path": "testing/setup.md", "title": "Setup" },
-        { "path": "testing/driving.md", "title": "Driving the app" },
+        { "group": "Driving the app", "pages": [
+          { "path": "testing/pages-and-tree.md", "title": "Pages & the tree" },
+          { "path": "testing/events-and-calls.md", "title": "Events & calls" },
+          { "path": "testing/state-and-restarts.md", "title": "State, pushes & restarts" }
+        ] },
         { "path": "testing/dom.md", "title": "The DOM plane" },
         { "path": "testing/errors-and-artifacts.md", "title": "Errors & artifacts" },
         { "path": "testing/widgets.md", "title": "Widget snapshots" },
@@ -73,7 +88,10 @@
       "id": "cli",
       "title": "CLI",
       "entries": [
-        { "path": "cli/commands.md", "title": "Command reference" }
+        { "path": "cli/project.md", "title": "Project & build" },
+        { "path": "cli/develop.md", "title": "Develop & generate" },
+        { "path": "cli/test-command.md", "title": "The test command" },
+        { "path": "cli/mobile-and-docs.md", "title": "Mobile & docs" }
       ]
     },
     {

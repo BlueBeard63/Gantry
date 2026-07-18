@@ -50,7 +50,7 @@ gantry build
 
 This runs Vite once to build the frontend (embedded into the binary via `//go:embed`), then compiles a single self-contained exe for your current machine into `dist/<os>/<arch>/` - on 64-bit Windows that is `dist/windows/amd64/myapp.exe`, with your `icons/icon.ico` baked in as the exe icon and the console hidden (`-H windowsgui`). Copy that one file to another Windows 10/11 machine and it runs - WebView2 is already there, and nothing else needs installing.
 
-Two flags worth knowing now: `gantry build --console` keeps the console window on Windows so you can watch `log` output while debugging, and `gantry build --targets windows/amd64,linux/amd64` overrides the target list (Linux builds must run on a Linux machine; see [Installation](installation.md)). Extra targets and installers can also live permanently in `gantry.json` - the [command reference](../cli/commands.md) has the full build story.
+Two flags worth knowing now: `gantry build --console` keeps the console window on Windows so you can watch `log` output while debugging, and `gantry build --targets windows/amd64,linux/amd64` overrides the target list (Linux builds must run on a Linux machine; see [Installation](installation.md)). Extra targets and installers can also live permanently in `gantry.json` - the [project & build commands](../cli/project.md) have the full build story.
 
 That is the whole loop. Everything below explains what you just built.
 
@@ -70,6 +70,6 @@ Open `main.go` - it is about a dozen lines. It calls `gantry.Run` with a `gantry
 ## Where to go next
 
 - [Project structure](project-structure.md) - what every generated file and folder is for
-- [The main window](../shell/window.md) - sizing, buttons, geometry, the title bar
+- [Window options](../shell/window-options.md) - sizing, geometry and every `WindowOptions` field; [Frame & window chrome](../shell/window-chrome.md) for the frameless frame and title-bar buttons
 - [Pairs](../ui/pairs.md) - the pairing system behind pages and components
-- [The Tea model](../ui/tea.md) - writing page UI in Go
+- [The Tea model](../ui/tea-model.md) - writing page UI in Go

@@ -1,6 +1,6 @@
 # Custom components
 
-The [Tea built-ins](tea.md) cover forms and layout; everything else - charts, canvases, maps, media, an npm widget - is a real React component that Go composes into the tree with `ui.Custom`. Go decides *where* it goes and *what data* it gets; React owns *how* it draws.
+The [Tea built-ins](tea-nodes.md) cover forms and layout; everything else - charts, canvases, maps, media, an npm widget - is a real React component that Go composes into the tree with `ui.Custom`. Go decides *where* it goes and *what data* it gets; React owns *how* it draws.
 
 ## Rendering your React from Go
 
@@ -82,7 +82,7 @@ ui.Custom("components/panel", nil,
 - Anything with heavy *local* interactivity - drag and drop, hover states, animations, a text editor. Let React own the micro-interactions and `emit` only the decisions back to Go (the final position, the committed value), keeping the round trip off the hot path.
 - Wrapping an npm component library: install it with `gantry add`, wrap it in a paired `components/` folder, and compose it from Go like any other `Custom` node.
 
-Built-ins and `Custom` nodes mix in one tree - a `Column` of `Text` next to a `Custom` chart is the ordinary shape of a real page, and `Custom` is just another entry in the [builder table](tea.md#building-views).
+Built-ins and `Custom` nodes mix in one tree - a `Column` of `Text` next to a `Custom` chart is the ordinary shape of a real page, and `Custom` is just another entry in the [builder table](tea-nodes.md#the-node-builders).
 
 ## Advanced: dual-use components
 

@@ -2,7 +2,7 @@
 
 Gantry ships an end-to-end test driver that drives the real running app - the real Go process, the real websocket, the real window - not a simulation of the wire protocol against mocked pages. Tests live in your app repo, are plain Go tests written with the `gantrytest` package, and run with one command: `gantry test`.
 
-This page gets a first test running and documents the `gantry test` command and what `Launch` sets up. From there, [driving the app](driving.md) covers the protocol-plane API, [the DOM plane](dom.md) covers real clicks and screenshots, [errors and artifacts](errors-and-artifacts.md) covers error assertions and traces, [widget snapshots](widgets.md) covers host-side widget tests, [mobile](mobile.md) covers device testing, and [CI](ci.md) covers pipelines.
+This page gets a first test running and documents the `gantry test` command and what `Launch` sets up. From there, the protocol-plane API is split across [pages & the tree](pages-and-tree.md), [events & calls](events-and-calls.md) and [state, pushes & restarts](state-and-restarts.md); [the DOM plane](dom.md) covers real clicks and screenshots, [errors and artifacts](errors-and-artifacts.md) covers error assertions and traces, [widget snapshots](widgets.md) covers host-side widget tests, [mobile](mobile.md) covers device testing, and [CI](ci.md) covers pipelines.
 
 ## Your first test
 
@@ -75,11 +75,11 @@ A run exits non-zero (`test.failed`) when any test failed, and prints a one-line
 
 ### What a test can see
 
-A test session talks to the app on two planes, and can assert on either or both. The **protocol plane** is what Go thinks: the driver dials `/gantry/ws` and speaks the [wire protocol](../advanced/protocol.md) exactly like the frontend does - it mounts pages, fires Tea and paired events, awaits calls, and observes renders, pushes, shared state and error frames. Everything on this plane is headless and cross-platform, and it is enough to test a Tea-style app end to end. The **DOM plane** is what the user sees: element queries, real clicks and typing, screenshots and screencasts, driven over the webview's devtools protocol (CDP); enable it with `WithDOM()`. See [driving the app](driving.md) and [the DOM plane](dom.md).
+A test session talks to the app on two planes, and can assert on either or both. The **protocol plane** is what Go thinks: the driver dials `/gantry/ws` and speaks the [wire protocol](../advanced/protocol.md) exactly like the frontend does - it mounts pages, fires Tea and paired events, awaits calls, and observes renders, pushes, shared state and error frames. Everything on this plane is headless and cross-platform, and it is enough to test a Tea-style app end to end. The **DOM plane** is what the user sees: element queries, real clicks and typing, screenshots and screencasts, driven over the webview's devtools protocol (CDP); enable it with `WithDOM()`. See [pages & the tree](pages-and-tree.md) and [the DOM plane](dom.md).
 
 ### What Launch gives you
 
-Every `gantrytest.Launch(t)` starts the app binary with `--port 0` and `--announce-ready`, so each test learns its own ephemeral port from the process's `GANTRY_READY` line and parallel tests never collide with each other or a dev instance; it passes `--no-open` (headless) unless `--headed` / `WithHeaded()` / `WithDOM()` asks for a window; it redirects the app's config dir - where `geometry.json` and `crash.log` live - into a per-test temp directory (`APPDATA`+`LOCALAPPDATA` on Windows, `XDG_CONFIG_HOME`+`XDG_CACHE_HOME` on Linux, `HOME` on macOS), so tests are hermetic and crash assertions are per-test; it defaults the app to `development` mode so error detail is full (override with `WithMode("production")`); and it registers `t.Cleanup` so the whole process tree is hard-killed (no orphaned webview or helper processes survive), `crash.log` is collected, and the artifact directory is kept when the test failed. The full option set is on [driving the app](driving.md#launch-options).
+Every `gantrytest.Launch(t)` starts the app binary with `--port 0` and `--announce-ready`, so each test learns its own ephemeral port from the process's `GANTRY_READY` line and parallel tests never collide with each other or a dev instance; it passes `--no-open` (headless) unless `--headed` / `WithHeaded()` / `WithDOM()` asks for a window; it redirects the app's config dir - where `geometry.json` and `crash.log` live - into a per-test temp directory (`APPDATA`+`LOCALAPPDATA` on Windows, `XDG_CONFIG_HOME`+`XDG_CACHE_HOME` on Linux, `HOME` on macOS), so tests are hermetic and crash assertions are per-test; it defaults the app to `development` mode so error detail is full (override with `WithMode("production")`); and it registers `t.Cleanup` so the whole process tree is hard-killed (no orphaned webview or helper processes survive), `crash.log` is collected, and the artifact directory is kept when the test failed. The full option set is on [State, pushes & restarts](state-and-restarts.md#launch-options).
 
 ### Running without gantry test
 
@@ -89,4 +89,4 @@ A bare `go test ./tests/...` also works - the driver finds the app root by walki
 
 Unit-testing React components in isolation (use vitest + testing-library directly - nothing Gantry-specific about it) and Go unit tests (plain `go test` on your own packages).
 
-Next: [driving the app](driving.md).
+Next: [Pages & the tree](pages-and-tree.md).

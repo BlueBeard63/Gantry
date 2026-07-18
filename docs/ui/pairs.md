@@ -23,7 +23,7 @@ Call `usePaired()` with **no argument** inside `pages/` or `components/` and the
 `usePaired()` hands back exactly four members - the whole surface of a pair:
 
 - **`send(event, payload?)`** - fire a named [handler](#data-flow-tsx---go) on the Go half. One-way, no return value.
-- **`call(name, payload?)`** - `await` a named function on the Go half and get its result back. This is the [Calls and services](calls-and-services.md) topic; the mechanism is a pair-scoped `ui.Calls`.
+- **`call(name, payload?)`** - `await` a named function on the Go half and get its result back. This is the [Awaited Go calls](calls.md) topic; the mechanism is a pair-scoped `ui.Calls`.
 - **`on(event, fn)`** - subscribe to a named [push](#data-flow-go---tsx) from Go. Returns an unsubscribe function, so it drops straight into a `useEffect`.
 - **`state`** - the latest payload Go pushed under the event name `"state"`, kept in React state for you. The one-liner for mirroring Go data into a component.
 
@@ -47,7 +47,7 @@ On: ui.Handlers{
 },
 ```
 
-`ui.Handlers` is `map[string]func(payload json.RawMessage)`. Handlers run **inline on the websocket read loop**, so do quick work directly and spawn a goroutine for anything slow. A panicking handler does not take the app down - Gantry recovers it, logs `%s.%s handler panicked`, and reports it as a `panic.event` [error](../advanced/errors.md). This channel is one-way and fire-and-forget: nothing comes back to the caller. When the tsx needs an ANSWER, or the functionality is app-wide (auth, settings), or the state lives in Go, reach for [Calls and services](calls-and-services.md).
+`ui.Handlers` is `map[string]func(payload json.RawMessage)`. Handlers run **inline on the websocket read loop**, so do quick work directly and spawn a goroutine for anything slow. A panicking handler does not take the app down - Gantry recovers it, logs `%s.%s handler panicked`, and reports it as a `panic.event` [error](../advanced/errors.md). This channel is one-way and fire-and-forget: nothing comes back to the caller. When the tsx needs an ANSWER, or the functionality is app-wide (auth, settings), or the state lives in Go, reach for [Awaited Go calls](calls.md) and [Services & hooks](services.md).
 
 ## Data flow: Go -> tsx
 
@@ -80,7 +80,7 @@ That is it. The frontend discovers the tsx by its location (the Vite plugin). Th
 ## Two styles, mixed freely
 
 - **Paired handlers (plain style)**: the UI is React through and through, Go is the backend. Familiar if you come from web dev; state lives in the browser. This is `send`/`on`/`state` plus `ui.Handlers`.
-- **Tea Model**: the UI logic and state live in Go, React renders the tree. One language for the whole feature, state that survives frontend reloads, and everything trivially testable in Go. See [The Tea model](tea.md).
+- **Tea Model**: the UI logic and state live in Go, React renders the tree. One language for the whole feature, state that survives frontend reloads, and everything trivially testable in Go. See [The Tea model](tea-model.md).
 
 Mix them per pair, or use both on one pair.
 

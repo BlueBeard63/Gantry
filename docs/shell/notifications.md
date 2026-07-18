@@ -55,7 +55,7 @@ notifier.Close()          // dismiss
 - `Position string` (default `"bottom"`) - `"top"` or `"bottom"` of the monitor work area. The popup is always horizontally centered.
 - `Margin int` (default 24) - the gap in pixels from the top or bottom work-area edge.
 - `AdjustPos func(x, y int) (int, int)` (default nil) - a final nudge given the computed x, y; see [Advanced: sliding around a widget](#advanced-sliding-around-a-widget).
-- `BindingPrefix string` (default `"gantry"`) - names the bound JS functions, as on the [main window](window.md#bindingprefix-string-default-gantry).
+- `BindingPrefix string` (default `"gantry"`) - names the bound JS functions, as on the [main window](window-options.md#bindingprefix-string-default-gantry).
 - `ExtraBindings map[string]any` (default nil) - extra JS functions.
 - `Icon appshell.IconSource` (default zero value) - the window icon.
 - `DataDirRole string` (default `"popup"`) - the WebView2 data-folder suffix; a popup runs separately from the main window, so it MUST use its own folder (the default is already correct).

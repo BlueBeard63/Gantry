@@ -74,7 +74,7 @@ if e.Kind != "process-crash" { t.Errorf("kind = %q", e.Kind) }
 // e.Stack mentions the panic site; e.Trail is empty (the process died before a snapshot)
 ```
 
-`WaitExit()` before `Restart()` matters: it blocks until the process exits on its own, so the relaunch reads a complete `crash.log` rather than racing the dying process. See [driving the app](driving.md#restarts-and-crash-recovery).
+`WaitExit()` before `Restart()` matters: it blocks until the process exits on its own, so the relaunch reads a complete `crash.log` rather than racing the dying process. See [State, pushes & restarts](state-and-restarts.md#restarts-and-crash-recovery).
 
 ### Artifacts under retries
 

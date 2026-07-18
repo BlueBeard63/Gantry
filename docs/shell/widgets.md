@@ -40,7 +40,7 @@ case "widget-timer":
 - `CloseOnDeactivate bool` (default false) - the widget dismisses itself the moment it loses activation, like a shell flyout: click anywhere else and it is gone. This one needs activation to receive the deactivate, so do **not** combine it with `NoActivate`.
 - `StartHidden bool` (default false) - create the window hidden (a real `ShowWindow(SW_HIDE)`); the page reveals itself with `shell.setVisible(true)` when it has something to show.
 - `SquareCorners bool` (default false) - opt out of the Windows 11 rounded corners (widgets are rounded by default).
-- `BindingPrefix string` (default `"gantry"`) - as on the [main window](window.md#bindingprefix-string-default-gantry).
+- `BindingPrefix string` (default `"gantry"`) - as on the [main window](window-options.md#bindingprefix-string-default-gantry).
 - `ExtraBindings map[string]any` (default nil) - extra JS functions, as on the main window.
 - `Icon appshell.IconSource` (default zero value) - the window/taskbar icon.
 - `DataDirRole string` (default `"widget-" + sanitized Title`) - the WebView2 data-folder suffix. The default is derived from the title, so distinct widget titles automatically get distinct folders; you rarely set this.

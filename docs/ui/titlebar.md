@@ -4,7 +4,7 @@ The TitleBar is the React half of the window chrome: the drag surface, the title
 
 ## Defaults and Caps
 
-Out of the box you configure nothing. The TitleBar asks the native window which buttons it supports - the bridge's `caps()` call, backed by the Go window's `Caps()` binding - and shows exactly those. The mapping is `props.showMinimize ?? caps?.minimize ?? false` (and likewise maximize/close), so an unset prop defers to the window and a plain browser tab (no bridge, all caps false) shows no window buttons at all. The buttons a window advertises come from Go: `DisableMinimize` drops the minimize button, `EnableMaximize` adds maximize/restore, `DisableClose` drops close (see [The main window](../shell/window.md)). `ShellCaps` also reports `platform` (`"windows"`/`"linux"`) and `frameless` if you need to branch on them in custom chrome.
+Out of the box you configure nothing. The TitleBar asks the native window which buttons it supports - the bridge's `caps()` call, backed by the Go window's `Caps()` binding - and shows exactly those. The mapping is `props.showMinimize ?? caps?.minimize ?? false` (and likewise maximize/close), so an unset prop defers to the window and a plain browser tab (no bridge, all caps false) shows no window buttons at all. The buttons a window advertises come from Go: `DisableMinimize` drops the minimize button, `EnableMaximize` adds maximize/restore, `DisableClose` drops close (see [Frame & window chrome](../shell/window-chrome.md)). `ShellCaps` also reports `platform` (`"windows"`/`"linux"`) and `frameless` if you need to branch on them in custom chrome.
 
 ## Configuring it app-wide: app.tsx
 

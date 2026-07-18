@@ -1,0 +1,29 @@
+# Developing & generating
+
+`dev` runs the app with live reload while you work; `gen` regenerates the CLI's generated Go files by hand. Both find the app by walking up from the current directory to the nearest `gantry.json`. Flags parse with Go's standard `flag` package, so a flag accepts both `-flag` and `--flag`, and a value can be written `--vite-port 5200` or `--vite-port=5200`; boolean flags take no value.
+
+## gantry dev
+
+Runs the app in a native window with live reload. In order it: regenerates the `.gantry/` vite build root and the generated Go files; starts the Vite dev server (frontend HMR); and runs `go run . --dev-url http://localhost:<vite-port> --port <port>`, so the native window loads from Vite while `/api` and `/gantry/ws` proxy back to the Go port. The app runs with `GANTRY_MODE=development` (see [Modes](../advanced/modes.md)).
+
+The process model: Vite and the Go app run in **separate process groups**. Vite starts with `--strictPort` (so it fails rather than drifting off its port) and serves the frontend; the Go app is launched as `go run .` with `--dev-url` (pointing at Vite) and `--port` (its own server, the single-instance guard). Everything after `--` is appended to the Go run's argument list.
+
+Frontend edits (`.tsx`, `.css`) apply instantly through Vite HMR. Go edits are live too: gantry watches your `.go` files and the `resources/` directory and, on save, regenerates the derived Go files, then rebuilds and restarts the Go app; the frontend re-renders on its own when the websocket reconnects to the fresh server (`web/src/socket.ts` re-announces the active page on every reconnect). Because Vite and the Go app run in separate process groups, a `.go` save kills the whole `go run` -> exe tree and restarts only the Go half, leaving Vite's HMR untouched. On a `.go` change the Go-side generated files (`gantry_registry.go`, `gantry_widgets.go`, `gantry_icons.go`, `gantry_resources.go`, `gantry_args.go`) are refreshed so a new page/component or resource is picked up, but `.gantry/` (the vite root) is deliberately not rewritten - it is unaffected by `.go` edits and rewriting it would perturb the running vite server. A failed rebuild or a crash (non-zero exit) leaves the dev server up and waits for the next save to retry rather than tearing everything down; a clean window close (exit 0) ends the session, and Ctrl+C tears every child down. If Vite itself dies there is nothing left to serve the frontend, so the session ends.
+
+Flags:
+
+- `--vite-port N` (int, default: **5173**) - the Vite dev server port (started with `--strictPort`, so it fails rather than drifting). The `--dev-url` handed to the app is `http://localhost:<vite-port>`.
+
+Beyond `--vite-port`, `gantry dev` registers every argument the app declares in `gantry.json`'s `args` block as a real flag, so they are validated, listed by `gantry dev --help`, and handed to the app as environment variables - `gantry dev --mock-data --api-host=10.0.0.5`. See [App args](../advanced/args.md). Everything after a bare `--` is passed to the app process unchanged, e.g. `gantry dev -- --no-tray`.
+
+## gantry gen
+
+Regenerates the CLI's generated Go files by hand. `dev`, `build`, `test` and `upgrade` all do this automatically, so you only need `gen` before a plain `go build` (for example in CI or an IDE run configuration that does not go through gantry). It takes no flags and does not rebuild the `.gantry/` vite root. It rewrites the following, dropping each file when its source is absent:
+
+- `gantry_registry.go` - auto-registers every `pages/`, `components/` and `layouts/` Go half (their exported `Page`/`Component` vars) so `main.go` never lists them. Pairs nest to any depth. Dynamic `[id]`/`[...slug]` pages are included via an importable mirror generated under `internal/gantrydyn` (Go cannot import bracket-named folders); the mirror is rebuilt from scratch on every `gen`, the developer's `//go:build ignore` half is copied with the constraint stripped and the package clause rewritten to a letter-first identifier. See [Dynamic routes](../ui/dynamic-routes.md). This file is always written (with an empty `gantryPairs()` when there is nothing to register).
+- `gantry_widgets.go` - the widget registry (dropped when there are no widgets).
+- `gantry_icons.go` - embeds the app's default `icon.png`/`icon.ico` from the `gantry.json` `icons` directory (dropped when neither icon file exists).
+- `gantry_resources.go` - embeds a non-empty `resources/` directory via `//go:embed all:resources` (dropped when the directory is missing or holds no files - the embed directive will not compile with nothing to match). See [Resources](../ui/resources.md).
+- `gantry_args.go` - bakes `gantry.json`'s `args` spec into the binary so a production exe resolves its args from environment variables (dropped when there is no `args` block). See [App args](../advanced/args.md).
+
+Each drop only removes a file it recognises as its own (one carrying the `Code generated by gantry` header), so a hand-written file of the same name is never deleted.

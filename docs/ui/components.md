@@ -13,7 +13,7 @@ var Component = ui.Component{
 }
 ```
 
-`ui.Component` is a trimmed `ui.Page`: it has `Key`, `On` and `Call`, but **no `Route`** (a component is never navigated to) and **no `Model`** (a component driven from Go is done through `ui.Custom`, below, not a page-style Model). `On` and `Call` behave exactly as they do on a page - see [Pairs](pairs.md) for `On` and [Calls and services](calls-and-services.md) for `Call`.
+`ui.Component` is a trimmed `ui.Page`: it has `Key`, `On` and `Call`, but **no `Route`** (a component is never navigated to) and **no `Model`** (a component driven from Go is done through `ui.Custom`, below, not a page-style Model). `On` and `Call` behave exactly as they do on a page - see [Pairs](pairs.md) for `On` and [Awaited Go calls](calls.md) for `Call`.
 
 ## Two ways to use one
 

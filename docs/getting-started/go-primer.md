@@ -68,7 +68,7 @@ func (m model) View() ui.Node {
 }
 ```
 
-These receivers are **by value** - `m` is a copy. That is exactly why `Update` returns a new model instead of mutating in place: you change your copy and hand it back, and the framework keeps what you return. (See [The Tea model](../ui/tea.md).)
+These receivers are **by value** - `m` is a copy. That is exactly why `Update` returns a new model instead of mutating in place: you change your copy and hand it back, and the framework keeps what you return. (See [The Tea model](../ui/tea-model.md).)
 
 ## Interfaces: the Model
 
@@ -114,7 +114,7 @@ func (m model) View() ui.Node {
 }
 ```
 
-`ui.Button(label, onClick)` takes the message to send when clicked - here `incMsg{}`, which lands back in `Update`. Other builders include `ui.Row`, `ui.Text`/`ui.Textf`, `ui.Heading`, `ui.Input`, `ui.Checkbox`, and `ui.Custom` (to drop a React component into the tree). `.WithProps("class", "counter")` attaches a CSS class the paired `index.css` can style. The full catalog is in [The Tea model](../ui/tea.md).
+`ui.Button(label, onClick)` takes the message to send when clicked - here `incMsg{}`, which lands back in `Update`. Other builders include `ui.Row`, `ui.Text`/`ui.Textf`, `ui.Heading`, `ui.Input`, `ui.Checkbox`, and `ui.Custom` (to drop a React component into the tree). `.WithProps("class", "counter")` attaches a CSS class the paired `index.css` can style. The full catalog is in [The node tree](../ui/tea-nodes.md).
 
 ## Errors are values
 

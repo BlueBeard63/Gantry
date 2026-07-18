@@ -22,9 +22,9 @@ Those four fields are the entire type:
 
 - **`Key`** - the folder path, the one string that ties the halves together (see [Pairs](pairs.md)). Required.
 - **`Route`** - the URL this page answers to. Leave it empty and Gantry derives it from the folder: `pages/settings` -> `/settings`, `pages/index` -> `/` (see [Routing](routing.md)).
-- **`Model`** - a factory returning a Tea model to run the whole page as a Go state machine. It is called **once, lazily, the first time the page becomes active**, and its `View()` tree is what the tsx renders through `<TeaView />` (see [The Tea model](tea.md)).
+- **`Model`** - a factory returning a Tea model to run the whole page as a Go state machine. It is called **once, lazily, the first time the page becomes active**, and its `View()` tree is what the tsx renders through `<TeaView />` (see [The Tea model](tea-model.md)).
 - **`On`** - fire-and-forget [paired handlers](pairs.md), `map[string]func(json.RawMessage)`.
-- **`Call`** - awaited calls that return `(any, error)` (see [Calls and services](calls-and-services.md)).
+- **`Call`** - awaited calls that return `(any, error)` (see [Awaited Go calls](calls.md)).
 
 A page needs a `Model`, handlers, calls, or none of them: a purely static page needs no `.go` logic at all - though the `.go` file must still exist and export `var Page` if it is to be registered. `Model` and `On`/`Call` are not exclusive; a page can run a Tea `Model` and still answer paired handlers and calls. A folder can both BE a page and CONTAIN pages - nesting works to any depth. See [Routing](routing.md) for how folders become URLs.
 
@@ -62,6 +62,6 @@ Shared chrome that wraps pages - navbars, sidebars, status bars - lives in the `
 ## Two styles per page
 
 - **Paired handlers (plain style)**: the UI is React through and through, Go is the backend; state lives in the browser. This is `On`/`Call` plus `usePaired`.
-- **Tea Model**: the UI logic and state live in Go, React renders it - one language for the whole page, state that survives frontend reloads, and trivially testable Go. See [The Tea model](tea.md).
+- **Tea Model**: the UI logic and state live in Go, React renders it - one language for the whole page, state that survives frontend reloads, and trivially testable Go. See [The Tea model](tea-model.md).
 
 Mix them per page, or even both on one page.
