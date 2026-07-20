@@ -96,6 +96,15 @@ func scanSources(appDir string) uint64 {
 			case ".gantry", "webdist", "dist", "node_modules", ".git":
 				return filepath.SkipDir
 			}
+			// gantrydynDir is regenerated from scratch on every rebuild
+			// (os.RemoveAll + fresh writes with per-route names), so its
+			// files can't be caught by the fixed generatedGoFiles set and
+			// would otherwise re-trigger the watcher forever. Skip the
+			// whole managed mirror; the bracket source folders it mirrors
+			// stay watched.
+			if rel, err := filepath.Rel(appDir, p); err == nil && filepath.ToSlash(rel) == gantrydynDir {
+				return filepath.SkipDir
+			}
 			return nil
 		}
 		rel, err := filepath.Rel(appDir, p)
