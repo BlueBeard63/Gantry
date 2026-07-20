@@ -35,6 +35,24 @@ Components and layouts are not wrapped in a framework-generated class, so give t
 .example-card { /* ... */ }
 ```
 
+## Dynamic routes
+
+A [dynamic page](dynamic-routes.md) (`[id]`, `[...slug]`) is a single component that serves many URLs, and it keeps **one stable wrapper class** across all of them - so one CSS block styles every instance. The class comes from the same rule as any other page (the key with every run of non-alphanumeric characters replaced by a hyphen), applied to the bracketed key. The brackets are non-alphanumeric, so they collapse into the hyphen runs - and because the key *ends* with `]`, the derived class ends with a trailing hyphen. Write your selectors with that trailing hyphen exactly as generated:
+
+```
+pages/examples/page1/[id]  -> .gantry-pages-examples-page1-id-
+pages/files/[...slug]      -> .gantry-pages-files-slug-
+```
+
+```css
+/* pages/examples/page1/[id]/[id].css - note the trailing hyphen */
+.gantry-pages-examples-page1-id- .item {
+  padding: 8px;
+}
+```
+
+Colocate the CSS with the page like any other pair - `pages/examples/page1/[id]/[id].css` next to `[id].tsx` - and the Vite plugin imports it automatically. The wrapper class does not change as the captured `id`/`slug` changes (only the params do, see [Dynamic routes](dynamic-routes.md)), so a single rule set covers `/examples/page1/1`, `/examples/page1/2`, and every other address the page serves.
+
 ## The theme variables
 
 The window chrome and the Tea built-ins read their colors and metrics from CSS custom properties, all prefixed `--gantry-`. They are defined in `:root` inside gantry-web's `styles.css`; redefine any of them in your root `index.css` and the whole app rethemes - TitleBar included, no component changes. The full set:
