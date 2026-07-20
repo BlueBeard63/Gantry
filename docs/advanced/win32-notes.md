@@ -44,6 +44,12 @@ Returning 0 from `WM_NCCALCSIZE` (with `wparam != 0`) makes the client area the 
 2. **Always OR into `GWL_EXSTYLE`, never replace it.** WebView2 sets `WS_EX_NOREDIRECTIONBITMAP` on the window; strip it and the composited content goes white (invisible page, busy cursor).
 3. **Hidden windows destroy cleanly.** A popup that hides itself before its process is killed can never paint a goodbye flash frame.
 
+## Composited output and screen capture
+
+The `WS_EX_NOREDIRECTIONBITMAP` above is not just a "don't strip it" rule - it is why the window has no GDI redirection surface at all: WebView2 content is composited straight by DWM/DirectComposition. Legacy screen capturers that `BitBlt` a window's redirection bitmap (OBS "Window Capture (BitBlt)", older Display Capture paths) therefore read black for a Gantry window, main or helper. Capture needs a composited-window reader - Windows Graphics Capture (WGC) - which is what users must select (documented for them in [Window options → Screen recording and capture](../shell/window-options.md#screen-recording-and-capture)).
+
+The framework-side fix, if we ever want legacy BitBlt to work, is to render without GPU compositing by passing `--disable-gpu-compositing` (or `--disable-gpu`) as a WebView2 `AdditionalBrowserArguments`. That flows through `createCoreWebView2EnvironmentWithOptions`, which `go-webview2` currently calls with `environmentOptions = 0` (`pkg/edge/chromium.go`) and exposes no option field for - so it needs a forked/`replace`d go-webview2 before an opt-in `gantry.json` flag could reach it. Deferred deliberately; it costs GPU-accelerated rendering, so it must stay opt-in.
+
 ## WebView2 user-data folders
 
 Every process needs its own browser-data folder. Two processes sharing one means the second environment fails to initialize - historically "the popup never appeared at all". `webviewDataPath` keys folders by AppName plus role (`%LocalAppData%\<app>\webview-<role>`), which is also why AppName is a required option. This is the concrete reason widgets and popups run as separate processes (see [Architecture](architecture.md)); the role is `main` for the main window and `widget-<title>` / `popup` for helpers.

@@ -126,6 +126,19 @@ These fields configure the frameless frame, the title-bar buttons and the invisi
 | `CaptionRightReserve` | `int` | `150` | Non-drag zone where the window buttons live. |
 | `ResizeMargin` | `int` | `6` | Edge thickness that starts a native resize. |
 
+## Screen recording and capture
+
+Gantry's window is a WebView2 surface, which Windows composites directly through the GPU (DirectComposition) - the window carries `WS_EX_NOREDIRECTIONBITMAP` and has no GDI redirection bitmap for a legacy capturer to read. The practical consequence: **OBS's legacy "Window Capture (BitBlt)" and some "Display Capture" paths record a black rectangle** where the app should be. This is not a Gantry bug and not something the app can style around - it is how every WebView2/Chromium-composited window behaves.
+
+Capture it with a method that reads composited windows instead:
+
+- **OBS:** add a **Windows Graphics Capture (WGC)** source (Sources → `+` → *Windows Capture*, and pick the **Windows 10 (1903+)** / *Windows Graphics Capture* method), then select the Gantry window. WGC reads the composited surface correctly. If a source only offers the BitBlt method, or shows black, that is the legacy path - switch it to Windows Graphics Capture.
+- The same applies to every Gantry window: the main window, [widgets](widgets.md) and popups/[notifications](notifications.md) are each their own WebView2 window (separate processes), so capture each the same way.
+
+On the window name you see in a recorder's window list: the built binary is named after your app (`gantry build` emits `dist/<os>/<arch>/<name>.exe`, where `<name>` is the `name` in `gantry.json`), and `Title` above sets the window/taskbar caption. A recorder that shows a generic entry is listing the underlying WebView2 window (whose native window class is the generic `"webview"`), not a different executable.
+
+> A future release may add an opt-in to render without GPU compositing (so legacy BitBlt capture works too); today, Windows Graphics Capture is the supported path.
+
 ## Related pages
 
 - [Frame & window chrome](window-chrome.md) - the frameless frame, the button toggles, the hit-test metrics, the bridge functions and `useShell()`.
