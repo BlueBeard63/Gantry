@@ -10,7 +10,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/B-Commissions/Gantry/gantrytest/report"
+	"github.com/BlueBeard63/Gantry/gantrytest/report"
 	"github.com/charmbracelet/lipgloss"
 )
 

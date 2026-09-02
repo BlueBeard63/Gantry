@@ -2,7 +2,7 @@ module hello
 
 go 1.25.0
 
-require github.com/B-Commissions/Gantry v0.0.0
+require github.com/BlueBeard63/Gantry v0.0.0
 
 require (
 	fyne.io/systray v1.12.2 // indirect
@@ -13,4 +13,4 @@ require (
 	golang.org/x/sys v0.41.0 // indirect
 )
 
-replace github.com/B-Commissions/Gantry => "D:/New Source/B_Commissions/Gantry"
+replace github.com/BlueBeard63/Gantry => "D:/New Source/B_Commissions/Gantry"

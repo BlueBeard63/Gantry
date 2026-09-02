@@ -11,7 +11,7 @@ import (
 
 	"golang.org/x/image/draw"
 
-	"github.com/B-Commissions/Gantry/appicon"
+	"github.com/BlueBeard63/Gantry/appicon"
 )
 
 // androidABI maps Go arch names onto Android's jniLibs ABI directories.

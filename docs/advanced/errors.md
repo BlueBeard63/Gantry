@@ -89,7 +89,7 @@ Go cannot recover a panic on a goroutine it did not wrap: a bare `go func()` tha
 Framework and CLI errors carry stable, greppable codes - `config.bad-arg-spec`, `panic.call`, `dev.vite-start` - via the `gerr` package (`gerr/gerr.go`). A `*gerr.E` is a normal Go error wrapping a `Code`, a message, an optional `Hint`, and an optional cause:
 
 ```go
-import "github.com/B-Commissions/Gantry/gerr"
+import "github.com/BlueBeard63/Gantry/gerr"
 
 return nil, gerr.New("auth.expired", "session expired").WithHint("log in again")
 ```

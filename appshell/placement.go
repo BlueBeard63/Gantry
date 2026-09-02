@@ -1,6 +1,6 @@
 package appshell
 
-import "github.com/B-Commissions/Gantry/monitors"
+import "github.com/BlueBeard63/Gantry/monitors"
 
 // widgetPos computes a widget's top-left corner on its monitor's work
 // area from its placement.

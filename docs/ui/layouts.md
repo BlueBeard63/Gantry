@@ -84,7 +84,7 @@ A layout folder can hold a `.go` file like any other pair - useful when the shar
 // layouts/main/main.go
 package mainlayout // NOT "package main" - see the caveat below
 
-import "github.com/B-Commissions/Gantry/ui"
+import "github.com/BlueBeard63/Gantry/ui"
 
 var Component = ui.Component{
     Key: "layouts/main",

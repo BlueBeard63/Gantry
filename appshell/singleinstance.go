@@ -3,7 +3,7 @@ package appshell
 import (
 	"net"
 
-	"github.com/B-Commissions/Gantry/internal/launch"
+	"github.com/BlueBeard63/Gantry/internal/launch"
 )
 
 // Listen binds the app's local loopback port, doubling as the

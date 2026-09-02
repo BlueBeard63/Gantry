@@ -8,7 +8,7 @@ import (
 	"path/filepath"
 	"runtime"
 
-	"github.com/B-Commissions/Gantry/gerr"
+	"github.com/BlueBeard63/Gantry/gerr"
 )
 
 // showReport opens the most recent gantry_test_report.html in the

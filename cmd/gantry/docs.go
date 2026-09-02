@@ -19,8 +19,8 @@ import (
 	"github.com/charmbracelet/x/ansi"
 	"github.com/charmbracelet/x/term"
 
-	"github.com/B-Commissions/Gantry/docs"
-	"github.com/B-Commissions/Gantry/internal/launch"
+	"github.com/BlueBeard63/Gantry/docs"
+	"github.com/BlueBeard63/Gantry/internal/launch"
 )
 
 // cmdDocs browses the embedded documentation: a sidebar with search and

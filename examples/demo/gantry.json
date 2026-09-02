@@ -1,5 +1,5 @@
 {
-  "$schema": "https://raw.githubusercontent.com/B-Commissions/Gantry/main/gantry.schema.json",
+  "$schema": "https://raw.githubusercontent.com/BlueBeard63/Gantry/main/gantry.schema.json",
   "name": "demo",
   "title": "Demo",
   "version": "0.1.0",

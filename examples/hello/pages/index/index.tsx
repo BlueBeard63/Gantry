@@ -6,7 +6,7 @@ import { usePaired, ExternalLink } from "gantry-web";
 
 function GantryLogo() {
   return (
-    <ExternalLink href="https://github.com/B-Commissions/Gantry">
+    <ExternalLink href="https://github.com/BlueBeard63/Gantry">
       <svg className="logo gantry" viewBox="0 0 32 32" width="96" height="96" aria-label="Gantry logo">
         <path
           d="M4 27 V10 H28 V27 M10 10 V5 H22 V10 M16 10 V17"

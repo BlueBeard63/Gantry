@@ -13,7 +13,7 @@ package p_examples_page1__id_
 import (
 	"fmt"
 
-	"github.com/B-Commissions/Gantry/ui"
+	"github.com/BlueBeard63/Gantry/ui"
 )
 
 var Page = ui.Page{

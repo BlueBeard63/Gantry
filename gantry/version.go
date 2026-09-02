@@ -8,7 +8,7 @@ import (
 
 // injectedVersion is stamped by gantry dev/build via
 //
-//	-ldflags "-X github.com/B-Commissions/Gantry/gantry.injectedVersion=<v>"
+//	-ldflags "-X github.com/BlueBeard63/Gantry/gantry.injectedVersion=<v>"
 //
 // from gantry.json's "version" field - the file stays the single
 // source of truth and the exe carries the value everywhere.

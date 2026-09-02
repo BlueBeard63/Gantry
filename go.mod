@@ -1,4 +1,4 @@
-module github.com/B-Commissions/Gantry
+module github.com/BlueBeard63/Gantry
 
 go 1.25.0
 

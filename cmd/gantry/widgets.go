@@ -124,7 +124,7 @@ func writeWidgetRegistry(appDir string, cfg appConfig) error {
 	b.WriteString("// a widgets/<name>/<name>.go pair and it registers itself.\n\n")
 	b.WriteString("package main\n\n")
 	b.WriteString("import (\n")
-	b.WriteString("\t\"github.com/B-Commissions/Gantry/gantry\"\n\n")
+	b.WriteString("\t\"github.com/BlueBeard63/Gantry/gantry\"\n\n")
 	for _, w := range widgets {
 		fmt.Fprintf(&b, "\tw_%s %q\n", sanitizeIdent(w.Name), module+"/widgets/"+w.Name)
 	}

@@ -22,7 +22,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/B-Commissions/Gantry/ui"
+	"github.com/BlueBeard63/Gantry/ui"
 )
 
 // httpClient bounds every Open-Meteo request; a call still times out at

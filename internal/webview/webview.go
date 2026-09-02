@@ -33,8 +33,8 @@ import (
 	"sync"
 	"unsafe"
 
-	_ "github.com/B-Commissions/Gantry/internal/webview/libs/webview"
-	_ "github.com/B-Commissions/Gantry/internal/webview/libs/webview/include"
+	_ "github.com/BlueBeard63/Gantry/internal/webview/libs/webview"
+	_ "github.com/BlueBeard63/Gantry/internal/webview/libs/webview/include"
 )
 
 func init() {

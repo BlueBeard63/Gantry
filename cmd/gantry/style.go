@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/B-Commissions/Gantry/gerr"
+	"github.com/BlueBeard63/Gantry/gerr"
 	"github.com/charmbracelet/lipgloss"
 )
 

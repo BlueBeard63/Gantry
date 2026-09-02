@@ -5,7 +5,7 @@
 package main
 
 import (
-	"github.com/B-Commissions/Gantry/gantry"
+	"github.com/BlueBeard63/Gantry/gantry"
 
 	w_status "demo/widgets/status"
 )

@@ -19,8 +19,8 @@ import (
 	"github.com/yuin/goldmark/parser"
 	"github.com/yuin/goldmark/text"
 
-	"github.com/B-Commissions/Gantry/docs"
-	"github.com/B-Commissions/Gantry/internal/launch"
+	"github.com/BlueBeard63/Gantry/docs"
+	"github.com/BlueBeard63/Gantry/internal/launch"
 )
 
 // serveDocsWeb renders the embedded docs to HTML, serves them from a
@@ -548,7 +548,7 @@ func (s *docsSite) handler() http.Handler {
 		}
 		data := pageData{
 			SiteVersion:   s.version,
-			GitHubURL:     "https://github.com/B-Commissions/Gantry",
+			GitHubURL:     "https://github.com/BlueBeard63/Gantry",
 			PageTitle:     rp.PageTitle,
 			CategoryTitle: rp.CategoryTitle,
 			Content:       rp.Body,

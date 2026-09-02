@@ -10,7 +10,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/B-Commissions/Gantry/gantrytest/report"
+	"github.com/BlueBeard63/Gantry/gantrytest/report"
 )
 
 // The report data layer: the driver writes one report.LaunchRecord per

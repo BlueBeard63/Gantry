@@ -36,7 +36,7 @@ Any current LTS (v20 or newer) is fine. On Windows the CLI looks for `npm.cmd` a
 The CLI is the one command you actually type: it scaffolds apps (`gantry new`), runs them with live reload (`gantry dev`), and builds the final exe (`gantry build`). Install it straight from the module with `go install` - the CLI is pure Go, so this works on every platform with nothing but the Go toolchain (on Linux the GTK/WebKitGTK packages below are only needed later, when you build an app):
 
 ```
-go install github.com/B-Commissions/Gantry/cmd/gantry@latest
+go install github.com/BlueBeard63/Gantry/cmd/gantry@latest
 ```
 
 `go install` compiles `gantry.exe` and drops it in your Go bin directory - `%USERPROFILE%\go\bin` unless you have set `GOBIN`. Run `go env GOPATH GOBIN` if you are unsure where that is. That directory needs to be on your `PATH`; the Go installer usually adds it, but if the next command is "not recognized", add the bin folder to `PATH` and open a new terminal. Verify:
@@ -79,9 +79,9 @@ You do not need any of this for your first app - it is here for when you develop
 To install the CLI from a clone instead of the module proxy:
 
 ```
-git clone https://github.com/B-Commissions/Gantry
+git clone https://github.com/BlueBeard63/Gantry
 cd Gantry
 go install ./cmd/gantry
 ```
 
-An app scaffolded from inside a checkout (or with `--gantry-dir`, or with `GANTRY_DIR` set) points its `go.mod` `replace` directive and its `package.json` `gantry-web` entry at that checkout, so every edit to the framework shows up in the app immediately; pass `gantry new --no-replace` to force the published module even then. If the repo is still private, set `GOPRIVATE=github.com/B-Commissions` so the Go tool skips the public proxy and checksum database for it. How apps depend on the two halves is covered in [Project structure](project-structure.md).
+An app scaffolded from inside a checkout (or with `--gantry-dir`, or with `GANTRY_DIR` set) points its `go.mod` `replace` directive and its `package.json` `gantry-web` entry at that checkout, so every edit to the framework shows up in the app immediately; pass `gantry new --no-replace` to force the published module even then. If the repo is still private, set `GOPRIVATE=github.com/BlueBeard63` so the Go tool skips the public proxy and checksum database for it. How apps depend on the two halves is covered in [Project structure](project-structure.md).

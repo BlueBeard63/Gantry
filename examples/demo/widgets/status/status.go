@@ -7,7 +7,7 @@ package status
 import (
 	"time"
 
-	"github.com/B-Commissions/Gantry/widget"
+	"github.com/BlueBeard63/Gantry/widget"
 )
 
 var Widget = widget.New("status", func() widget.Node {

@@ -12,7 +12,7 @@ import (
 	"time"
 )
 
-const modulePath = "github.com/B-Commissions/Gantry"
+const modulePath = "github.com/BlueBeard63/Gantry"
 
 // checkForUpdate prints a one-line notice when a newer Gantry tag
 // exists. It asks the Go module proxy at most once per day (cached),

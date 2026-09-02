@@ -8,7 +8,7 @@ package notify
 import (
 	"strconv"
 
-	"github.com/B-Commissions/Gantry/appshell"
+	"github.com/BlueBeard63/Gantry/appshell"
 )
 
 // Notifier spawns popup windows by re-invoking the app's exe. The

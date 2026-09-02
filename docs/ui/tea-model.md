@@ -58,7 +58,7 @@ package stats
 import (
     "time"
 
-    "github.com/B-Commissions/Gantry/ui"
+    "github.com/BlueBeard63/Gantry/ui"
 )
 
 var Page = ui.Page{

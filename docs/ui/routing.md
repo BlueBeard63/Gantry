@@ -98,7 +98,7 @@ const path = useRoute(); // current pathname, re-renders on every navigation
 For links that leave the app (docs, your repo, a website), use `ExternalLink` instead: in the native window it opens the URL in the user's **default browser** rather than navigating the app window, and renders without an `href` so no URL-preview bubble ever appears. In a plain browser tab it falls back to a normal `target="_blank"` new-tab link.
 
 ```tsx
-<ExternalLink href="https://github.com/B-Commissions/Gantry">Source</ExternalLink>
+<ExternalLink href="https://github.com/BlueBeard63/Gantry">Source</ExternalLink>
 ```
 
 Under the hood `ExternalLink` calls `shell.openExternal(url)` from [useShell()](../shell/window-chrome.md#the-useshell-surface) - the same one-liner you can call directly (from a button handler, say) to open a URL in the default browser without ever navigating the app window.

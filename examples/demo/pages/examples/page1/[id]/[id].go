@@ -11,7 +11,7 @@ package dynid
 import (
 	"fmt"
 
-	"github.com/B-Commissions/Gantry/ui"
+	"github.com/BlueBeard63/Gantry/ui"
 )
 
 var Page = ui.Page{

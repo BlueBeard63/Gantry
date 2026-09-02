@@ -11,8 +11,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/B-Commissions/Gantry/gantrytest/report"
-	"github.com/B-Commissions/Gantry/gerr"
+	"github.com/BlueBeard63/Gantry/gantrytest/report"
+	"github.com/BlueBeard63/Gantry/gerr"
 )
 
 // cmdTest runs the app's end-to-end tests: Go tests under tests/

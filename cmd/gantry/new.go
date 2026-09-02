@@ -13,7 +13,7 @@ import (
 	"strings"
 	"text/template"
 
-	"github.com/B-Commissions/Gantry/appicon"
+	"github.com/BlueBeard63/Gantry/appicon"
 )
 
 //go:embed templates
@@ -378,7 +378,7 @@ func resolveGantryDir(flagVal string) string {
 
 func verifyGantryDir(dir string) (string, error) {
 	data, err := os.ReadFile(filepath.Join(dir, "go.mod"))
-	if err != nil || !strings.Contains(string(data), "module github.com/B-Commissions/Gantry") {
+	if err != nil || !strings.Contains(string(data), "module github.com/BlueBeard63/Gantry") {
 		return "", fmt.Errorf("%s is not a Gantry checkout", dir)
 	}
 	abs, err := filepath.Abs(dir)

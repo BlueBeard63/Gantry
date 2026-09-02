@@ -4,7 +4,7 @@ import (
 	"context"
 	"log"
 
-	"github.com/B-Commissions/Gantry/tray"
+	"github.com/BlueBeard63/Gantry/tray"
 )
 
 // App wires the standard desktop lifecycle: a main window that runs on

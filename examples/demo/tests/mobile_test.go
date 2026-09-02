@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/B-Commissions/Gantry/gantrytest"
+	"github.com/BlueBeard63/Gantry/gantrytest"
 )
 
 // The DOM plane transfers to the phone: the same Find/Click/Text code
