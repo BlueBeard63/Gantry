@@ -45,6 +45,10 @@ func RunWidget(opts WidgetOptions) error {
 		closeWindow(prev)
 	}
 
+	// Capture compatibility rides in on the environment: the main process
+	// sets WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS and this child inherited
+	// it; the env-var override still applies for a standalone run.
+	windowsEnvFixes(false)
 	w := webview2.NewWithOptions(webview2.WebViewOptions{
 		Debug:     false,
 		AutoFocus: false,

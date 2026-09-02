@@ -125,6 +125,7 @@ These fields configure the frameless frame, the title-bar buttons and the invisi
 | `CaptionLeftReserve` | `int` | `8` | Non-drag clickable zone on the left. |
 | `CaptionRightReserve` | `int` | `150` | Non-drag zone where the window buttons live. |
 | `ResizeMargin` | `int` | `6` | Edge thickness that starts a native resize. |
+| `CaptureCompatible` | `bool` | `false` | Render without GPU compositing on Windows so legacy capturers (OBS BitBlt) see the window. See [Screen recording and capture](#screen-recording-and-capture). |
 
 ## Screen recording and capture
 
@@ -135,9 +136,11 @@ Capture it with a method that reads composited windows instead:
 - **OBS:** add a **Windows Graphics Capture (WGC)** source (Sources → `+` → *Windows Capture*, and pick the **Windows 10 (1903+)** / *Windows Graphics Capture* method), then select the Gantry window. WGC reads the composited surface correctly. If a source only offers the BitBlt method, or shows black, that is the legacy path - switch it to Windows Graphics Capture.
 - The same applies to every Gantry window: the main window, [widgets](widgets.md) and popups/[notifications](notifications.md) are each their own WebView2 window (separate processes), so capture each the same way.
 
+When the recorder cannot use WGC - older capture software, a virtual-camera tool, anything stuck on BitBlt - opt the app into capture-compatible rendering instead: set `CaptureCompatible: true` in `WindowOptions` (in your `main.go`'s `Window:` hook), and the app renders without GPU compositing so legacy capturers see real pixels. It applies to every window of the app - widgets and popups inherit it automatically. The trade-off is losing GPU-accelerated rendering (animations and large surfaces draw on the CPU), which is why it is opt-in rather than the default. End users can also force it either way without an app change by setting `GANTRY_CAPTURE_COMPAT=1` (or `=0` to override an app that opted in) before launching the exe - handy when someone just needs to record an app whose developer never set the option.
+
 On the window name you see in a recorder's window list: the built binary is named after your app (`gantry build` emits `dist/<os>/<arch>/<name>.exe`, where `<name>` is the `name` in `gantry.json`), and `Title` above sets the window/taskbar caption. A recorder that shows a generic entry is listing the underlying WebView2 window (whose native window class is the generic `"webview"`), not a different executable.
 
-> A future release may add an opt-in to render without GPU compositing (so legacy BitBlt capture works too); today, Windows Graphics Capture is the supported path.
+On Linux this is a non-issue: the compositor owns every window's pixels, so OBS's normal capture paths (XComposite on X11, the PipeWire portal on Wayland) see WebKitGTK windows without any option; `CaptureCompatible` is ignored there.
 
 ## Related pages
 

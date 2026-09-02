@@ -81,6 +81,7 @@ func RunWindow(opts WindowOptions) error {
 		opts.X, opts.Y = rect.X, rect.Y
 	}
 
+	windowsEnvFixes(opts.CaptureCompatible)
 	w := webview2.NewWithOptions(webview2.WebViewOptions{
 		Debug:     opts.Debug,
 		AutoFocus: opts.AutoFocus,
