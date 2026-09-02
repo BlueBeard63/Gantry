@@ -56,7 +56,13 @@ The left pane holds a search box and the category tree, the right pane the page.
 claude mcp add gantry-docs -- gantry docs --mcp
 ```
 
-The same server works for any MCP client (Codex, Cursor, ...) through that client's own MCP configuration.
+The same server works for any MCP client (Codex, Cursor, ...) through that client's own MCP configuration - for Codex, `codex mcp add gantry-docs -- gantry docs --mcp` or a `[mcp_servers.gantry-docs]` stanza in `~/.codex/config.toml` with `command = "gantry"` and `args = ["docs", "--mcp"]`.
+
+### Agent files in scaffolded apps
+
+`gantry new` sets all of this up for you: every app ships an `AGENTS.md` (the agent entry point), the `gantry` skill at both `.claude/skills/gantry/SKILL.md` and `.agents/skills/gantry/SKILL.md` (Claude Code and Codex read their respective directories), and a project-scope `.mcp.json` that registers `gantry-docs` for Claude Code automatically - approve it on first use. The skill teaches an agent the paired-file model, the CLI, testing, and to reach for `search_docs`/`read_doc` instead of guessing at framework APIs.
+
+`gantry upgrade` maintains them: the two skill copies are tooling files (refreshed to the CLI's version by default, so agents always get current guidance), while `AGENTS.md` and `.mcp.json` are yours - extend them freely, upgrade defaults to keeping your version. An app scaffolded before these files existed gets an offer to create them on its next `gantry upgrade`; decline if you do not want them, or delete them - they are plain text with no runtime effect.
 
 ## gantry --version
 

@@ -301,6 +301,13 @@ func scaffoldFiles(s scaffold) []scaffoldFile {
 		{"components/example.go.tmpl", "components/example/example.go", s.Multi, true},
 		{"components/example.tsx.tmpl", "components/example/example.tsx", s.Multi, true},
 		{"components/example.css.tmpl", "components/example/example.css", s.Multi, true},
+		// Agent guidance: the same skill for both agent ecosystems
+		// (framework-maintained, refreshed on upgrade), plus the app's own
+		// AGENTS.md and MCP registration (user files, kept on upgrade).
+		{"agents/SKILL.md.tmpl", ".claude/skills/gantry/SKILL.md", true, false},
+		{"agents/SKILL.md.tmpl", ".agents/skills/gantry/SKILL.md", true, false},
+		{"agents/AGENTS.md.tmpl", "AGENTS.md", true, true},
+		{"agents/mcp.json.tmpl", ".mcp.json", true, true},
 	}
 }
 

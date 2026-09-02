@@ -1,0 +1,28 @@
+# [[.Title]]
+
+A desktop app built with the [Gantry](https://github.com/BlueBeard63/Gantry) framework - a Go backend and React frontend paired in one module, compiled to a single exe (`[[.Name]]`).
+
+**Before making changes, read the Gantry skill** at `.claude/skills/gantry/SKILL.md` (the same file lives at `.agents/skills/gantry/SKILL.md`). It covers the paired `.go`/`.tsx` model, the CLI, testing, and the golden rules. The short version:
+
+- Never edit generated files: `gantry_*.go`, `.gantry/`, `webdist/`, `dist/` - they are rewritten on every build.
+- After adding/renaming a page or component folder, run `gantry gen` (or let `gantry dev` do it).
+- `gantry dev` runs the app with live reload; `gantry build` makes the exe; `gantry test` drives the real app through the tests in `tests/`.
+
+## Framework docs
+
+The full Gantry documentation is embedded in the `gantry` CLI and exposed as an MCP server (`search_docs` / `read_doc` / `list_docs`). Look things up there before guessing at framework APIs.
+
+- **Claude Code**: `.mcp.json` in this repo already registers the `gantry-docs` server - approve it on first use. (Manual form: `claude mcp add gantry-docs -- gantry docs --mcp`.)
+- **Codex**: `codex mcp add gantry-docs -- gantry docs --mcp`, or add to `~/.codex/config.toml`:
+
+```toml
+[mcp_servers.gantry-docs]
+command = "gantry"
+args = ["docs", "--mcp"]
+```
+
+- **No MCP**: `gantry docs --print <topic>` prints the best-matching page as markdown.
+
+## Project notes
+
+<!-- App-specific guidance goes here - this file is yours; gantry upgrade will not overwrite it by default. -->
