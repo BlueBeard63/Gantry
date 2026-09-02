@@ -33,7 +33,6 @@ var (
 
 	shell32            = syscall.NewLazyDLL("shell32.dll")
 	procExtractIconExW = shell32.NewProc("ExtractIconExW")
-	procShellExecuteW  = shell32.NewProc("ShellExecuteW")
 
 	winmm          = syscall.NewLazyDLL("winmm.dll")
 	procPlaySoundW = winmm.NewProc("PlaySoundW")

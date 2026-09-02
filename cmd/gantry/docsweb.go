@@ -19,8 +19,8 @@ import (
 	"github.com/yuin/goldmark/parser"
 	"github.com/yuin/goldmark/text"
 
-	"github.com/B-Commissions/Gantry/appshell"
 	"github.com/B-Commissions/Gantry/docs"
+	"github.com/B-Commissions/Gantry/internal/launch"
 )
 
 // serveDocsWeb renders the embedded docs to HTML, serves them from a
@@ -39,7 +39,7 @@ func serveDocsWeb(pages []docPage, start int, aiOn bool) error {
 		go ensureOllamaModel(site.aiCfg)
 	}
 
-	ln, err := appshell.Listen(0) // 0 -> the OS hands us a free loopback port
+	ln, err := launch.Listen(0) // 0 -> the OS hands us a free loopback port
 	if err != nil {
 		return err
 	}
@@ -58,7 +58,7 @@ func serveDocsWeb(pages []docPage, start int, aiOn bool) error {
 	go func() { _ = srv.Serve(ln) }()
 
 	info("serving docs at %s", base)
-	if err := appshell.OpenInBrowser(openURL); err != nil {
+	if err := launch.OpenInBrowser(openURL); err != nil {
 		info("open %s in your browser", openURL)
 	}
 	info("press Ctrl+C to stop")

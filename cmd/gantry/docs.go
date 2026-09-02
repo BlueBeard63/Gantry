@@ -19,8 +19,8 @@ import (
 	"github.com/charmbracelet/x/ansi"
 	"github.com/charmbracelet/x/term"
 
-	"github.com/B-Commissions/Gantry/appshell"
 	"github.com/B-Commissions/Gantry/docs"
+	"github.com/B-Commissions/Gantry/internal/launch"
 )
 
 // cmdDocs browses the embedded documentation: a sidebar with search and
@@ -281,7 +281,7 @@ func (m *docsModel) render() {
 
 func (m *docsModel) followLink(l docLink) {
 	if strings.HasPrefix(l.target, "http://") || strings.HasPrefix(l.target, "https://") {
-		if err := appshell.OpenInBrowser(l.target); err != nil {
+		if err := launch.OpenInBrowser(l.target); err != nil {
 			if clipboard.WriteAll(l.target) == nil {
 				m.status = "could not open browser - link copied to clipboard"
 			} else {

@@ -33,7 +33,7 @@ Any current LTS (v20 or newer) is fine. On Windows the CLI looks for `npm.cmd` a
 
 ## Install the gantry CLI
 
-The CLI is the one command you actually type: it scaffolds apps (`gantry new`), runs them with live reload (`gantry dev`), and builds the final exe (`gantry build`). Install it straight from the module with `go install`:
+The CLI is the one command you actually type: it scaffolds apps (`gantry new`), runs them with live reload (`gantry dev`), and builds the final exe (`gantry build`). Install it straight from the module with `go install` - the CLI is pure Go, so this works on every platform with nothing but the Go toolchain (on Linux the GTK/WebKitGTK packages below are only needed later, when you build an app):
 
 ```
 go install github.com/B-Commissions/Gantry/cmd/gantry@latest
@@ -54,18 +54,21 @@ Before `new`, `dev`, `build`, and `test`, the CLI does a once-a-day check agains
 
 ## Linux prerequisites
 
-Building on Linux links against GTK and WebKitGTK, so you need their development packages (the resulting exe then runs on machines that only have the ordinary runtime libraries):
+Installing the CLI itself (`go install` above) is pure Go and needs none of this - the packages below are only required once you build or run an app, because building an app links against GTK and WebKitGTK (the resulting exe then runs on machines that only have the ordinary runtime libraries). Gantry links `webkit2gtk-4.1`, the build every current distro ships - no pkg-config symlinks needed.
+
+Debian / Ubuntu:
 
 ```
-sudo apt-get install libgtk-3-dev libwebkit2gtk-4.1-dev pkg-config gcc
+sudo apt-get install libgtk-3-dev libwebkit2gtk-4.1-dev build-essential pkg-config
 ```
 
-On distros that only ship `webkit2gtk-4.1` (Ubuntu 24.04+), symlink the `4.0` pkg-config name the webview library still asks for - the two are API-compatible for what Gantry uses:
+Fedora:
 
 ```
-sudo ln -s /usr/lib/x86_64-linux-gnu/pkgconfig/webkit2gtk-4.1.pc \
-           /usr/lib/x86_64-linux-gnu/pkgconfig/webkit2gtk-4.0.pc
+sudo dnf install gtk3-devel webkit2gtk4.1-devel gcc gcc-c++ pkgconf-pkg-config
 ```
+
+Do not install or alias the GTK4-based `webkitgtk-6.0` packages - Gantry's shell is GTK3 and cannot link them. On old distros that only ship `webkit2gtk-4.0` (Debian 11, Ubuntu 20.04), build with the legacy name selected: `GOFLAGS=-tags=webkit2gtk40 gantry dev` (or pass `-tags webkit2gtk40` to `go build`). And a `-tags nogui` build needs no GTK packages at all - it strips the native window on every platform, see [Architecture](../advanced/architecture.md).
 
 Under WSLg specifically, Gantry disables WebKit's DMA-BUF renderer for you (it cannot drive WSL's software GL and produces a white, input-dead window); real Linux machines keep the GPU path. Set `WEBKIT_DISABLE_DMABUF_RENDERER` yourself to override in either direction. Note that Windows cannot cross-compile Linux builds - `gantry build` skips a `linux/*` target with a hint to run the build on a Linux machine (WSL counts).
 

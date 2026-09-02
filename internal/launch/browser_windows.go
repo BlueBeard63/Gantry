@@ -1,11 +1,16 @@
 //go:build windows
 
-package appshell
+package launch
 
 import (
 	"fmt"
 	"syscall"
 	"unsafe"
+)
+
+var (
+	shell32           = syscall.NewLazyDLL("shell32.dll")
+	procShellExecuteW = shell32.NewProc("ShellExecuteW")
 )
 
 // OpenInBrowser opens url in the OS default browser (the --browser mode
@@ -26,7 +31,7 @@ func OpenInBrowser(url string) error {
 		0, uintptr(unsafe.Pointer(verb)), uintptr(unsafe.Pointer(target)), 0, 0, swShowNormal,
 	)
 	if ret <= 32 { // per ShellExecute docs, <=32 means failure
-		return fmt.Errorf("appshell: opening browser failed (ShellExecute code %d)", ret)
+		return fmt.Errorf("launch: opening browser failed (ShellExecute code %d)", ret)
 	}
 	return nil
 }

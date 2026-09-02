@@ -2,8 +2,12 @@
 
 package appshell
 
+// The pkg-config flags for this block live in cgo_webkit41_linux.go /
+// cgo_webkit40_linux.go so the webkit2gtk40 build tag can pick the
+// legacy library name (cgo directives accumulate across a package's
+// files).
+
 /*
-#cgo pkg-config: gtk+-3.0 webkit2gtk-4.0
 #include <gtk/gtk.h>
 #include <gdk/gdk.h>
 #include <webkit2/webkit2.h>
