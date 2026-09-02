@@ -12,7 +12,7 @@ import (
 
 	"github.com/coder/websocket"
 
-	"github.com/B-Commissions/Gantry/ui"
+	"github.com/BlueBeard63/Gantry/ui"
 )
 
 // ErrorInfo is one captured app error - kind, code, message, the page

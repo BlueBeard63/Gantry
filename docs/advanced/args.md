@@ -65,7 +65,7 @@ An invalid value in the environment (letters in an int arg) never crashes a ship
 ## Reading args in Go
 
 ```go
-import "github.com/B-Commissions/Gantry/gantry"
+import "github.com/BlueBeard63/Gantry/gantry"
 
 gantry.Arg("api-host")      // "10.0.0.5" - any arg formatted as a string
 gantry.ArgBool("mock-data") // true

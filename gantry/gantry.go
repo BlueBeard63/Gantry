@@ -34,10 +34,10 @@ import (
 	"path/filepath"
 	"strconv"
 
-	"github.com/B-Commissions/Gantry/appicon"
-	"github.com/B-Commissions/Gantry/appshell"
-	"github.com/B-Commissions/Gantry/tray"
-	"github.com/B-Commissions/Gantry/ui"
+	"github.com/BlueBeard63/Gantry/appicon"
+	"github.com/BlueBeard63/Gantry/appshell"
+	"github.com/BlueBeard63/Gantry/tray"
+	"github.com/BlueBeard63/Gantry/ui"
 )
 
 // RoleArgs carries the standard child-window flags to a custom role.

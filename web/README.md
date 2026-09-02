@@ -1,6 +1,6 @@
 # gantry-web
 
-The frontend half of [Gantry](https://github.com/B-Commissions/Gantry),
+The frontend half of [Gantry](https://github.com/BlueBeard63/Gantry),
 a Go framework for building native desktop apps with React interfaces.
 This package provides the window chrome, the bridge to the native
 window, the Tea runtime, the router, and the Vite plugin that powers
@@ -8,7 +8,7 @@ Gantry's paired-file convention.
 
 You normally do not install this by hand - `gantry new` scaffolds an
 app with it wired up. See the
-[Gantry documentation](https://github.com/B-Commissions/Gantry/tree/main/docs)
+[Gantry documentation](https://github.com/BlueBeard63/Gantry/tree/main/docs)
 or run `gantry docs` for the full story.
 
 ## What it exports

@@ -15,7 +15,7 @@ myapp/
 ## Quick start
 
 ```
-go install github.com/B-Commissions/Gantry/cmd/gantry@latest
+go install github.com/BlueBeard63/Gantry/cmd/gantry@latest
 gantry new myapp
 cd myapp
 gantry dev      # live-reload development in a native window

@@ -435,7 +435,7 @@ func widgetAppDir(t *testing.T, names ...string) string {
 		if err := os.MkdirAll(dir, 0o755); err != nil {
 			t.Fatal(err)
 		}
-		src := "package " + name + "\n\nimport \"github.com/B-Commissions/Gantry/widget\"\n\nvar Widget = widget.New(\"" + name + "\", nil)\n"
+		src := "package " + name + "\n\nimport \"github.com/BlueBeard63/Gantry/widget\"\n\nvar Widget = widget.New(\"" + name + "\", nil)\n"
 		if err := os.WriteFile(filepath.Join(dir, name+".go"), []byte(src), 0o644); err != nil {
 			t.Fatal(err)
 		}

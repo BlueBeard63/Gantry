@@ -13,7 +13,7 @@ import (
 
 	_ "embed"
 
-	"github.com/B-Commissions/Gantry/gantrytest/report"
+	"github.com/BlueBeard63/Gantry/gantrytest/report"
 )
 
 func base64Std(b []byte) string { return base64.StdEncoding.EncodeToString(b) }

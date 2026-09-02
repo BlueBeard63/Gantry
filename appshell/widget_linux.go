@@ -5,7 +5,7 @@ package appshell
 import (
 	"errors"
 
-	webview "github.com/webview/webview_go"
+	webview "github.com/BlueBeard63/Gantry/internal/webview"
 )
 
 // RunWidget opens a small always-on-top helper window (WebKitGTK) and

@@ -15,7 +15,7 @@ jobs:
       - uses: actions/setup-node@v4
         with: { node-version: 22, cache: npm }
       - run: npm ci
-      - run: go run github.com/B-Commissions/Gantry/cmd/gantry@latest test -v
+      - run: go run github.com/BlueBeard63/Gantry/cmd/gantry@latest test -v
       - uses: actions/upload-artifact@v4
         if: failure()
         with:
@@ -70,7 +70,7 @@ jobs:
           arch: x86_64
           force-avd-creation: false
           emulator-options: -no-window -no-audio -no-boot-anim -gpu swiftshader_indirect
-          script: go run github.com/B-Commissions/Gantry/cmd/gantry@latest test --device android -v
+          script: go run github.com/BlueBeard63/Gantry/cmd/gantry@latest test --device android -v
       - uses: actions/upload-artifact@v4
         if: failure()
         with:

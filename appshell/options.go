@@ -104,6 +104,17 @@ type WindowOptions struct {
 	// window always opens at the configured size and position.
 	Geometry GeometryStore
 
+	// CaptureCompatible renders the WebView2 content without GPU
+	// compositing (Windows only) so legacy screen capturers - OBS
+	// "Window Capture (BitBlt)", older Display Capture paths - see the
+	// window instead of a black rectangle. Composited capture (Windows
+	// Graphics Capture) works without this. Costs GPU-accelerated
+	// rendering, so it is opt-in; end users can override either way with
+	// GANTRY_CAPTURE_COMPAT=1/0 before launching. Applies to every
+	// window of the app (widgets and popups inherit it). No effect on
+	// Linux, where compositor capture sees WebKitGTK windows normally.
+	CaptureCompatible bool
+
 	// Debug enables webview devtools.
 	Debug bool
 	// AutoFocus focuses the webview when the window gains focus.

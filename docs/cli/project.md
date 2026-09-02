@@ -81,11 +81,11 @@ It takes no gantry flags of its own; with no packages it prints its usage.
 
 ## gantry update
 
-Updates the gantry CLI itself to the newest release - the built-in replacement for re-running `go install github.com/B-Commissions/Gantry/cmd/gantry@latest`. It looks up the latest tag on the Go module proxy, reinstalls when you are behind, and on Windows renames the running exe aside first (a running binary cannot be overwritten; the leftover `gantry-old.exe` is cleaned up by the next update). A CLI built from a local checkout is never auto-updated - it tells you to `git pull && go install ./cmd/gantry` from the checkout instead.
+Updates the gantry CLI itself to the newest release - the built-in replacement for re-running `go install github.com/BlueBeard63/Gantry/cmd/gantry@latest`. It looks up the latest tag on the Go module proxy, reinstalls when you are behind, and on Windows renames the running exe aside first (a running binary cannot be overwritten; the leftover `gantry-old.exe` is cleaned up by the next update). A CLI built from a local checkout is never auto-updated - it tells you to `git pull && go install ./cmd/gantry` from the checkout instead.
 
 ```
 gantry update
-gantry: go install github.com/B-Commissions/Gantry/cmd/gantry@v0.4.0
+gantry: go install github.com/BlueBeard63/Gantry/cmd/gantry@v0.4.0
 gantry: updated v0.3.4 -> v0.4.0
 gantry: run gantry upgrade inside your apps to pull the matching template and package changes
 ```
@@ -110,7 +110,7 @@ Flags:
 
 What it does, in order:
 
-- Bumps the `github.com/B-Commissions/Gantry` requirement (`go get` + `go mod tidy`) - skipped when `go.mod` `replace`s it with a local checkout.
+- Bumps the `github.com/BlueBeard63/Gantry` requirement (`go get` + `go mod tidy`) - skipped when `go.mod` `replace`s it with a local checkout.
 - Pins `gantry-web` in `package.json` to the exact matching version and runs `npm install` - skipped for `file:` links; the pin is a targeted edit, your other dependencies untouched.
 - Re-renders the scaffold templates with the choices recorded in `gantry.json` and compares each against your file: identical files are skipped, missing ones offered for creation, changed ones shown as a diff with a per-file prompt. Tooling files (`tsconfig.json`, `.vscode/`, `.gitignore`, `embed.go`) default to overwrite; files you own (`main.go`, `pages/`, `layouts/`, `components/`, `index.css`, `README.md`) default to keep. `go.mod`, `package.json` and `webdist/index.html` are never re-rendered (the first two were handled surgically above; the third is build output).
 - Regenerates the derived files (`.gantry/`, `gantry_registry.go`, `gantry_widgets.go`, `gantry_icons.go`), records the framework version in `gantry.json`'s `gantry` field, and prints any release notes for the versions you crossed.

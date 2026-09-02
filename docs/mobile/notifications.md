@@ -18,7 +18,7 @@ Without the grant, Android drops the notification but `Post` still returns `nil`
 ## Sending
 
 ```go
-import "github.com/B-Commissions/Gantry/notification"
+import "github.com/BlueBeard63/Gantry/notification"
 
 err := notification.Post(notification.Notification{
 	ID:    "steep",

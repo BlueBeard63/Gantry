@@ -8,7 +8,7 @@ import (
 	"os/signal"
 	"strconv"
 
-	"github.com/B-Commissions/Gantry/gerr"
+	"github.com/BlueBeard63/Gantry/gerr"
 )
 
 // cmdDev runs the app with live reload: vite dev serves the frontend

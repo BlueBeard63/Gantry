@@ -10,7 +10,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/B-Commissions/Gantry/gerr"
+	"github.com/BlueBeard63/Gantry/gerr"
 	"github.com/coder/websocket"
 )
 

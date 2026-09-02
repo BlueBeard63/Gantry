@@ -1,4 +1,4 @@
-module github.com/B-Commissions/Gantry
+module github.com/BlueBeard63/Gantry
 
 go 1.25.0
 
@@ -16,7 +16,6 @@ require (
 	github.com/jchv/go-webview2 v0.0.0-20260205173254-56598839c808
 	github.com/modelcontextprotocol/go-sdk v1.6.1
 	github.com/tc-hib/winres v0.3.1
-	github.com/webview/webview_go v0.0.0-20240831120633-6173450d4dd6
 	github.com/yuin/goldmark v1.7.13
 	github.com/yuin/goldmark-highlighting/v2 v2.0.0-20230729083705-37449abec8cc
 	golang.org/x/image v0.12.0

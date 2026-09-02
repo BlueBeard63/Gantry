@@ -1,6 +1,6 @@
 # Lazy Weather
 
-A **mobile** weather app built with [Gantry](https://github.com/B-Commissions/Gantry). Instead of raw numbers it frames today against yesterday - "Today's weather is ABOUT THE SAME as yesterday" - with a per-time-of-day delta and trend arrow on each forecast row. Data comes from [Open-Meteo](https://open-meteo.com) (free, no API key).
+A **mobile** weather app built with [Gantry](https://github.com/BlueBeard63/Gantry). Instead of raw numbers it frames today against yesterday - "Today's weather is ABOUT THE SAME as yesterday" - with a per-time-of-day delta and trend arrow on each forecast row. Data comes from [Open-Meteo](https://open-meteo.com) (free, no API key).
 
 It's the example for Gantry's **server-side** surface: a Go service that fetches an external API, shared state synced to React, `Await`/`Skeleton` loading, and on-device persistence.
 

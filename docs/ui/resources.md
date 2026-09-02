@@ -46,7 +46,7 @@ The paired `.go` side reads the same files with no HTTP round trip, through the 
 ```go
 import (
     "html/template"
-    "github.com/B-Commissions/Gantry/gantry"
+    "github.com/BlueBeard63/Gantry/gantry"
 )
 
 b, err := gantry.Resource("data/config.json")

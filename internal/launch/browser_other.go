@@ -1,6 +1,6 @@
 //go:build !windows
 
-package appshell
+package launch
 
 import (
 	"fmt"
@@ -16,6 +16,6 @@ func OpenInBrowser(url string) error {
 	case "darwin":
 		return exec.Command("open", url).Start()
 	default:
-		return fmt.Errorf("appshell: no browser opener for %s", runtime.GOOS)
+		return fmt.Errorf("launch: no browser opener for %s", runtime.GOOS)
 	}
 }

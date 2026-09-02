@@ -134,7 +134,7 @@ type buildOnce struct {
 
 // injectVersion is the ldflags -X target that stamps gantry.json's
 // version into the runtime (what gantry build does).
-const injectVersion = "github.com/B-Commissions/Gantry/gantry.injectedVersion"
+const injectVersion = "github.com/BlueBeard63/Gantry/gantry.injectedVersion"
 
 // testBinary returns the app binary to launch, building it if this is
 // the first Launch of the run.

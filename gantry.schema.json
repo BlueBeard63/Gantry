@@ -1,6 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "https://raw.githubusercontent.com/B-Commissions/Gantry/main/gantry.schema.json",
+  "$id": "https://raw.githubusercontent.com/BlueBeard63/Gantry/main/gantry.schema.json",
   "title": "gantry.json",
   "description": "Configuration for a Gantry desktop app - read by the gantry CLI (dev, build, gen).",
   "type": "object",

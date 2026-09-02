@@ -5,7 +5,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/B-Commissions/Gantry/monitors"
+	"github.com/BlueBeard63/Gantry/monitors"
 )
 
 // Rect is a window rectangle in virtual-desktop pixels.

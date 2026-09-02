@@ -12,8 +12,8 @@ import (
 	"io"
 	"net/http"
 
-	"github.com/B-Commissions/Gantry/notification"
-	"github.com/B-Commissions/Gantry/widget"
+	"github.com/BlueBeard63/Gantry/notification"
+	"github.com/BlueBeard63/Gantry/widget"
 )
 
 // registeredWidgets holds the app's home-screen widgets.

@@ -8,7 +8,7 @@ import (
 	"embed"
 	"io/fs"
 
-	"github.com/B-Commissions/Gantry/gantry"
+	"github.com/BlueBeard63/Gantry/gantry"
 )
 
 //go:embed all:resources

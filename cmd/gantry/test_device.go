@@ -5,7 +5,7 @@ import (
 	"os/exec"
 	"strings"
 
-	"github.com/B-Commissions/Gantry/gerr"
+	"github.com/BlueBeard63/Gantry/gerr"
 )
 
 // prepareDeviceTarget readies a phone or emulator for `gantry test

@@ -21,7 +21,7 @@ Then write the render function - it returns a small declarative tree:
 // widgets/status/status.go
 package status
 
-import "github.com/B-Commissions/Gantry/widget"
+import "github.com/BlueBeard63/Gantry/widget"
 
 var Widget = widget.New("status", func() widget.Node {
 	return widget.Column(

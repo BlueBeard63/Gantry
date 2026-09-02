@@ -4,8 +4,8 @@ import (
 	"encoding/json"
 	"testing"
 
-	"github.com/B-Commissions/Gantry/gantrytest"
-	"github.com/B-Commissions/Gantry/widget"
+	"github.com/BlueBeard63/Gantry/gantrytest"
+	"github.com/BlueBeard63/Gantry/widget"
 )
 
 // The status widget renders the current time, so its snapshot cannot

@@ -9,7 +9,7 @@ import (
 	"runtime/debug"
 	"sync/atomic"
 
-	"github.com/B-Commissions/Gantry/ui"
+	"github.com/BlueBeard63/Gantry/ui"
 )
 
 // ErrorInfo is one captured error: kind, code, message, stack, the

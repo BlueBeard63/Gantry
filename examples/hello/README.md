@@ -1,6 +1,6 @@
 # Hello
 
-A desktop app built with [Gantry](https://github.com/B-Commissions/Gantry).
+A desktop app built with [Gantry](https://github.com/BlueBeard63/Gantry).
 
 ## Layout
 

@@ -6,12 +6,12 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/B-Commissions/Gantry/gerr"
+	"github.com/BlueBeard63/Gantry/gerr"
 )
 
 // schemaURL points editors at the gantry.json schema for validation
 // and hover docs (fetched from GitHub by VS Code's JSON service).
-const schemaURL = "https://raw.githubusercontent.com/B-Commissions/Gantry/main/gantry.schema.json"
+const schemaURL = "https://raw.githubusercontent.com/BlueBeard63/Gantry/main/gantry.schema.json"
 
 // appConfig is gantry.json at the app root - written by gantry new,
 // edited by the developer, read by dev/build.

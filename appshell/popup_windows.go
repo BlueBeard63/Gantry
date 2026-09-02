@@ -21,6 +21,11 @@ func RunPopup(opts PopupOptions) error {
 		return err
 	}
 
+	// Capture compatibility rides in on the environment: the main process
+	// sets WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS and this child inherited
+	// it; the env-var override still applies for a standalone run.
+	windowsEnvFixes(false)
+
 	// The popup is normally a SEPARATE process from the main window: it
 	// must use its own WebView2 user-data folder, or environment
 	// creation fails while the main window holds the default one -

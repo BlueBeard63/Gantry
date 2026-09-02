@@ -6,7 +6,7 @@ package main
 import (
 	_ "embed"
 
-	"github.com/B-Commissions/Gantry/gantry"
+	"github.com/BlueBeard63/Gantry/gantry"
 )
 
 //go:embed "icons/icon.png"

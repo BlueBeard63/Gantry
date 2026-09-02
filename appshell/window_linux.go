@@ -8,7 +8,7 @@ import (
 	"sync/atomic"
 	"unsafe"
 
-	webview "github.com/webview/webview_go"
+	webview "github.com/BlueBeard63/Gantry/internal/webview"
 )
 
 // The main window's live handles, so tray Quit and Go code can reach

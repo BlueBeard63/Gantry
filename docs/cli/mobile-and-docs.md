@@ -67,7 +67,7 @@ gantry --version
 Version: v0.4.0
 ```
 
-Installed with `go install github.com/B-Commissions/Gantry/cmd/gantry@latest` this reports the module tag - the quick way to confirm an update took. Built from a local checkout it reports `(devel)` plus the commit revision when no tag info is available.
+Installed with `go install github.com/BlueBeard63/Gantry/cmd/gantry@latest` this reports the module tag - the quick way to confirm an update took. Built from a local checkout it reports `(devel)` plus the commit revision when no tag info is available.
 
 ## gantry.json
 
@@ -75,7 +75,7 @@ The file that makes a folder an app in the CLI's eyes; the app-finding commands 
 
 ```jsonc
 {
-  "$schema": "https://raw.githubusercontent.com/B-Commissions/Gantry/main/gantry.schema.json",
+  "$schema": "https://raw.githubusercontent.com/BlueBeard63/Gantry/main/gantry.schema.json",
   "name": "myapp",           // exe and Go module name
   "title": "Myapp",          // window title
   "version": "0.1.0",        // shown by installers; stamped into the exe by dev/build (gantry.Version() / useAppInfo())

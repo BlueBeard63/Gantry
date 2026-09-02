@@ -108,7 +108,7 @@ Written by `gantry new` so `dev`/`build` never re-ask your scaffold choices. A s
 
 ```json
 {
-  "$schema": "https://raw.githubusercontent.com/B-Commissions/Gantry/main/gantry.schema.json",
+  "$schema": "https://raw.githubusercontent.com/BlueBeard63/Gantry/main/gantry.schema.json",
   "name": "myapp",
   "title": "Myapp",
   "version": "0.1.0",

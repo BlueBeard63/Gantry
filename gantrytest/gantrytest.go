@@ -36,7 +36,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/B-Commissions/Gantry/gantrytest/report"
+	"github.com/BlueBeard63/Gantry/gantrytest/report"
 )
 
 // launchConfig is the resolved Launch options.

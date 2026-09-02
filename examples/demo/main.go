@@ -9,9 +9,9 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/B-Commissions/Gantry/appshell"
-	"github.com/B-Commissions/Gantry/gantry"
-	"github.com/B-Commissions/Gantry/ui"
+	"github.com/BlueBeard63/Gantry/appshell"
+	"github.com/BlueBeard63/Gantry/gantry"
+	"github.com/BlueBeard63/Gantry/ui"
 )
 
 func main() {

@@ -4,7 +4,7 @@
 
 package main
 
-import "github.com/B-Commissions/Gantry/gantry"
+import "github.com/BlueBeard63/Gantry/gantry"
 
 func init() {
 	gantry.SetArgSpecs([]gantry.ArgSpec{

@@ -11,9 +11,9 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/B-Commissions/Gantry/gantry"
-	"github.com/B-Commissions/Gantry/notification"
-	"github.com/B-Commissions/Gantry/ui"
+	"github.com/BlueBeard63/Gantry/gantry"
+	"github.com/BlueBeard63/Gantry/notification"
+	"github.com/BlueBeard63/Gantry/ui"
 )
 
 var Page = ui.Page{

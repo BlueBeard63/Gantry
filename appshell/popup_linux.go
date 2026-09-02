@@ -3,7 +3,7 @@
 package appshell
 
 import (
-	webview "github.com/webview/webview_go"
+	webview "github.com/BlueBeard63/Gantry/internal/webview"
 )
 
 // RunPopup opens a frameless, always-on-top notification window

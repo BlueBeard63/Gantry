@@ -6,7 +6,7 @@
 package main
 
 import (
-	"github.com/B-Commissions/Gantry/gantry"
+	"github.com/BlueBeard63/Gantry/gantry"
 )
 
 func main() {

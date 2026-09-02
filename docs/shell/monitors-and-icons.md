@@ -5,7 +5,7 @@ Two small packages the shell leans on: `monitors` for multi-display placement, a
 ## monitors
 
 ```go
-import "github.com/B-Commissions/Gantry/monitors"
+import "github.com/BlueBeard63/Gantry/monitors"
 
 all := monitors.All()          // every attached display
 m := monitors.Pick(all, index) // by index; -1 = primary; always returns something
@@ -35,7 +35,7 @@ Most of the time you never call this package: `WidgetOptions.Monitor`, `PopupOpt
 Windows wants icons in several places (taskbar, alt-tab, tray, exe) and two formats (PNG at runtime, ICO containers for the tray and exe). `appicon` draws a clean placeholder glyph - the Gantry mark (a portal frame with a hoist), the same shape as the scaffold's SVG logo - at any size and packs the containers, so a young app looks intentional without any asset work:
 
 ```go
-import "github.com/B-Commissions/Gantry/appicon"
+import "github.com/BlueBeard63/Gantry/appicon"
 
 img := appicon.Render(32, appicon.DefaultPalette()) // draw the glyph -> *image.NRGBA
 png := appicon.PNG(img)                             // window icon bytes ([]byte)

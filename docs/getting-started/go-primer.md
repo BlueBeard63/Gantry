@@ -17,7 +17,7 @@ package index
 To use code from another package, import it by its module path and call through the package name:
 
 ```go
-import "github.com/B-Commissions/Gantry/ui"
+import "github.com/BlueBeard63/Gantry/ui"
 
 var Page = ui.Page{Key: "pages/index"}
 ```

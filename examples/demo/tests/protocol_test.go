@@ -14,7 +14,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/B-Commissions/Gantry/gantrytest"
+	"github.com/BlueBeard63/Gantry/gantrytest"
 )
 
 func TestCounterClicks(t *testing.T) {

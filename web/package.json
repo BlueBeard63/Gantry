@@ -5,10 +5,10 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/B-Commissions/Gantry.git",
+    "url": "git+https://github.com/BlueBeard63/Gantry.git",
     "directory": "web"
   },
-  "homepage": "https://github.com/B-Commissions/Gantry",
+  "homepage": "https://github.com/BlueBeard63/Gantry",
   "keywords": [
     "gantry",
     "desktop",
