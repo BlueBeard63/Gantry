@@ -145,12 +145,31 @@ func loadDocs() ([]docPage, error) {
 	if len(pages) == 0 {
 		return nil, fmt.Errorf("no docs embedded (build the CLI from the Gantry repo)")
 	}
-	// README first, then category order matching the reading order.
+
+	// Fold in installed-module docs. Best-effort: the framework docs must still
+	// serve if a module's cache is unreadable.
+	if mods, err := moduleDocPages(); err != nil {
+		warn("skipping module docs: %v", err)
+	} else {
+		pages = append(pages, mods...)
+	}
+
+	// README first, then the framework reading order; installed modules sort
+	// after (rank 100), grouped by namespace.
 	rank := map[string]int{"": 0, "getting-started": 1, "shell": 2, "ui": 3, "mobile": 4, "testing": 5, "cli": 6, "advanced": 7}
+	rankOf := func(cat string) int {
+		if r, ok := rank[cat]; ok {
+			return r
+		}
+		return 100
+	}
 	sort.SliceStable(pages, func(i, j int) bool {
-		ri, rj := rank[pages[i].category], rank[pages[j].category]
+		ri, rj := rankOf(pages[i].category), rankOf(pages[j].category)
 		if ri != rj {
 			return ri < rj
+		}
+		if pages[i].category != pages[j].category {
+			return pages[i].category < pages[j].category
 		}
 		return pages[i].path < pages[j].path
 	})

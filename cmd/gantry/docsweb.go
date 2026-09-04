@@ -138,6 +138,14 @@ func newDocsSite(pages []docPage, aiOn bool) (*docsSite, error) {
 		return nil, fmt.Errorf("parsing docs manifest: %w", err)
 	}
 
+	// Append one sidebar category per installed module. Best-effort: a bad
+	// module registry must not break the framework docs.
+	if cats, err := moduleNavCategories(); err != nil {
+		warn("skipping module docs nav: %v", err)
+	} else {
+		mf.Categories = append(mf.Categories, cats...)
+	}
+
 	tmpl, err := template.New("docs").Parse(docsShellHTML)
 	if err != nil {
 		return nil, err
@@ -200,6 +208,12 @@ func newDocsSite(pages []docPage, aiOn bool) (*docsSite, error) {
 		rp, err := renderDocPage(md, p)
 		if err != nil {
 			return nil, fmt.Errorf("rendering %s: %w", p.path, err)
+		}
+		// Never let a module page (appended after the core pages) shadow a
+		// framework route.
+		if _, dup := site.pages[rp.Route]; dup {
+			warn("skipping duplicate doc route %s (from %s)", rp.Route, p.path)
+			continue
 		}
 		if t := navTitle[p.path]; t != "" {
 			rp.PageTitle = t
