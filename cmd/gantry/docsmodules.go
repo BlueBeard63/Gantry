@@ -90,6 +90,34 @@ func moduleDocPages() ([]docPage, error) {
 	return pages, nil
 }
 
+// moduleDocAssets returns each installed module's non-markdown docs files
+// (images) keyed by their namespaced route, so the viewer can serve them.
+func moduleDocAssets() (map[string][]byte, error) {
+	mods, err := installedDocModules()
+	if err != nil {
+		return nil, err
+	}
+	out := map[string][]byte{}
+	for _, m := range mods {
+		dirFS := os.DirFS(m.docsDir)
+		err := fs.WalkDir(dirFS, ".", func(p string, d fs.DirEntry, err error) error {
+			if err != nil || d.IsDir() || strings.HasSuffix(p, ".md") || p == "manifest.json" {
+				return err
+			}
+			b, rerr := fs.ReadFile(dirFS, p)
+			if rerr != nil {
+				return rerr
+			}
+			out["/"+m.entry.Namespace+"/"+p] = b
+			return nil
+		})
+		if err != nil {
+			return nil, err
+		}
+	}
+	return out, nil
+}
+
 // moduleNavCategories builds one sidebar category per module: from its
 // docs/manifest.json when present (entries, or categories flattened to
 // groups), else derived from the folder layout.

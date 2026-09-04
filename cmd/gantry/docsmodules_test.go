@@ -1,6 +1,8 @@
 package main
 
 import (
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"strings"
@@ -148,5 +150,52 @@ func TestModuleNamespaceFilter(t *testing.T) {
 	hits := retrieveFrom(site.aiDocsIn("whitegantry"), "setup install wire", 5)
 	if len(hits) == 0 || !strings.HasPrefix(hits[0].Route, "/whitegantry/") {
 		t.Errorf("scoped search did not return a whitegantry page: %+v", hits)
+	}
+}
+
+func TestDocsServesImages(t *testing.T) {
+	setupFakeModule(t)
+
+	// Drop an image into the module's cached docs so the module-asset path
+	// has something to serve.
+	cacheDir, err := modulesCacheDir()
+	if err != nil {
+		t.Fatal(err)
+	}
+	svg := `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10"></svg>`
+	mustWrite(t, filepath.Join(cacheDir, "whitegantry@v0.2.0", "docs", "diagram.svg"), svg)
+
+	pages, err := loadDocs()
+	if err != nil {
+		t.Fatalf("loadDocs: %v", err)
+	}
+	site, err := newDocsSite(pages, false)
+	if err != nil {
+		t.Fatalf("newDocsSite: %v", err)
+	}
+
+	// Framework SVG is embedded and registered as an asset.
+	if _, ok := site.assets["/cli/modules-flow.svg"]; !ok {
+		t.Error("framework asset /cli/modules-flow.svg not registered")
+	}
+	// Module SVG is namespaced and registered.
+	if got := string(site.assets["/whitegantry/diagram.svg"]); got != svg {
+		t.Errorf("module asset content = %q", got)
+	}
+
+	// The handler serves both with the right content type.
+	h := site.handler()
+	for _, route := range []string{"/cli/modules-flow.svg", "/whitegantry/diagram.svg"} {
+		rr := httptest.NewRecorder()
+		h.ServeHTTP(rr, httptest.NewRequest(http.MethodGet, route, nil))
+		if rr.Code != http.StatusOK {
+			t.Errorf("%s: status %d", route, rr.Code)
+		}
+		if ct := rr.Header().Get("Content-Type"); ct != "image/svg+xml" {
+			t.Errorf("%s: content-type %q, want image/svg+xml", route, ct)
+		}
+		if rr.Body.Len() == 0 {
+			t.Errorf("%s: empty body", route)
+		}
 	}
 }

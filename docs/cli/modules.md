@@ -4,6 +4,8 @@ Gantry modules are out-of-tree Go modules that extend the framework. A module ca
 
 The first module to reach for is [WhiteGantry](https://github.com/BlueBeard63/WhiteGantry), which lets a Gantry app integrate with the WhiteFlower desktop.
 
+![Installing a Gantry module builds its provider, which registers the module and caches its docs; gantry docs and its MCP then serve those alongside the framework docs.](modules-flow.svg)
+
 ## gantry module install
 
 Installs a module: it fetches or builds the module's provider command, reads what the module offers, registers it, and caches its docs so they show up in `gantry docs`. When the module ships a library and you run the command inside an app, it offers to add that library to your `go.mod`.

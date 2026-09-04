@@ -169,7 +169,8 @@ header {
 }
 .markdown th, .markdown td { border:1px solid var(--border); padding:7px 12px; text-align:left; }
 .markdown th { background:var(--surface); font-weight:600; }
-.markdown img { max-width:100%; }
+.markdown img { max-width:100%; height:auto; }
+.markdown img[src$=".svg"] { display:block; margin:20px auto; border:1px solid var(--border); border-radius:8px; }
 .markdown hr { border:none; border-top:1px solid var(--border); margin:28px 0; }
 
 /* toc */

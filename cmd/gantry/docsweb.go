@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"html/template"
+	"io/fs"
 	"net"
 	"net/http"
 	"path"
@@ -74,6 +75,7 @@ type docsSite struct {
 	tmpl         *template.Template
 	manifest     docsManifest
 	pages        map[string]renderedPage
+	assets       map[string][]byte // inline image assets (svg/png) by route
 	firstRoute   string
 	version      string
 	searchJSON   []byte
@@ -237,6 +239,26 @@ func newDocsSite(pages []docPage, aiOn bool) (*docsSite, error) {
 			Raw:      p.raw,
 			Plain:    strings.ToLower(rp.plain),
 		})
+	}
+
+	// Inline image assets (SVGs) served by route: the framework-embedded ones
+	// plus any installed module's cached images (best-effort for modules).
+	site.assets = map[string][]byte{}
+	_ = fs.WalkDir(docs.FS, ".", func(p string, d fs.DirEntry, err error) error {
+		if err != nil || d.IsDir() || strings.HasSuffix(p, ".md") || p == "manifest.json" {
+			return err
+		}
+		if b, err := docs.FS.ReadFile(p); err == nil {
+			site.assets["/"+p] = b
+		}
+		return nil
+	})
+	if ma, err := moduleDocAssets(); err != nil {
+		warn("skipping module docs images: %v", err)
+	} else {
+		for k, v := range ma {
+			site.assets[k] = v
+		}
 	}
 
 	// Compact index of every page, always sent to the assistant so it can
@@ -555,6 +577,11 @@ func (s *docsSite) handler() http.Handler {
 			http.Redirect(w, r, s.firstRoute, http.StatusFound)
 			return
 		}
+		if b, ok := s.assets[r.URL.Path]; ok {
+			w.Header().Set("Content-Type", assetContentType(r.URL.Path))
+			_, _ = w.Write(b)
+			return
+		}
 		rp, ok := s.pages[r.URL.Path]
 		if !ok {
 			http.NotFound(w, r)
@@ -587,4 +614,20 @@ type searchDoc struct {
 	Route    string `json:"route"`
 	Category string `json:"category"`
 	Text     string `json:"text"`
+}
+
+// assetContentType maps an image asset route to its MIME type.
+func assetContentType(p string) string {
+	switch {
+	case strings.HasSuffix(p, ".svg"):
+		return "image/svg+xml"
+	case strings.HasSuffix(p, ".png"):
+		return "image/png"
+	case strings.HasSuffix(p, ".jpg"), strings.HasSuffix(p, ".jpeg"):
+		return "image/jpeg"
+	case strings.HasSuffix(p, ".gif"):
+		return "image/gif"
+	default:
+		return "application/octet-stream"
+	}
 }
