@@ -9,6 +9,7 @@ import (
 	"net"
 	"net/http"
 	"path"
+	"regexp"
 	"strings"
 
 	chromahtml "github.com/alecthomas/chroma/v2/formatters/html"
@@ -202,6 +203,27 @@ func newDocsSite(pages []docPage, aiOn bool) (*docsSite, error) {
 		aiCfg:        newAIConfig(),
 	}
 
+	// Inline image assets (SVGs) by route: the framework-embedded ones plus any
+	// installed module's cached images (best-effort for modules). Built before
+	// the pages loop so page rendering can inline them.
+	site.assets = map[string][]byte{}
+	_ = fs.WalkDir(docs.FS, ".", func(p string, d fs.DirEntry, err error) error {
+		if err != nil || d.IsDir() || strings.HasSuffix(p, ".md") || p == "manifest.json" {
+			return err
+		}
+		if b, err := docs.FS.ReadFile(p); err == nil {
+			site.assets["/"+p] = b
+		}
+		return nil
+	})
+	if ma, err := moduleDocAssets(); err != nil {
+		warn("skipping module docs images: %v", err)
+	} else {
+		for k, v := range ma {
+			site.assets[k] = v
+		}
+	}
+
 	// Pre-render every embedded page. Pages not named in the manifest
 	// (e.g. README.md) still render and are reachable by route; they just
 	// have no nav row.
@@ -225,6 +247,8 @@ func newDocsSite(pages []docPage, aiOn bool) (*docsSite, error) {
 		} else {
 			rp.CategoryTitle = catTitle[p.category]
 		}
+		// Inline any diagram SVGs so they inherit the page theme (light/dark).
+		rp.Body = template.HTML(inlineDiagrams(string(rp.Body), rp.Route, site.assets)) //nolint:gosec // svg from our own embedded/cached assets
 		site.pages[rp.Route] = rp
 		searchDocs = append(searchDocs, searchDoc{
 			Title:    rp.PageTitle,
@@ -239,26 +263,6 @@ func newDocsSite(pages []docPage, aiOn bool) (*docsSite, error) {
 			Raw:      p.raw,
 			Plain:    strings.ToLower(rp.plain),
 		})
-	}
-
-	// Inline image assets (SVGs) served by route: the framework-embedded ones
-	// plus any installed module's cached images (best-effort for modules).
-	site.assets = map[string][]byte{}
-	_ = fs.WalkDir(docs.FS, ".", func(p string, d fs.DirEntry, err error) error {
-		if err != nil || d.IsDir() || strings.HasSuffix(p, ".md") || p == "manifest.json" {
-			return err
-		}
-		if b, err := docs.FS.ReadFile(p); err == nil {
-			site.assets["/"+p] = b
-		}
-		return nil
-	})
-	if ma, err := moduleDocAssets(); err != nil {
-		warn("skipping module docs images: %v", err)
-	} else {
-		for k, v := range ma {
-			site.assets[k] = v
-		}
 	}
 
 	// Compact index of every page, always sent to the assistant so it can
@@ -614,6 +618,31 @@ type searchDoc struct {
 	Route    string `json:"route"`
 	Category string `json:"category"`
 	Text     string `json:"text"`
+}
+
+var docImgRe = regexp.MustCompile(`<img\b[^>]*>`)
+var imgSrcRe = regexp.MustCompile(`\bsrc="([^"]*)"`)
+
+// inlineDiagrams replaces <img> tags that point at an SVG asset with the SVG
+// inlined into the page, tagged `class="diagram"`. Inlining (rather than a
+// plain <img>) lets the diagram inherit the page's theme, so it follows the
+// light/dark toggle. Non-SVG images and unknown sources are left untouched.
+func inlineDiagrams(html, pageRoute string, assets map[string][]byte) string {
+	dir := path.Dir(pageRoute)
+	return docImgRe.ReplaceAllStringFunc(html, func(tag string) string {
+		m := imgSrcRe.FindStringSubmatch(tag)
+		if m == nil || !strings.HasSuffix(m[1], ".svg") {
+			return tag
+		}
+		route := m[1]
+		if !strings.HasPrefix(route, "/") {
+			route = path.Clean(path.Join(dir, route))
+		}
+		if svg, ok := assets[route]; ok {
+			return strings.Replace(string(svg), "<svg ", `<svg class="diagram" `, 1)
+		}
+		return tag
+	})
 }
 
 // assetContentType maps an image asset route to its MIME type.
