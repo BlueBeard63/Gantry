@@ -14,6 +14,7 @@ import (
 	"os/exec"
 	"path"
 	"path/filepath"
+	"runtime"
 	"sort"
 	"strings"
 	"text/tabwriter"
@@ -174,8 +175,21 @@ func cmdModuleInstall(args []string) error {
 		return err
 	}
 	if fs.NArg() != 1 {
-		return errors.New("usage: gantry module install <source>[@version]")
+		return errors.New("usage: gantry module install <module>[@version] | <local-dir>")
 	}
+	pm := projectMode(*project, *noProject)
+
+	// A local module directory builds from source (honoring go.mod replace), so
+	// authors can install and preview a module before publishing it.
+	if isLocalSource(fs.Arg(0)) {
+		return installModule(installOpts{
+			source:      fs.Arg(0),
+			projectMode: pm,
+			reinstall:   *reinstall,
+			local:       true,
+		})
+	}
+
 	source, reqVersion := splitSourceVersion(fs.Arg(0))
 	if *versionFlag != "" {
 		reqVersion = *versionFlag
@@ -183,8 +197,6 @@ func cmdModuleInstall(args []string) error {
 	if reqVersion == "" {
 		reqVersion = "latest"
 	}
-
-	pm := projectMode(*project, *noProject)
 	return installModule(installOpts{
 		source:         source,
 		reqVersion:     reqVersion,
@@ -200,6 +212,7 @@ type installOpts struct {
 	projectMode    string // "prompt" | "yes" | "no"
 	reinstall      bool
 	offerGoprivate bool
+	local          bool // source is a local module directory (go build, honors replace)
 }
 
 func installModule(o installOpts) error {
@@ -220,7 +233,12 @@ func installModule(o installOpts) error {
 	}
 	defer os.RemoveAll(staging)
 
-	stagedBin, err := goInstallProvider(o, staging)
+	var stagedBin string
+	if o.local {
+		stagedBin, err = goBuildLocalProvider(o.source, staging)
+	} else {
+		stagedBin, err = goInstallProvider(o, staging)
+	}
 	if err != nil {
 		return err
 	}
@@ -230,18 +248,29 @@ func installModule(o installOpts) error {
 	if err != nil {
 		return fmt.Errorf("installed %s but it is not a Gantry module: %w", o.source, err)
 	}
-	if manifest.Module != "" && manifest.Module != o.source {
+	// The real import path comes from the manifest: for a remote install it should
+	// match the source; for a local build the source is a directory.
+	moduleID := manifest.Module
+	if moduleID == "" {
+		moduleID = o.source
+	}
+	if !o.local && manifest.Module != "" && manifest.Module != o.source {
 		warn("manifest module path %q differs from the installed source %q", manifest.Module, o.source)
 	}
 
-	version := resolveVersion(o.source, o.reqVersion, manifest.Version)
+	version := manifest.Version
+	if !o.local {
+		version = resolveVersion(o.source, o.reqVersion, manifest.Version)
+	} else if version == "" {
+		version = "(local)"
+	}
 
 	reg, err := loadRegistry()
 	if err != nil {
 		return err
 	}
 	for _, m := range reg.Modules {
-		if m.Namespace == manifest.Namespace && m.Module != o.source {
+		if m.Namespace == manifest.Namespace && m.Module != moduleID {
 			return fmt.Errorf("namespace %q is already used by %s - uninstall it first", manifest.Namespace, m.Module)
 		}
 	}
@@ -283,7 +312,7 @@ func installModule(o installOpts) error {
 	entry := moduleEntry{
 		Namespace:   manifest.Namespace,
 		Title:       manifest.Title,
-		Module:      o.source,
+		Module:      moduleID,
 		Version:     version,
 		Binary:      finalBin,
 		Provides:    provides,
@@ -361,6 +390,61 @@ func providerCandidates(source string) []string {
 }
 
 func providerSuffixes() []string { return []string{"/gantrymod", "/cmd/<name>", " (root)"} }
+
+// isLocalSource reports whether the install argument names a local module
+// directory rather than a remote module path.
+func isLocalSource(s string) bool {
+	if s == "." || strings.HasPrefix(s, "./") || strings.HasPrefix(s, "../") ||
+		strings.HasPrefix(s, "/") || strings.HasPrefix(s, "~") {
+		return true
+	}
+	fi, err := os.Stat(s)
+	return err == nil && fi.IsDir()
+}
+
+// goBuildLocalProvider builds the provider from a local module directory into
+// staging, honoring the module's go.mod (including replace directives) so an
+// author can install a module before it is published. Same candidate order as a
+// remote install.
+func goBuildLocalProvider(dir, staging string) (string, error) {
+	abs, err := filepath.Abs(expandHome(dir))
+	if err != nil {
+		return "", err
+	}
+	if _, err := os.Stat(filepath.Join(abs, "go.mod")); err != nil {
+		return "", fmt.Errorf("%s is not a Go module (no go.mod)", abs)
+	}
+	out := filepath.Join(staging, "provider")
+	if runtime.GOOS == "windows" {
+		out += ".exe"
+	}
+	candidates := []string{"./gantrymod", "./cmd/" + filepath.Base(abs), "."}
+	var lastErr error
+	for _, rel := range candidates {
+		if rel != "." {
+			if _, err := os.Stat(filepath.Join(abs, filepath.FromSlash(strings.TrimPrefix(rel, "./")))); err != nil {
+				continue
+			}
+		}
+		step("go build %s (in %s)", rel, abs)
+		if outText, err := runGo(abs, os.Environ(), "build", "-o", out, rel); err == nil {
+			return out, nil
+		} else {
+			lastErr = fmt.Errorf("%v\n%s", err, strings.TrimSpace(outText))
+		}
+	}
+	return "", fmt.Errorf("no buildable provider command in %s (tried gantrymod, cmd/<name>, root): %w", abs, lastErr)
+}
+
+// expandHome resolves a leading ~ to the user's home directory.
+func expandHome(p string) string {
+	if p == "~" || strings.HasPrefix(p, "~/") {
+		if home, err := os.UserHomeDir(); err == nil {
+			return filepath.Join(home, strings.TrimPrefix(strings.TrimPrefix(p, "~"), "/"))
+		}
+	}
+	return p
+}
 
 // --- provider contract ------------------------------------------------------
 

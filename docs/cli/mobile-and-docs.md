@@ -50,7 +50,7 @@ The left pane holds a search box and the category tree, the right pane the page.
 
 ### The MCP server
 
-`gantry docs --mcp` runs a local [Model Context Protocol](https://modelcontextprotocol.io) server over stdin/stdout instead of opening a viewer, so a coding agent working on a Gantry project can pull these docs for reference. It exposes three tools over the same embedded pages - `search_docs` (rank pages by a query), `read_doc` (the full markdown of a page by its route), and `list_docs` (the whole index). It needs **no network and no authentication**: the agent spawns `gantry docs --mcp` as a subprocess and talks to it directly over the pipe. Add it once to Claude Code with:
+`gantry docs --mcp` runs a local [Model Context Protocol](https://modelcontextprotocol.io) server over stdin/stdout instead of opening a viewer, so a coding agent working on a Gantry project can pull these docs for reference. It exposes three tools over the same embedded pages - `search_docs` (rank pages by a query), `read_doc` (the full markdown of a page by its route), and `list_docs` (the whole index). Any modules you have installed (see [Module commands](modules.md)) are part of the same corpus, so `search_docs` and `list_docs` return their pages alongside the framework docs; pass an optional `namespace` argument to either tool to scope it to one module. It needs **no network and no authentication**: the agent spawns `gantry docs --mcp` as a subprocess and talks to it directly over the pipe. Add it once to Claude Code with:
 
 ```
 claude mcp add gantry-docs -- gantry docs --mcp
