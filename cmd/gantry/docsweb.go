@@ -28,7 +28,7 @@ import (
 // serveDocsWeb renders the embedded docs to HTML, serves them from a
 // loopback port, and opens the browser. It is the default for
 // `gantry docs`; the terminal viewer stays reachable behind -tui.
-func serveDocsWeb(pages []docPage, start int, aiOn bool) error {
+func serveDocsWeb(pages []docPage, start int, aiOn bool, port int) error {
 	site, err := newDocsSite(pages, aiOn)
 	if err != nil {
 		return err
@@ -41,12 +41,18 @@ func serveDocsWeb(pages []docPage, start int, aiOn bool) error {
 		go ensureOllamaModel(site.aiCfg)
 	}
 
-	ln, err := launch.Listen(0) // 0 -> the OS hands us a free loopback port
+	// Prefer the requested (stable) port so the URL stays put across runs; fall
+	// back to an ephemeral port only if it is taken (e.g. another docs viewer).
+	ln, err := launch.Listen(port)
+	if err != nil && port != 0 {
+		info("docs port %d is busy - using an ephemeral port instead", port)
+		ln, err = launch.Listen(0)
+	}
 	if err != nil {
 		return err
 	}
-	port := ln.Addr().(*net.TCPAddr).Port
-	base := fmt.Sprintf("http://127.0.0.1:%d", port)
+	actualPort := ln.Addr().(*net.TCPAddr).Port
+	base := fmt.Sprintf("http://127.0.0.1:%d", actualPort)
 
 	// If a topic was matched, deep-link straight to that page.
 	openURL := base + site.firstRoute

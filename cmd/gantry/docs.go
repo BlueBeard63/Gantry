@@ -34,6 +34,7 @@ func cmdDocs(args []string) error {
 	frameSize := fs.String("size", "", "WxH to force the -frame size, e.g. 188x41 (when redirecting to a file)")
 	ai := fs.Bool("ai", false, "enable the on-device docs assistant (agent CLI like Claude Code/Codex if installed, else a local model)")
 	mcpMode := fs.Bool("mcp", false, "run a stdio MCP server exposing the docs (search_docs/read_doc/list_docs) - no auth; add with: claude mcp add gantry-docs -- gantry docs --mcp")
+	port := fs.Int("port", 8331, "port for the docs web viewer, so the URL stays stable across runs (0 picks an ephemeral port)")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
@@ -64,7 +65,7 @@ func cmdDocs(args []string) error {
 
 	// The web viewer is the default; -tui keeps the terminal browser.
 	if !*tui {
-		return serveDocsWeb(pages, start, *ai)
+		return serveDocsWeb(pages, start, *ai, *port)
 	}
 
 	m := newDocsModel(pages, start)
